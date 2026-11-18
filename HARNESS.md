@@ -13,6 +13,8 @@ internal/archtest/           tested AST import/layer sensors, including tagged s
 soap.go, soap_test.go        named module, constructor lifecycle, explicit unavailable APIs
 test/AGENTS.md              runtime/interop fixture rules
 test/smoke.js               actual custom-k6 positive and negative runtime probe
+test/fixture/              bounded synthetic SOAP HTTP server and capture
+test/e2e/                  bounded subprocess runner and raw SOAP k6 script
 Makefile, .go-version        canonical commands and exact tool versions
 scripts/                    smoke runner and non-destructive hook installer
 .githooks/pre-commit         local fast delivery checks (opt-in)
@@ -54,6 +56,7 @@ possible. Remove guidance that duplicates an effective check.
 | `make build` | All module packages compile | Local/CI |
 | `make verify` | All of the preceding non-mutating checks | Pre-commit/CI quality |
 | `make smoke` | Pinned xk6 builds a binary; valid runtime succeeds and forced failed check exits 99 | CI runtime |
+| `make e2e` | Real k6 HTTP fixture scenarios and exact exit-99 negative control | CI runtime |
 | `make vuln` | govulncheck source and the actual custom k6 binary | CI vulnerabilities; online database |
 
 Actionlint validates workflow structure/expressions; optional ambient ShellCheck/Pyflakes

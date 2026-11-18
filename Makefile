@@ -8,9 +8,9 @@ GOVULNCHECK_VERSION := v1.10.0
 XK6_VERSION := v1.5.1
 ACTIONLINT_VERSION := v1.7.12
 
-.PHONY: help tools fmt lint arch test build verify smoke vuln hooks test-hooks deps
+.PHONY: help tools fmt lint arch test build verify smoke vuln hooks test-hooks deps e2e
 help:
-	@printf '%s\n' 'make tools   Install pinned verification tools' 'make fmt     Format Go source' 'make verify  Format, architecture, vet, staticcheck, race tests, build' 'make smoke   Build custom k6 and run positive/negative smoke tests' 'make vuln    Scan source and custom k6 binary (online advisory DB)' 'make hooks   Install opt-in pre-commit hook without replacing existing hooks'
+	@printf '%s\n' 'make tools   Install pinned verification tools' 'make fmt     Format Go source' 'make verify  Format, architecture, vet, staticcheck, race tests, build' 'make e2e     Run local SOAP HTTP fixtures with real k6' 'make smoke   Build custom k6 and run positive/negative smoke tests' 'make vuln    Scan source and custom k6 binary (online advisory DB)' 'make hooks   Install opt-in pre-commit hook without replacing existing hooks'
 
 tools: $(TOOLS)/staticcheck $(TOOLS)/govulncheck $(TOOLS)/xk6 $(TOOLS)/actionlint
 $(TOOLS)/staticcheck: Makefile .go-version
@@ -60,3 +60,6 @@ vuln: $(TOOLS)/govulncheck build-k6
 	$(TOOLS)/govulncheck -mode=binary bin/k6
 hooks:
 	sh scripts/install-hooks.sh
+
+e2e: build-k6
+	go test -race -tags=e2e ./test/e2e -count=1 -timeout=60s
