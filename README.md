@@ -52,3 +52,7 @@ waits/reaps each child, caps diagnostics at 32 KiB, and enforces a 30-second max
 per process (15 seconds in the HTTP cases), plus a one-second pipe cleanup bound.
 No temporary script or server process is created. Expected transport warnings for
 `/delay` and `/disconnect` are asserted as k6 status 0, not ignored failures.
+
+The internal [plain message boundary](docs/message-boundary.md) now provides bounded
+SOAP structure validation and raw-envelope generation for the upcoming JS bindings.
+It does not yet enable public Client build/parse methods.
