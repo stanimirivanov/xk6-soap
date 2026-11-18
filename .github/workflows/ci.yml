@@ -35,7 +35,7 @@ jobs:
         with:
           go-version-file: .go-version
           cache: true
-      - run: make smoke
+      - run: make smoke e2e
   vulnerabilities:
     name: vulnerabilities
     runs-on: ubuntu-24.04
