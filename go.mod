@@ -5,7 +5,7 @@ go 1.27.4
 require (
 	github.com/grafana/sobek v0.0.0-20260908083152-4698bc773ae7
 	go.k6.io/k6/v2 v2.3.0
-	golang.org/x/mod v0.42.0
+	golang.org/x/mod v0.43.0
 )
 
 require (
