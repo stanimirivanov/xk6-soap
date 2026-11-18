@@ -1,0 +1,6 @@
+/.tools/
+/bin/
+*.out
+.env
+.env.*
+!.env.example

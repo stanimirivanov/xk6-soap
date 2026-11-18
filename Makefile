@@ -1,0 +1,62 @@
+SHELL := /bin/sh
+.DEFAULT_GOAL := help
+export GOTOOLCHAIN := go$(shell cat .go-version)
+export GOFLAGS := -mod=readonly
+TOOLS := $(CURDIR)/.tools/bin
+STATICCHECK_VERSION := v0.8.2
+GOVULNCHECK_VERSION := v1.10.0
+XK6_VERSION := v1.5.1
+ACTIONLINT_VERSION := v1.7.12
+
+.PHONY: help tools fmt lint arch test build verify smoke vuln hooks test-hooks deps
+help:
+	@printf '%s\n' 'make tools   Install pinned verification tools' 'make fmt     Format Go source' 'make verify  Format, architecture, vet, staticcheck, race tests, build' 'make smoke   Build custom k6 and run positive/negative smoke tests' 'make vuln    Scan source and custom k6 binary (online advisory DB)' 'make hooks   Install opt-in pre-commit hook without replacing existing hooks'
+
+tools: $(TOOLS)/staticcheck $(TOOLS)/govulncheck $(TOOLS)/xk6 $(TOOLS)/actionlint
+$(TOOLS)/staticcheck: Makefile .go-version
+	@mkdir -p $(TOOLS)
+	GOBIN=$(TOOLS) go install honnef.co/go/tools/cmd/staticcheck@$(STATICCHECK_VERSION)
+$(TOOLS)/govulncheck: Makefile .go-version
+	@mkdir -p $(TOOLS)
+	GOBIN=$(TOOLS) go install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
+$(TOOLS)/xk6: Makefile .go-version
+	@mkdir -p $(TOOLS)
+	GOBIN=$(TOOLS) go install go.k6.io/xk6/cmd/xk6@$(XK6_VERSION)
+
+$(TOOLS)/actionlint: Makefile .go-version
+	@mkdir -p $(TOOLS)
+	GOBIN=$(TOOLS) go install github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_VERSION)
+
+fmt:
+	gofmt -w $$(git ls-files --cached --others --exclude-standard '*.go')
+lint: $(TOOLS)/staticcheck $(TOOLS)/actionlint
+	@files=$$(gofmt -l $$(git ls-files --cached --others --exclude-standard '*.go')); if [ -n "$$files" ]; then printf 'Run make fmt:\n%s\n' "$$files"; exit 1; fi
+	go vet ./...
+	$(TOOLS)/staticcheck ./...
+	$(TOOLS)/actionlint -shellcheck= -pyflakes=
+	@for script in scripts/*.sh .githooks/pre-commit; do sh -n "$$script"; done
+arch:
+	go test ./internal/archtest -count=1
+test:
+	go test -race ./...
+build:
+	go build ./...
+test-hooks:
+	sh scripts/test-hooks.sh
+deps:
+	go mod tidy -diff
+	go mod verify
+verify: lint arch test build test-hooks deps
+
+# Always rebuild: changes in any source or pin must be reflected in smoke tests.
+.PHONY: build-k6
+build-k6: $(TOOLS)/xk6
+	@mkdir -p bin
+	GOFLAGS= $(TOOLS)/xk6 build $$(go list -m -f '{{.Version}}' go.k6.io/k6/v2) --with github.com/stanimirivanov/xk6-soap=. --output bin/k6
+smoke: build-k6
+	sh scripts/smoke.sh
+vuln: $(TOOLS)/govulncheck build-k6
+	$(TOOLS)/govulncheck ./...
+	$(TOOLS)/govulncheck -mode=binary bin/k6
+hooks:
+	sh scripts/install-hooks.sh
