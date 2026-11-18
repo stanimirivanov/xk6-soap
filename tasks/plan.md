@@ -30,7 +30,7 @@ PR-11 through PR-24 crypto paths transitively require CP-K via explicit dependen
 
 | ID | Proposed issue title | Dependencies | Estimated scope |
 | --- | --- | --- | --- |
-| 1 | PR-1: Pin toolchain and establish the k6 module harness | none | Medium |
+| 1 | [PR-1: Pin toolchain and establish the k6 module harness](https://github.com/stanimirivanov/xk6-soap/issues/7) | none | Medium |
 | 2 | PR-2: Add a deterministic SOAP E2E harness | 1 | Medium |
 | 3 | PR-3: Implement bounded SOAP parsing and payload contracts | 1 | Medium |
 | 4 | PR-4: Deliver plain build and parse with faults and XPath | 2, 3 | Medium |
@@ -63,6 +63,8 @@ Medium means one cohesive contract and its tests, usually 3–5 production/harne
 ## Task requirements and acceptance
 
 ### PR-1: Pin toolchain and establish the k6 module harness
+
+Scaffold delivered in PR #4; remaining runtime probes and [ADR-0001](../docs/adr/0001-k6-runtime-contract.md) tracked in issue #7.
 
 - **Scope/files:** `go.mod`, `soap.go`, runtime smoke tests, Makefile, CI configuration. Candidate k6 v2.3.0; select exact compatible Go patch and xk6/lint/vulnerability-tool pins. Probe constructor, ArrayBuffer conversion, init/execution contexts and metric registration now.
 - **Acceptance:** named Client construction runs through Sobek and custom k6; lifecycle probes settle actual behavior; CI can build and run race/lint/vulnerability checks. A temporary constructor may exist only as a non-release scaffold, with unsupported methods failing explicitly.
