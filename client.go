@@ -7,12 +7,15 @@ import (
 
 	"github.com/grafana/sobek"
 	"github.com/stanimirivanov/xk6-soap/internal/message"
+	"github.com/stanimirivanov/xk6-soap/internal/wssec"
 )
 
 type clientConfig struct {
 	url, version string
 	limits       message.Limits
 	keys         *clientKeys
+	policy       wssec.Policy
+	debug        bool
 }
 
 func (i *instance) throw(code, stage string) {
@@ -23,10 +26,13 @@ func (i *instance) throw(code, stage string) {
 }
 func (i *instance) object(value sobek.Value, allowed ...string) *sobek.Object {
 	obj, ok := value.(*sobek.Object)
-	if !ok || obj.ClassName() != "Object" {
+	if !ok || obj.ClassName() != "Object" || len(obj.Symbols()) != 0 {
 		i.throw("INVALID_ARGUMENT", "options")
 	}
-	for _, key := range obj.Keys() {
+	if proto := obj.Prototype(); proto != nil && proto != i.vu.Runtime().NewObject().Prototype() {
+		i.throw("INVALID_ARGUMENT", "options")
+	}
+	for _, key := range obj.GetOwnPropertyNames() {
 		found := false
 		for _, name := range allowed {
 			if key == name {
@@ -79,8 +85,9 @@ func (i *instance) newClient(call sobek.ConstructorCall) *sobek.Object {
 	if len(call.Arguments) != 1 {
 		i.throw("INVALID_ARGUMENT", "constructor")
 	}
+	start := time.Now()
 	cfg := clientConfig{version: "1.1"}
-	options := i.object(call.Argument(0), "url", "soapVersion", "limits", "debug", "keys")
+	options := i.object(call.Argument(0), "url", "soapVersion", "limits", "debug", "keys", "security")
 	cfg.url = i.text(options.Get("url"))
 	parsed, err := url.Parse(cfg.url)
 	if err != nil || parsed.Hostname() == "" || parsed.Scheme != "http" && parsed.Scheme != "https" || parsed.User != nil || parsed.Fragment != "" {
@@ -93,9 +100,11 @@ func (i *instance) newClient(call sobek.ConstructorCall) *sobek.Object {
 		}
 	}
 	if value := options.Get("debug"); !absent(value) {
-		if enabled, ok := value.Export().(bool); !ok || enabled {
+		enabled, ok := value.Export().(bool)
+		if !ok {
 			i.throw("INVALID_ARGUMENT", "debug")
 		}
+		cfg.debug = enabled
 	}
 	if value := options.Get("limits"); !absent(value) {
 		limits := i.object(value, "bytes", "depth", "nodes", "attributes")
@@ -115,6 +124,20 @@ func (i *instance) newClient(call sobek.ConstructorCall) *sobek.Object {
 	}
 	if value := options.Get("keys"); !absent(value) {
 		cfg.keys = i.decodeKeys(value)
+	}
+	cfg.policy, err = wssec.CompilePolicy(i.decodeSecurity(options), cfg.keys.policyMaterial(), time.Now())
+	if err != nil {
+		i.diagnostic(cfg.debug, "constructor", start, wssec.Policy{}, err.Error())
+		i.throw(err.Error(), "security")
+	}
+	err = cfg.policy.RequireAvailable()
+	code := "OK"
+	if err != nil {
+		code = err.Error()
+	}
+	i.diagnostic(cfg.debug, "constructor", start, cfg.policy, code)
+	if err != nil {
+		i.throw(err.Error(), "security")
 	}
 	obj := call.This
 	_ = obj.Set("build", func(call sobek.FunctionCall) sobek.Value { return i.build(cfg, call) })
@@ -147,11 +170,14 @@ func (i *instance) build(cfg clientConfig, call sobek.FunctionCall) sobek.Value 
 	request, err := message.Build(operation, payload, message.Options{Version: cfg.version, Action: action, Limits: cfg.limits})
 	if err != nil {
 		failure := err.(*message.Error)
+		i.diagnostic(cfg.debug, "build", start, cfg.policy, failure.Code)
 		i.throw(failure.Code, failure.Stage)
 	}
+	i.diagnostic(cfg.debug, "build", start, cfg.policy, "OK")
 	return i.vu.Runtime().ToValue(map[string]any{"url": cfg.url, "body": request.Body, "headers": request.Headers, "buildDuration": float64(time.Since(start)) / float64(time.Millisecond)})
 }
 func (i *instance) parse(cfg clientConfig, call sobek.FunctionCall) sobek.Value {
+	start := time.Now()
 	i.execution()
 	i.validateKeys(cfg)
 	if len(call.Arguments) != 1 {
@@ -185,7 +211,13 @@ func (i *instance) parse(cfg clientConfig, call sobek.FunctionCall) sobek.Value 
 			}
 		}
 	}
-	return i.parsedValue(message.Parse(status, body, cfg.version, cfg.limits))
+	parsed := message.Parse(status, body, cfg.version, cfg.limits)
+	code := "OK"
+	if parsed.Error != nil {
+		code = parsed.Error.Code
+	}
+	i.diagnostic(cfg.debug, "parse", start, cfg.policy, code)
+	return i.parsedValue(parsed)
 }
 func resultError(err *message.Error) any {
 	if err == nil {

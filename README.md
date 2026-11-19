@@ -68,4 +68,5 @@ RSA Body/Timestamp signing and exact coverage against independent Apache endpoin
 This does not enable public Client signing; encryption/order gating remains PR-7.
 
 Key loading and cache ownership are documented in [Key material and cache](docs/keys.md).
-Keys can be validated at construction; public security policy/message crypto remains planned.
+[Executable policy validation](docs/security-policy.md) rejects enabled unavailable
+security paths at construction; public message crypto remains planned.

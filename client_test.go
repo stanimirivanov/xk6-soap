@@ -49,7 +49,7 @@ func TestPlainClientBindings(t *testing.T) {
 }
 func TestClientOptionValidation(t *testing.T) {
 	rt := clientRuntime(t)
-	js(t, rt.VU.Runtime(), `for(var cfg of [null,{}, {url:'file:///SECRET'}, {url:'https://u:SECRET@example.test'}, {url:'https://example.test',typo:1}, {url:'https://example.test',soapVersion:'2'}, {url:'https://example.test',security:{}}, {url:'https://example.test',limits:{depth:65}}, {url:'https://example.test',limits:{depth:'3'}}, {url:'https://example.test',debug:true}]) {
+	js(t, rt.VU.Runtime(), `for(var cfg of [null,{}, {url:'file:///SECRET'}, {url:'https://u:SECRET@example.test'}, {url:'https://example.test',typo:1}, {url:'https://example.test',soapVersion:'2'}, {url:'https://example.test',securityTypo:{}}, {url:'https://example.test',limits:{depth:65}}, {url:'https://example.test',limits:{depth:'3'}}, {url:'https://example.test',debug:'true'}]) {
  try {new Client(cfg);throw new Error('invalid accepted');} catch(e) {if(e.code!=='INVALID_ARGUMENT'||String(e).includes('SECRET')) throw e;}
  }
  var small=new Client({url:'http://example.test',soapVersion:'1.2',limits:{bytes:20}});`)

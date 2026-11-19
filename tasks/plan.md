@@ -40,7 +40,7 @@ PR-11 through PR-24 crypto paths transitively require CP-K via explicit dependen
 | 6 | [PR-6: Prove candidate signature coverage and serialization](https://github.com/stanimirivanov/xk6-soap/issues/21) | 3, 5 | Medium |
 | 7 | [PR-7: Gate the candidate on both encryption orders](https://github.com/stanimirivanov/xk6-soap/issues/23) | 6 | Medium |
 | 8 | [PR-8: Load and cache validated key material](https://github.com/stanimirivanov/xk6-soap/issues/25) | 1 | Medium |
-| 9 | PR-9: Define executable security policy and option validation | 3, 8 | Medium |
+| 9 | [PR-9: Define executable security policy and option validation](https://github.com/stanimirivanov/xk6-soap/issues/29) | 3, 8 | Medium |
 | 10 | PR-10: Deliver UsernameToken and Timestamp exchanges | 4, 5, 9 | Medium |
 | 11 | PR-11: Build signed SOAP requests with the accepted provider | 7, 10 | Medium |
 | 12 | PR-12: Verify responses against exact coverage and trust | 4, 11 | Medium |

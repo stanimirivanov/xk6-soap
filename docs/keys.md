@@ -7,7 +7,6 @@ verify/decrypt a response. Plain results retain null verification flags.
 ```js
 const client = new Client({url:'https://example.test/service', keys:{
   signing:{cert:open('./signer.pem','b'), key:open('./signer-key.pem','b')},
-  decryption:{pkcs12:open('./recipient.p12','b'), password:__ENV.P12_PASSWORD},
   recipient:{cert:open('./recipient.pem','b')},
   trust:[open('./peer-leaf.pem','b')],
 }});
@@ -18,7 +17,11 @@ filenames, strings and typed-array views are rejected. Signing/decryption requir
 exactly `{cert,key}` or `{pkcs12,password}` (password must be an explicit string,
 including for an empty password). Recipient accepts only `{cert}`. Trust is an
 array of at most eight certificate ArrayBuffers. Missing key roles are permitted;
-policy-to-role requirements belong to the upcoming security policy task.
+[Executable policy](security-policy.md) now enforces role requirements. A public
+decryption key requires explicit receive order, and the requested decryption path
+remains unavailable until its feature task. Supplying a signing/recipient/trust
+key alone still enables no message protection. For PKCS#12 signing input, replace
+`signing` above with `{pkcs12:open('./signer.p12','b'), password:__ENV.P12_PASSWORD}`.
 
 PEM accepts exactly one CERTIFICATE and one unencrypted PKCS#8 PRIVATE KEY,
 PKCS#1 RSA PRIVATE KEY or SEC1 EC PRIVATE KEY. Encrypted PEM, PEM headers,
