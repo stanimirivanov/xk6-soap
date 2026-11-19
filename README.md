@@ -66,3 +66,6 @@ policy settings, Docker requirements and cleanup guarantees.
 The internal [signature kernel gate](docs/adr/0002-signature-kernel.md) now proves
 RSA Body/Timestamp signing and exact coverage against independent Apache endpoints.
 This does not enable public Client signing; encryption/order gating remains PR-7.
+
+Key loading and cache ownership are documented in [Key material and cache](docs/keys.md).
+Keys can be validated at construction; public security policy/message crypto remains planned.
