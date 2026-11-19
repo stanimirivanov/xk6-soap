@@ -1,0 +1,1 @@
+<s:Body xmlns:q="urn:qualified-value" xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" xmlns:wsu="http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd" wsu:Id="body-1"><m:echo xmlns:m="urn:xk6-soap:fixture"><value>synthetic</value><kind>q:Thing</kind></m:echo></s:Body>

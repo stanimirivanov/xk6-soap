@@ -4,8 +4,8 @@ WORKDIR /build
 COPY pom.xml .
 COPY src src
 RUN mvn -B -ntp package dependency:copy-dependencies -DincludeScope=runtime
-COPY generate-keys.sh .
-RUN sh generate-keys.sh /build/test-keys
+COPY generate-keys.sh client-cert.pem ./
+RUN sh generate-keys.sh /build/test-keys && keytool -importcert -noprompt -alias fixture-client -file client-cert.pem -keystore test-keys/server.p12 -storepass fixture-only
 
 FROM maven:3.9-eclipse-temurin-21@sha256:99e61abcff91a9b1333463bd8451fb18495d6eba9250ac66a338b518f8278320
 WORKDIR /fixture

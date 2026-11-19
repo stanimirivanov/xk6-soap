@@ -1,0 +1,1 @@
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" xmlns:m="urn:xk6-soap:fixture" xmlns:q="urn:qualified-value"><s:Body><m:echo><value>synthetic</value><kind>q:Thing</kind></m:echo></s:Body></s:Envelope>

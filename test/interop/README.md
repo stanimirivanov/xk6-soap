@@ -69,8 +69,8 @@ an RSA-2048/SHA256withRSA PKCS#12 identity and public PEM certificate:
 
 `identity.txt` records that build's certificate fingerprint; the exact random key,
 serial and certificate bytes are intentionally not source-controlled or fixed.
-These keys are reserved for future signing/encryption fixture tasks and are not
-used by the current UsernameToken endpoints. Never use them as production trust.
+The server key is used by the signature endpoints. It is not used by UsernameToken
+endpoints. Encryption remains a future fixture task. Never use them as production trust.
 The generator refuses an existing destination and does not overwrite key material.
 
 The runner publishes port 8080 on an ephemeral host **loopback** port. It runs as
@@ -95,3 +95,24 @@ Sources: [CXF WS-Security interceptors](https://cxf.apache.org/docs/ws-security.
 [WSS4J configuration](https://ws.apache.org/wss4j/config.html),
 [CXF 4.2.4 parent pins](https://repo.maven.apache.org/maven2/org/apache/cxf/cxf-parent/4.2.4/cxf-parent-4.2.4.pom),
 and the pinned WSS4J UsernameTokenProcessor source (4.0.2 source JAR on Maven Central).
+
+## Signature gate
+
+`/sig11` and `/sig12` require Timestamp+Signature and exact Body/Timestamp coverage
+through CXF's DefaultCryptoCoverageChecker. Responses are independently signed
+with the generated fixture-server identity, RSA-SHA256, SHA-256 digests, BST direct
+reference and Exclusive C14N/InclusiveNamespaces. The test suite asserts those
+namespace parameters are present, verifies the response in Go and rejects tampering
+and wrong trust.
+
+The runner constructs a temporary build context and imports only
+`internal/wssec/testdata/signing-cert.pem` as the trusted client public certificate
+(alias fixture-client). Its deliberately public test private key stays outside
+the image and is used only by the Go test driver. No production trust roots are
+loaded. The runner copies the generated server public certificate into temporary
+storage for explicit Go pinning, then removes it with other per-run files.
+
+See [ADR-0002](../../docs/adr/0002-signature-kernel.md) for the gate outcome,
+canonical-byte artifacts and remaining PR-7 encryption decision. Independent
+integration tests require the full runner so that endpoint readiness and trust
+material are available; missing fixture inputs are failures, not skipped tests.

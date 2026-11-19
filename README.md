@@ -62,3 +62,7 @@ The public Client bindings use this boundary before response inspection.
 for UsernameToken Digest/Text, timestamps, replay rejection and SOAP faults. See
 [test/interop/README.md](test/interop/README.md) for pins, synthetic identities,
 policy settings, Docker requirements and cleanup guarantees.
+
+The internal [signature kernel gate](docs/adr/0002-signature-kernel.md) now proves
+RSA Body/Timestamp signing and exact coverage against independent Apache endpoints.
+This does not enable public Client signing; encryption/order gating remains PR-7.
