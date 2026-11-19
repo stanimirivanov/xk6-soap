@@ -14,16 +14,16 @@ func TestClientScaffold(t *testing.T) {
 	if err := rt.VU.Runtime().Set("Client", instance.Exports().Named["Client"]); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := rt.VU.Runtime().RunString(`var client = new Client();`); err != nil {
+	if _, err := rt.VU.Runtime().RunString(`var client = new Client({url:'http://example.test'});`); err != nil {
 		t.Fatal(err)
 	}
-	for _, expression := range []string{`client.build()`, `client.parse()`, `new Client({url: "https://example.test"})`} {
-		if _, err := rt.VU.Runtime().RunString(expression); err == nil || !strings.Contains(err.Error(), "SOAP_NOT_IMPLEMENTED") {
+	for _, expression := range []string{`client.build()`, `client.parse()`} {
+		if _, err := rt.VU.Runtime().RunString(expression); err == nil || !strings.Contains(err.Error(), "SOAP_EXECUTION_ONLY") {
 			t.Fatalf("%s: got %v", expression, err)
 		}
 	}
 	rt.MoveToVUContext(&lib.State{})
-	if _, err := rt.VU.Runtime().RunString(`new Client()`); err == nil || !strings.Contains(err.Error(), "SOAP_INIT_ONLY") {
+	if _, err := rt.VU.Runtime().RunString(`new Client({url:'http://example.test'})`); err == nil || !strings.Contains(err.Error(), "SOAP_INIT_ONLY") {
 		t.Fatalf("execution construction: %v", err)
 	}
 }
@@ -35,7 +35,7 @@ func TestClientsBelongToTheirVU(t *testing.T) {
 		if err := rt.VU.Runtime().Set("Client", root.NewModuleInstance(rt.VU).Exports().Named["Client"]); err != nil {
 			t.Fatal(err)
 		}
-		value, err := rt.VU.Runtime().RunString(`const a = new Client(); const b = new Client(); a.marker = 1; b.marker === undefined && a instanceof Client;`)
+		value, err := rt.VU.Runtime().RunString(`const a = new Client({url:'http://example.test'}); const b = new Client({url:'http://example.test'}); a.marker = 1; b.marker === undefined && a instanceof Client;`)
 		if err != nil || !value.ToBoolean() {
 			t.Fatalf("client isolation/prototype contract failed: %v", err)
 		}

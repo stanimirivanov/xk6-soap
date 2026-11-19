@@ -23,7 +23,8 @@ func failure(code, stage string) error { return &Error{Code: code, Stage: stage}
 // Nodes counts all decoder tokens, including closing tags, text and comments.
 type Limits struct{ Bytes, Depth, Nodes, Attributes int }
 
-func (l Limits) normalized() (Limits, error) {
+// Normalized validates the limits and fills omitted fields with finite defaults.
+func (l Limits) Normalized() (Limits, error) {
 	values := []*int{&l.Bytes, &l.Depth, &l.Nodes, &l.Attributes}
 	for i, max := range []int{4 << 20, 64, 50000, 64} {
 		if *values[i] < 0 || *values[i] > max {
@@ -63,7 +64,7 @@ func Build(operation, payload string, options Options) (Request, error) {
 	if err != nil {
 		return result, err
 	}
-	limits, err := options.Limits.normalized()
+	limits, err := options.Limits.Normalized()
 	if err != nil {
 		return result, err
 	}
@@ -109,7 +110,7 @@ func ValidateEnvelope(document, version string, limits Limits) error {
 	if err != nil {
 		return err
 	}
-	limits, err = limits.normalized()
+	limits, err = limits.Normalized()
 	if err != nil {
 		return err
 	}

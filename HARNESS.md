@@ -10,7 +10,8 @@ The goal is deterministic checks for specified properties, with explicit limits.
 AGENTS.md                    task loop and root adapter constraints
 internal/AGENTS.md           internal-layer and security constraints
 internal/archtest/           tested AST import/layer sensors, including tagged source
-soap.go, soap_test.go        named module, constructor lifecycle, explicit unavailable APIs
+soap.go, client.go           named module, lifecycle and plain Client bindings
+internal/message/           bounded SOAP validation, faults and isolated XPath
 test/AGENTS.md              runtime/interop fixture rules
 test/smoke.js               actual custom-k6 positive and negative runtime probe
 test/fixture/              bounded synthetic SOAP HTTP server and capture
