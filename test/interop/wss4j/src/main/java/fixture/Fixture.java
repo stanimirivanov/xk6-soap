@@ -71,32 +71,52 @@ public final class Fixture {
                 password.setPassword("fixture-only");
             }
         };
-        for (String version : new String[]{"11", "12"}) {
-            String ns = "11".equals(version) ? "http://schemas.xmlsoap.org/soap/envelope/" : "http://www.w3.org/2003/05/soap-envelope";
-            String binding = "11".equals(version) ? SOAPBinding.SOAP11HTTP_BINDING : SOAPBinding.SOAP12HTTP_BINDING;
-            EndpointImpl endpoint = new EndpointImpl(bus, new Echo(), binding);
-            Map<String, Object> in = new HashMap<>();
-            in.put(ConfigurationConstants.ACTION, "Timestamp Signature");
-            in.put(ConfigurationConstants.SIG_VER_PROP_FILE, "signature.properties");
-            in.put(ConfigurationConstants.IS_BSP_COMPLIANT, "true");
-            in.put(ConfigurationConstants.REQUIRE_TIMESTAMP_EXPIRES, "true");
-            in.put(ConfigurationConstants.TTL_TIMESTAMP, "300");
-            in.put(ConfigurationConstants.TTL_FUTURE_TIMESTAMP, "60");
-            endpoint.getInInterceptors().add(new WSS4JInInterceptor(in));
-            endpoint.getInInterceptors().add(new DefaultCryptoCoverageChecker());
-            Map<String, Object> out = new HashMap<>();
-            out.put(ConfigurationConstants.ACTION, "Timestamp Signature");
-            out.put(ConfigurationConstants.USER, "fixture-server");
-            out.put(ConfigurationConstants.SIG_PROP_FILE, "signature.properties");
-            out.put(ConfigurationConstants.PW_CALLBACK_REF, signingPassword);
-            out.put(ConfigurationConstants.SIG_KEY_ID, "DirectReference");
-            out.put(ConfigurationConstants.SIG_ALGO, "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256");
-            out.put(ConfigurationConstants.SIG_DIGEST_ALGO, "http://www.w3.org/2001/04/xmlenc#sha256");
-            out.put(ConfigurationConstants.SIG_C14N_ALGO, "http://www.w3.org/2001/10/xml-exc-c14n#");
-            out.put(ConfigurationConstants.ADD_INCLUSIVE_PREFIXES, "true");
-            out.put(ConfigurationConstants.SIGNATURE_PARTS, "{Element}{" + ns + "}Body;{Element}{http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd}Timestamp");
-            endpoint.getOutInterceptors().add(new WSS4JOutInterceptor(out));
-            endpoint.publish("http://0.0.0.0:8080/sig" + version);
+        for (String mode : new String[]{"sig", "ste128", "ste256", "ets128", "ets256"}) {
+            for (String version : new String[]{"11", "12"}) {
+                String ns = "11".equals(version) ? "http://schemas.xmlsoap.org/soap/envelope/" : "http://www.w3.org/2003/05/soap-envelope";
+                String binding = "11".equals(version) ? SOAPBinding.SOAP11HTTP_BINDING : SOAPBinding.SOAP12HTTP_BINDING;
+                EndpointImpl endpoint = new EndpointImpl(bus, new Echo(), binding);
+                Map<String, Object> in = new HashMap<>();
+                in.put(ConfigurationConstants.ACTION, "sig".equals(mode) ? "Timestamp Signature" : "Timestamp Signature Encryption");
+                if (!"sig".equals(mode)) {
+                    in.put(ConfigurationConstants.DEC_PROP_FILE, "signature.properties");
+                    in.put(ConfigurationConstants.PW_CALLBACK_REF, signingPassword);
+                }
+                in.put(ConfigurationConstants.SIG_VER_PROP_FILE, "signature.properties");
+                in.put(ConfigurationConstants.IS_BSP_COMPLIANT, "true");
+                in.put(ConfigurationConstants.REQUIRE_TIMESTAMP_EXPIRES, "true");
+                in.put(ConfigurationConstants.TTL_TIMESTAMP, "300");
+                in.put(ConfigurationConstants.TTL_FUTURE_TIMESTAMP, "60");
+                endpoint.getInInterceptors().add(new WSS4JInInterceptor(in));
+                endpoint.getInInterceptors().add(new DefaultCryptoCoverageChecker());
+                Map<String, Object> out = new HashMap<>();
+                out.put(ConfigurationConstants.ACTION, mode.startsWith("ste") ? "Timestamp Signature Encryption" : mode.startsWith("ets") ? "Timestamp Encryption Signature" : "Timestamp Signature");
+                out.put(ConfigurationConstants.USER, "fixture-server");
+                out.put(ConfigurationConstants.SIG_PROP_FILE, "signature.properties");
+                out.put(ConfigurationConstants.PW_CALLBACK_REF, signingPassword);
+                out.put(ConfigurationConstants.SIG_KEY_ID, "DirectReference");
+                out.put(ConfigurationConstants.SIG_ALGO, "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256");
+                out.put(ConfigurationConstants.SIG_DIGEST_ALGO, "http://www.w3.org/2001/04/xmlenc#sha256");
+                out.put(ConfigurationConstants.SIG_C14N_ALGO, "http://www.w3.org/2001/10/xml-exc-c14n#");
+                out.put(ConfigurationConstants.ADD_INCLUSIVE_PREFIXES, "true");
+                out.put(ConfigurationConstants.SIGNATURE_PARTS, "{Element}{" + ns + "}Body;{Element}{http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd}Timestamp");
+                if (!"sig".equals(mode)) {
+                    out.put(ConfigurationConstants.ENCRYPTION_USER, "fixture-client");
+                    out.put(ConfigurationConstants.ENC_PROP_FILE, "signature.properties");
+                    out.put(ConfigurationConstants.ENC_KEY_ID, "IssuerSerial");
+                    out.put(ConfigurationConstants.ENC_SYM_ALGO, "http://www.w3.org/2009/xmlenc11#aes" + (mode.endsWith("128") ? "128" : "256") + "-gcm");
+                    out.put(ConfigurationConstants.ENC_KEY_TRANSPORT, "http://www.w3.org/2009/xmlenc11#rsa-oaep");
+                    out.put(ConfigurationConstants.ENC_DIGEST_ALGO, "http://www.w3.org/2001/04/xmlenc#sha256");
+                    out.put(ConfigurationConstants.ENC_MGF_ALGO, "http://www.w3.org/2009/xmlenc11#mgf1sha256");
+                    out.put(ConfigurationConstants.ENCRYPTION_PARTS, "{Content}{" + ns + "}Body");
+                    if (mode.startsWith("ets")) {
+                        out.put(WSS4JOutInterceptor.WSS4J_ACTION_MAP, Map.of(org.apache.wss4j.dom.WSConstants.SIGN, new NamespaceStableSignature()));
+                        out.put(ConfigurationConstants.SIGNATURE_PARTS, out.get(ConfigurationConstants.SIGNATURE_PARTS) + ";{Element}{http://www.w3.org/2001/04/xmlenc#}EncryptedKey");
+                    }
+                }
+                endpoint.getOutInterceptors().add(new WSS4JOutInterceptor(out));
+                endpoint.publish("http://0.0.0.0:8080/" + mode + version);
+            }
         }
         Runtime.getRuntime().addShutdownHook(new Thread(() -> bus.shutdown(true)));
         System.out.println("FIXTURE_READY: CXF 4.2.4 / WSS4J 4.0.2");

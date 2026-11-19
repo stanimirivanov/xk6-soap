@@ -113,6 +113,26 @@ loaded. The runner copies the generated server public certificate into temporary
 storage for explicit Go pinning, then removes it with other per-run files.
 
 See [ADR-0002](../../docs/adr/0002-signature-kernel.md) for the gate outcome,
-canonical-byte artifacts and remaining PR-7 encryption decision. Independent
+canonical-byte artifacts and [ADR-0003](../../docs/adr/0003-encryption-kernel.md) for the encryption decision. Independent
 integration tests require the full runner so that endpoint readiness and trust
 material are available; missing fixture inputs are failures, not skipped tests.
+
+## Encryption kernel gate
+
+`/ste12811`, `/ste25611`, `/ets12811`, `/ets25611` and corresponding `12`
+endpoints exercise both orders/AES sizes for SOAP 1.1/1.2. Apache requires
+Timestamp+Signature+Encryption and Body/Timestamp signature coverage, decrypts
+with its own server key, and signs/encrypts responses to fixture-client. `ste`
+signs then encrypts; `ets` encrypts then signs Body, Timestamp and EncryptedKey.
+OAEP uses the XML Encryption 1.1 URI with explicit SHA-256 digest/MGF1-SHA256.
+Go enforces the exact receive order, graph and algorithm/coverage profile.
+
+`NamespaceStableSignature` materializes the OAEP parameter namespaces before
+Apache signs its EncryptedKey. This fixes a pinned WSS4J namespace-incomplete DOM
+whose signature changed on SOAP serialization; it relaxes no validation or
+coverage. ADR-0003 records the three-canonicalizer diagnosis and scope.
+
+The matrix checks decrypted protected application content, absence of clear Body
+values, altered request tag rejection by Apache, and Go rejection of altered
+response tags/MGF, partial Body and the opposite receive order. All HTTP reads
+in signature/encryption tests are capped at 4 MiB, matching the kernel limits.

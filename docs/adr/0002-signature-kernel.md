@@ -1,7 +1,7 @@
 # ADR-0002: Candidate signature coverage and serialization gate
 
-Date: 19 November 2026. Status: signature gate passed; full kernel decision remains
-pending PR-7 encryption/order tests. Task: [issue #21](https://github.com/stanimirivanov/xk6-soap/issues/21).
+Date: 19 November 2026. Status: signature gate passed; full kernel decision is
+completed by [ADR-0003](0003-encryption-kernel.md). Task: [issue #21](https://github.com/stanimirivanov/xk6-soap/issues/21).
 No public JavaScript signing capability is enabled by this decision.
 
 ## Pinned candidate and boundary
@@ -108,9 +108,9 @@ Observed results:
 - Unit/golden tests, independent Docker tests and source/binary vulnerability
   checks are required evidence, not upstream README audit/coverage claims.
 
-The candidate passes this signature-only gate. Do not mark CP-K or claim complete
-modern WS-Security compatibility until PR-7 independently proves encryption,
-parameter choices and both protection orders. This is not a PKI/revocation design,
+The candidate passes this signature-only gate. [ADR-0003](0003-encryption-kernel.md)
+records the subsequent PR-7 encryption/order evidence and bounded CP-K pass.
+Neither decision claims complete modern WS-Security compatibility. This is not a PKI/revocation design,
 legacy algorithm implementation or an endorsement of unrelated candidate features.
 
 Sources: [candidate v2.0.2](https://github.com/knroy/go-xmlsec/tree/v2.0.2),
