@@ -1,5 +1,6 @@
 #!/bin/sh
 set -eu
+bin/k6 run --quiet --no-usage-report test/keys.js
 bin/k6 run --quiet --no-usage-report test/smoke.js
 # A failed check is only useful as a sensor if the threshold exits nonzero.
 set +e

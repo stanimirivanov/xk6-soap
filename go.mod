@@ -10,6 +10,7 @@ require (
 	github.com/knroy/go-xmlsec/v2 v2.0.2
 	go.k6.io/k6/v2 v2.4.0
 	golang.org/x/mod v0.43.0
+	software.sslmate.com/src/go-pkcs12 v0.7.4
 )
 
 require (
@@ -47,7 +48,6 @@ require (
 	golang.org/x/crypto v0.59.0 // indirect
 	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/sys v0.50.0 // indirect
-	golang.org/x/term v0.48.0 // indirect
 	golang.org/x/text v0.44.0 // indirect
 	golang.org/x/time v0.16.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20261012220534-4341edf3f941 // indirect

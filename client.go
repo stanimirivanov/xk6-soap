@@ -12,6 +12,7 @@ import (
 type clientConfig struct {
 	url, version string
 	limits       message.Limits
+	keys         *clientKeys
 }
 
 func (i *instance) throw(code, stage string) {
@@ -79,7 +80,7 @@ func (i *instance) newClient(call sobek.ConstructorCall) *sobek.Object {
 		i.throw("INVALID_ARGUMENT", "constructor")
 	}
 	cfg := clientConfig{version: "1.1"}
-	options := i.object(call.Argument(0), "url", "soapVersion", "limits", "debug")
+	options := i.object(call.Argument(0), "url", "soapVersion", "limits", "debug", "keys")
 	cfg.url = i.text(options.Get("url"))
 	parsed, err := url.Parse(cfg.url)
 	if err != nil || parsed.Hostname() == "" || parsed.Scheme != "http" && parsed.Scheme != "https" || parsed.User != nil || parsed.Fragment != "" {
@@ -112,6 +113,9 @@ func (i *instance) newClient(call sobek.ConstructorCall) *sobek.Object {
 	if err != nil {
 		i.throw("INVALID_ARGUMENT", "limits")
 	}
+	if value := options.Get("keys"); !absent(value) {
+		cfg.keys = i.decodeKeys(value)
+	}
 	obj := call.This
 	_ = obj.Set("build", func(call sobek.FunctionCall) sobek.Value { return i.build(cfg, call) })
 	_ = obj.Set("parse", func(call sobek.FunctionCall) sobek.Value { return i.parse(cfg, call) })
@@ -127,6 +131,7 @@ func (i *instance) execution() {
 }
 func (i *instance) build(cfg clientConfig, call sobek.FunctionCall) sobek.Value {
 	i.execution()
+	i.validateKeys(cfg)
 	start := time.Now()
 	if len(call.Arguments) < 2 || len(call.Arguments) > 3 {
 		i.throw("INVALID_ARGUMENT", "build")
@@ -148,6 +153,7 @@ func (i *instance) build(cfg clientConfig, call sobek.FunctionCall) sobek.Value 
 }
 func (i *instance) parse(cfg clientConfig, call sobek.FunctionCall) sobek.Value {
 	i.execution()
+	i.validateKeys(cfg)
 	if len(call.Arguments) != 1 {
 		i.throw("INVALID_ARGUMENT", "parse")
 	}

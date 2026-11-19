@@ -12,6 +12,8 @@ internal/AGENTS.md           internal-layer and security constraints
 internal/archtest/           tested AST import/layer sensors, including tagged source
 soap.go, client.go           named module, lifecycle and plain Client bindings
 internal/message/           bounded SOAP validation, faults and isolated XPath
+internal/keys/              byte-based key validation, private material and bounded cache
+keys.go, test/keys.js        constructor key decoding and actual k6 key-input probe
 test/AGENTS.md              runtime/interop fixture rules
 test/smoke.js               actual custom-k6 positive and negative runtime probe
 test/fixture/              bounded synthetic SOAP HTTP server and capture
@@ -25,15 +27,14 @@ scripts/                    smoke runner and non-destructive hook installer
 ```
 
 The root JS adapter may depend on message, keys, clock and wssec. wssec may depend on
-message/keys/clock. The other three are independent foundations. Those runtime packages
-are future boundaries, not empty scaffolds. `internal/archtest/rules.go` is the executable
+message/keys/clock. The other three are independent foundations. Missing runtime packages remain uncreated until a feature needs their boundary. `internal/archtest/rules.go` is the executable
 source for allowed first-party edges; new packages fail closed until reviewed there.
 
 | State/resource | Owner | Constraint/evidence |
 | --- | --- | --- |
 | Sobek values and module bindings | Per-VU root instance | Runtime isolation/lifecycle tests; internal imports forbidden |
 | XML/message state | Future request/response | Never shared; exact-node security tests added with feature |
-| Decoded key cache | Future root-owned immutable entries | Bounded capacity and race tests before introduction |
+| Decoded key cache | RootModule-owned immutable material | 256 entries/32 MiB encoded input; concrete-key and cross-VU race tests |
 | HTTP, TLS, cookies, HTTP metrics | k6/http in script | Production direct transport imports forbidden |
 | Fixture servers/files | test directory | Exempt from production import rules, never imported into runtime |
 | Harness AST/filesystem operations | internal/archtest | Runtime imports of harness forbidden |
@@ -119,7 +120,7 @@ No server setting is silently changed by local bootstrap.
 | --- | --- | --- |
 | Now: scaffold | Format/vet/static analysis, architecture negative tests, race/lifecycle tests, actual binary smoke and audit | Scope, API semantics, rule changes |
 | Plain SOAP task | Table/fuzz seeds for limits, namespaces, faults, payloads; real HTTP fixture | Schema/mapping decisions |
-| First key/cache task | Password/role/certificate negatives, concurrent cache hits and finite-capacity tests | Secret lifecycle and trust policy |
+| Key/cache task (implemented) | Password/role/certificate negatives, concurrent cache hits, real capacity and k6 byte-input tests | Secret lifecycle and future security policy |
 | Kernel feasibility | Independent WSS4J both-direction/order gate before crypto integration | Candidate selection and residual risk |
 | Secured receive task | Wrapping/coverage/downgrade tests; bounded post-decrypt parsing and secret-output negatives | Security model and independent review |
 | Stable functionality | Frozen benchmark runner/budgets; bounded fuzz jobs and heap/goroutine checks | Changes to budgets and release scope |

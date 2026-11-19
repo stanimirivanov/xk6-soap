@@ -1,7 +1,8 @@
 # Plain SOAP Client API
 
 PR-4 enables raw-XML `build()` and plain-response `parse()` on the named `Client`
-export. Security, keys, object payloads, custom headers/WS-Addressing, production
+export. [PR-8 key loading](keys.md) is available during construction. Security,
+object payloads, custom headers/WS-Addressing, production
 SOAP metrics and payload diagnostics remain unavailable and are rejected as
 unsupported options. Plain results make no authenticity claim.
 
