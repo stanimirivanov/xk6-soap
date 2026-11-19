@@ -14,6 +14,8 @@ soap.go, client.go           named module, lifecycle and plain Client bindings
 internal/message/           bounded SOAP validation, faults and isolated XPath
 internal/keys/              byte-based key validation, private material and bounded cache
 keys.go, test/keys.js        constructor key decoding and actual k6 key-input probe
+security.go, internal/wssec/policy.go  strict policy decoding and typed validation
+diagnostics.go, test/security.js      metadata-only diagnostics and capability gate
 test/AGENTS.md              runtime/interop fixture rules
 test/smoke.js               actual custom-k6 positive and negative runtime probe
 test/fixture/              bounded synthetic SOAP HTTP server and capture

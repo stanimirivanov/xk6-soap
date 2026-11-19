@@ -1,8 +1,9 @@
 # Plain SOAP Client API
 
 PR-4 enables raw-XML `build()` and plain-response `parse()` on the named `Client`
-export. [PR-8 key loading](keys.md) is available during construction. Security,
-object payloads, custom headers/WS-Addressing, production
+export. [PR-8 key loading](keys.md) is available during construction.
+[PR-9 policy validation](security-policy.md) rejects enabled unavailable security
+features explicitly. Object payloads, custom headers/WS-Addressing, production
 SOAP metrics and payload diagnostics remain unavailable and are rejected as
 unsupported options. Plain results make no authenticity claim.
 
@@ -29,8 +30,9 @@ Construct clients in init. `url` is required and must be an absolute HTTP(S) URL
 with a host and no credentials or fragment. `soapVersion` is `1.1` (default) or
 `1.2`. `limits` accepts positive `bytes`, `depth`, `nodes`, and `attributes`, no
 larger than the defaults in [the message boundary](message-boundary.md). Omitted
-limits use defaults; explicit zero or unsupported increases fail. `debug:false`
-is accepted; debug output is not yet implemented. Unknown option keys and invalid
+limits use defaults; explicit zero or unsupported increases fail. `debug` accepts
+booleans and defaults false; true emits only the safe metadata
+described in the policy documentation. Unknown option keys and invalid
 types are rejected. No implicit JavaScript string/number coercion is performed.
 
 `build(operation,rawXML,{soapAction})` and `parse(response)` require execution

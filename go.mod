@@ -8,6 +8,7 @@ require (
 	github.com/grafana/sobek v0.0.0-20261105103427-a5b602015248
 	github.com/knroy/go-xml/v2 v2.2.0
 	github.com/knroy/go-xmlsec/v2 v2.0.2
+	github.com/sirupsen/logrus v1.9.3
 	go.k6.io/k6/v2 v2.4.0
 	golang.org/x/mod v0.43.0
 	software.sslmate.com/src/go-pkcs12 v0.7.4
@@ -32,7 +33,6 @@ require (
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/mstoykov/atlas v0.0.0-20220811071828-388f114305dd // indirect
 	github.com/serenize/snaker v0.0.0-20201027110005-a7ad2135616e // indirect
-	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/spf13/afero v1.1.2 // indirect
 	github.com/stretchr/testify v1.12.1 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect

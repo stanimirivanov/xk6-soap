@@ -37,7 +37,7 @@ func keyRuntime(t *testing.T, root *RootModule) *modulestest.Runtime {
 func TestKeyConstruction(t *testing.T) {
 	root := New()
 	rt := keyRuntime(t, root)
-	js(t, rt.VU.Runtime(), `var client=new Client({url:'https://example.test',keys:{signing:{cert,key},decryption:{pkcs12:pfx,password:'synthetic-only'},recipient:{cert},trust:[cert]}});`)
+	js(t, rt.VU.Runtime(), `var client=new Client({url:'https://example.test',keys:{signing:{cert,key},recipient:{cert},trust:[cert]}});new Client({url:'https://example.test',keys:{signing:{pkcs12:pfx,password:'synthetic-only'}}});`)
 	js(t, rt.VU.Runtime(), `for(const keys of [
  {signing:{cert,key:'path.pem'}},{signing:{cert,key,password:'SECRET'}},{signing:{pkcs12:pfx,password:'SECRET'}},
  {signing:{pkcs12:pfx}},{signing:{cert,key,pkcs12:pfx,password:'synthetic-only'}},{signing:{cert}},
