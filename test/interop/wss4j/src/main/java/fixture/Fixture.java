@@ -119,7 +119,9 @@ public final class Fixture {
             }
         }
         Runtime.getRuntime().addShutdownHook(new Thread(() -> bus.shutdown(true)));
-        System.out.println("FIXTURE_READY: CXF 4.2.4 / WSS4J 4.0.2");
+        System.out.println("FIXTURE_READY: CXF " + Bus.class.getPackage().getImplementationVersion()
+                + " / WSS4J DOM " + org.apache.wss4j.dom.engine.WSSecurityEngine.class.getPackage().getImplementationVersion()
+                + " / common " + org.apache.wss4j.common.util.DateUtil.class.getPackage().getImplementationVersion());
         new CountDownLatch(1).await();
     }
 }

@@ -2,7 +2,7 @@
 
 `make interop` builds and starts a real Apache CXF/WSS4J service, then runs the
 Go self-tests over HTTP. Docker, GNU `timeout`, Make and the pinned Go toolchain
-are required. The Go extension/provider is not imported by these tests. Apache
+are required. The Go tests use the internal security adapter as the client; Apache independently
 owns token authentication, timestamp validation, BSP enforcement and replay checks.
 
 ## Pins
@@ -10,18 +10,49 @@ owns token authentication, timestamp validation, BSP enforcement and replay chec
 | Component | Pin |
 | --- | --- |
 | CXF | 4.2.4 |
-| WSS4J | 4.0.2, matching CXF's dependency management |
+| WSS4J | 4.0.3 for the complete runtime artifact family; explicit overrides of the CXF BOM |
 | Jetty | 12.1.13, selected by the CXF BOM |
 | Maven | 3.9.16 inside the pinned base |
-| Temurin JDK | 21.0.12.1 inside the pinned base |
-| Base image | `maven:3.9-eclipse-temurin-21@sha256:99e61abcff91a9b1333463bd8451fb18495d6eba9250ac66a338b518f8278320` |
+| Temurin JDK | 26.0.2.1 inside the pinned base; compiler release remains 21 |
+| Base image | `maven:3.9-eclipse-temurin-26@sha256:b2c1ad85954592f9928e84327c65201f308ad9b5d8ed7d5b823717c97bf23fbb` |
 
 The image digest is immutable, even though its human-readable tag moves. Both
-build and runtime stages use it. Compiler/resources/JAR/dependency plugins are
-pinned in pom.xml; runtime transitive dependencies follow the CXF BOM. Builds
+build and runtime stages use it. Compiler/resources/JAR/dependency/Enforcer plugins are
+pinned in pom.xml. Runtime transitive dependencies follow the CXF BOM except for
+the explicitly aligned WSS4J family. Builds
 need Maven Central on a cold cache; there are no snapshot dependencies. This is
 a test fixture, not a production deployment or a Java/container vulnerability
 audit. The repository's govulncheck gates cover Go source/binaries only.
+
+## WSS4J alignment gate
+
+[Issue #27](https://github.com/stanimirivanov/xk6-soap/issues/27) reproduces the
+failure introduced by the DOM-only upgrade in PR #20: the image packaged DOM
+4.0.3 alongside common, bindings, policy and both StAX modules at 4.0.2.
+DOM 4.0.3 called `DateUtil.getTimestampReplayExpiry(Instant, Instant, int)`, absent
+from the loaded common 4.0.2, causing NoSuchMethodError and HTML 500s across the
+security tests. Successful WSDL readiness did not exercise that path.
+
+Local dependencyManagement entries now override all six WSS4J runtime modules
+through the same `wss4j.version` property. Importing the CXF BOM alone or changing
+only DOM's version does not align its managed siblings. Maven Enforcer 3.7.0 runs
+in `validate`: transitive `org.apache.wss4j:*` dependencies are banned except for
+the exact `[${wss4j.version}]` release. The brackets are significant; an unbounded
+version expression would not enforce the selected release exactly. See
+[Apache's rule documentation](https://maven.apache.org/enforcer/enforcer-rules/bannedDependencies.html).
+
+The normal `make interop` Docker build runs this check before compilation and
+packaging. It first rejected the original mixed graph; a deliberate common-only
+4.0.2 downgrade also failed with BannedDependencies before starting a server.
+The exact aligned POM was restored afterward. The full independent UsernameToken,
+signature and both-order/AES/SOAP encryption matrix then passed on the aligned
+4.0.3 graph. This is a WSS4J family check, not a general Java dependency audit.
+
+The readiness banner reports package manifest versions for CXF, WSS4J DOM and
+common instead of a hard-coded release. Keep the WSS4J property and full family
+alignment together during future Dependabot upgrades. The pre-signing namespace
+correction was rechecked against 4.0.3 source and remains necessary; no coverage,
+BSP, replay or algorithm policy was relaxed by this fix.
 
 ## Service and policy
 
@@ -94,7 +125,7 @@ changed by the fixture bootstrap.
 Sources: [CXF WS-Security interceptors](https://cxf.apache.org/docs/ws-security.html),
 [WSS4J configuration](https://ws.apache.org/wss4j/config.html),
 [CXF 4.2.4 parent pins](https://repo.maven.apache.org/maven2/org/apache/cxf/cxf-parent/4.2.4/cxf-parent-4.2.4.pom),
-and the pinned WSS4J UsernameTokenProcessor source (4.0.2 source JAR on Maven Central).
+and the pinned WSS4J UsernameTokenProcessor source (4.0.3 source JAR on Maven Central).
 
 ## Signature gate
 
