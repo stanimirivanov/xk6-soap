@@ -55,3 +55,10 @@ No temporary script or server process is created. Expected transport warnings fo
 The internal [plain message boundary](docs/message-boundary.md) now provides bounded
 SOAP structure validation and raw-envelope generation for the upcoming JS bindings.
 The public Client bindings use this boundary before response inspection.
+
+## Independent Apache fixture
+
+`make interop` runs the pinned CXF/WSS4J container and independent HTTP self-tests
+for UsernameToken Digest/Text, timestamps, replay rejection and SOAP faults. See
+[test/interop/README.md](test/interop/README.md) for pins, synthetic identities,
+policy settings, Docker requirements and cleanup guarantees.

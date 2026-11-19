@@ -57,6 +57,7 @@ possible. Remove guidance that duplicates an effective check.
 | `make build` | All module packages compile | Local/CI |
 | `make verify` | All of the preceding non-mutating checks | Pre-commit/CI quality |
 | `make smoke` | Pinned xk6 builds a binary; valid runtime succeeds and forced failed check exits 99 | CI runtime |
+| `make interop` | Independent Docker CXF/WSS4J UsernameToken/timestamp/replay fixture | CI interop |
 | `make e2e` | Real k6 HTTP fixture scenarios and exact exit-99 negative control | CI runtime |
 | `make vuln` | govulncheck source and the actual custom k6 binary | CI vulnerabilities; online database |
 
