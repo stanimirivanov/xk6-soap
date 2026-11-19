@@ -1,0 +1,19 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>test.xk6-soap</groupId><artifactId>wss4j-fixture</artifactId><version>0.0.1</version>
+  <properties><maven.compiler.release>21</maven.compiler.release><project.build.sourceEncoding>UTF-8</project.build.sourceEncoding><cxf.version>4.2.4</cxf.version><wss4j.version>4.0.2</wss4j.version></properties>
+  <dependencyManagement><dependencies><dependency><groupId>org.apache.cxf</groupId><artifactId>cxf-bom</artifactId><version>${cxf.version}</version><type>pom</type><scope>import</scope></dependency></dependencies></dependencyManagement>
+  <dependencies>
+    <dependency><groupId>org.apache.cxf</groupId><artifactId>cxf-rt-frontend-jaxws</artifactId><version>${cxf.version}</version></dependency>
+    <dependency><groupId>org.apache.cxf</groupId><artifactId>cxf-rt-transports-http-jetty</artifactId><version>${cxf.version}</version></dependency>
+    <dependency><groupId>org.apache.cxf</groupId><artifactId>cxf-rt-ws-security</artifactId><version>${cxf.version}</version></dependency>
+    <dependency><groupId>org.apache.wss4j</groupId><artifactId>wss4j-ws-security-dom</artifactId><version>${wss4j.version}</version></dependency>
+  </dependencies>
+  <build><plugins>
+    <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-resources-plugin</artifactId><version>3.3.1</version></plugin>
+    <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-compiler-plugin</artifactId><version>3.14.1</version></plugin>
+    <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><version>3.5.4</version></plugin>
+    <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-jar-plugin</artifactId><version>3.4.2</version></plugin>
+    <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-dependency-plugin</artifactId><version>3.9.0</version></plugin>
+  </plugins></build>
+</project>
