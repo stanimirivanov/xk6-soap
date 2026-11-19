@@ -3,6 +3,8 @@ module github.com/stanimirivanov/xk6-soap
 go 1.27.4
 
 require (
+	github.com/antchfx/xmlquery v1.5.2
+	github.com/antchfx/xpath v1.3.9
 	github.com/grafana/sobek v0.0.0-20261105103427-a5b602015248
 	go.k6.io/k6/v2 v2.4.0
 	golang.org/x/mod v0.43.0
@@ -18,6 +20,7 @@ require (
 	github.com/go-logr/logr v1.4.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-sourcemap/sourcemap v2.1.4+incompatible // indirect
+	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/pprof v0.0.0-20260115054156-294ebfa9ad83 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/grafana/sobek-webapi-encoding v0.1.0 // indirect

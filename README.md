@@ -1,8 +1,8 @@
 # xk6-soap
 
-A Go extension for SOAP and WS-Security in k6. **Current status: module scaffold only.**
-`Client` is registered; configuration, `build()` and `parse()` intentionally reject with
-`SOAP_NOT_IMPLEMENTED`. No SOAP, cryptography or interoperability support is claimed.
+A Go extension for SOAP and WS-Security in k6. Raw SOAP 1.1/1.2 build/parse,
+fault extraction and Body-scoped XPath are available. See the [plain Client API](docs/plain-api.md).
+Security/key support and object payload mapping are planned follow-up tasks.
 
 ## Development
 
@@ -21,16 +21,15 @@ make hooks  # optional; refuses to overwrite an existing hook setup
 roadmap. Go is pinned in [.go-version](.go-version), k6 in [go.mod](go.mod), and tools in
 [Makefile](Makefile). `make` uses that exact Go toolchain, without a floating `latest`.
 
-The proposed [architecture and M01 plan](https://github.com/stanimirivanov/xk6-soap/pull/2)
-remain under review. This scaffold implements the foundation authorized in
-[issue #3](https://github.com/stanimirivanov/xk6-soap/issues/3); it does not merge or approve
-all proposed API defaults. License: [Apache-2.0](LICENSE).
+The [architecture](docs/architecture.md) and [M01 plan](tasks/plan.md) describe the
+full target; the plain API documentation distinguishes implemented features from
+planned security and payload capabilities. License: [Apache-2.0](LICENSE).
 
 ## Local SOAP E2E harness
 
 `make e2e` builds the pinned custom k6 binary and runs race-enabled tests against
 an in-process loopback fixture. The script sends synthetic raw SOAP 1.1/1.2
-messages with k6/http; extension build/parse behavior is introduced in later tasks.
+messages with k6/http; the public build/parse API is exercised against those responses.
 Both successful execution and an intentional failed-check threshold (exit 99)
 are required to pass the harness.
 
@@ -55,4 +54,4 @@ No temporary script or server process is created. Expected transport warnings fo
 
 The internal [plain message boundary](docs/message-boundary.md) now provides bounded
 SOAP structure validation and raw-envelope generation for the upcoming JS bindings.
-It does not yet enable public Client build/parse methods.
+The public Client bindings use this boundary before response inspection.
