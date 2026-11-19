@@ -32,7 +32,7 @@ PR-11 through PR-24 crypto paths transitively require CP-K via explicit dependen
 | --- | --- | --- | --- |
 | 1 | [PR-1: Pin toolchain and establish the k6 module harness](https://github.com/stanimirivanov/xk6-soap/issues/7) | none | Medium |
 | 2 | [PR-2: Add a deterministic SOAP E2E harness](https://github.com/stanimirivanov/xk6-soap/issues/9) | 1 | Medium |
-| 3 | PR-3: Implement bounded SOAP parsing and payload contracts | 1 | Medium |
+| 3 | [PR-3: Implement bounded SOAP parsing and payload contracts](https://github.com/stanimirivanov/xk6-soap/issues/11) | 1 | Medium |
 | 4 | PR-4: Deliver plain build and parse with faults and XPath | 2, 3 | Medium |
 | 5 | PR-5: Establish the independent WSS4J fixture | 1 | Medium |
 | 6 | PR-6: Prove candidate signature coverage and serialization | 3, 5 | Medium |
