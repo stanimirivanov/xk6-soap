@@ -6,6 +6,8 @@ require (
 	github.com/antchfx/xmlquery v1.5.2
 	github.com/antchfx/xpath v1.3.9
 	github.com/grafana/sobek v0.0.0-20261105103427-a5b602015248
+	github.com/knroy/go-xml/v2 v2.2.0
+	github.com/knroy/go-xmlsec/v2 v2.0.2
 	go.k6.io/k6/v2 v2.4.0
 	golang.org/x/mod v0.43.0
 )
