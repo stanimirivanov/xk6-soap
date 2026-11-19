@@ -44,23 +44,28 @@ public final class Fixture {
                 password.setPassword("fixture-password");
             }
         };
-        for (String version : new String[]{"11", "12"}) {
-            String binding = "11".equals(version) ? SOAPBinding.SOAP11HTTP_BINDING : SOAPBinding.SOAP12HTTP_BINDING;
-            EndpointImpl endpoint = new EndpointImpl(bus, new Echo(), binding);
-            Map<String, Object> policy = new HashMap<>();
-            policy.put(ConfigurationConstants.ACTION, "Timestamp UsernameToken");
-            policy.put(ConfigurationConstants.PW_CALLBACK_REF, passwords);
-            policy.put(ConfigurationConstants.IS_BSP_COMPLIANT, "true");
-            policy.put(ConfigurationConstants.TIMESTAMP_STRICT, "true");
-            policy.put(ConfigurationConstants.REQUIRE_TIMESTAMP_EXPIRES, "true");
-            policy.put(ConfigurationConstants.TTL_TIMESTAMP, "300");
-            policy.put(ConfigurationConstants.TTL_FUTURE_TIMESTAMP, "60");
-            policy.put(ConfigurationConstants.TTL_USERNAMETOKEN, "300");
-            policy.put(ConfigurationConstants.TTL_FUTURE_USERNAMETOKEN, "60");
-            endpoint.getProperties().put(SecurityConstants.ENABLE_NONCE_CACHE, Boolean.TRUE);
-            endpoint.getProperties().put(SecurityConstants.NONCE_CACHE_INSTANCE, new MemoryReplayCache());
-            endpoint.getInInterceptors().add(new WSS4JInInterceptor(policy));
-            endpoint.publish("http://0.0.0.0:8080/ut" + version);
+        for (String profile : new String[]{"ut", "ts"}) {
+            for (String version : new String[]{"11", "12"}) {
+                String binding = "11".equals(version) ? SOAPBinding.SOAP11HTTP_BINDING : SOAPBinding.SOAP12HTTP_BINDING;
+                EndpointImpl endpoint = new EndpointImpl(bus, new Echo(), binding);
+                Map<String, Object> policy = new HashMap<>();
+                policy.put(ConfigurationConstants.ACTION, "ut".equals(profile) ? "Timestamp UsernameToken" : "Timestamp");
+                policy.put(ConfigurationConstants.PW_CALLBACK_REF, passwords);
+                if ("ut".equals(profile)) {
+                    policy.put(WSS4JInInterceptor.VALIDATOR_MAP, Map.of(org.apache.wss4j.dom.WSConstants.USERNAME_TOKEN, new FreshUsernameToken()));
+                }
+                policy.put(ConfigurationConstants.IS_BSP_COMPLIANT, "true");
+                policy.put(ConfigurationConstants.TIMESTAMP_STRICT, "true");
+                policy.put(ConfigurationConstants.REQUIRE_TIMESTAMP_EXPIRES, "true");
+                policy.put(ConfigurationConstants.TTL_TIMESTAMP, "300");
+                policy.put(ConfigurationConstants.TTL_FUTURE_TIMESTAMP, "60");
+                policy.put(ConfigurationConstants.TTL_USERNAMETOKEN, "300");
+                policy.put(ConfigurationConstants.TTL_FUTURE_USERNAMETOKEN, "60");
+                endpoint.getProperties().put(SecurityConstants.ENABLE_NONCE_CACHE, Boolean.TRUE);
+                endpoint.getProperties().put(SecurityConstants.NONCE_CACHE_INSTANCE, new MemoryReplayCache());
+                endpoint.getInInterceptors().add(new WSS4JInInterceptor(policy));
+                endpoint.publish("http://0.0.0.0:8080/" + profile + version);
+            }
         }
         CallbackHandler signingPassword = callbacks -> {
             for (var callback : callbacks) {

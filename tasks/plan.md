@@ -26,6 +26,8 @@ New commands supplied by PR-1: `make lint`, `make test` (race-enabled), `make vu
 
 CP-K passed for the bounded core profile in [ADR-0003](../docs/adr/0003-encryption-kernel.md); this does not enable the planned public crypto paths.
 
+CP-T1 passes for the selected Apache UsernameToken/Timestamp profile; [evidence and the unverified JMeter comparison](../docs/username-token.md) record its limits.
+
 PR-11 through PR-24 crypto paths transitively require CP-K via explicit dependencies. Plain SOAP/object work may proceed independently. Serialize commits touching shared options, provider and module lockfiles. Parallel scheduling is optional; this plan does not require additional agents. Core kernel failure blocks dependent work and requires an evidence-based ADR/replan; changing the fixture to weaken required security is not a valid fix.
 
 ## Ordered task index
@@ -41,7 +43,7 @@ PR-11 through PR-24 crypto paths transitively require CP-K via explicit dependen
 | 7 | [PR-7: Gate the candidate on both encryption orders](https://github.com/stanimirivanov/xk6-soap/issues/23) | 6 | Medium |
 | 8 | [PR-8: Load and cache validated key material](https://github.com/stanimirivanov/xk6-soap/issues/25) | 1 | Medium |
 | 9 | [PR-9: Define executable security policy and option validation](https://github.com/stanimirivanov/xk6-soap/issues/29) | 3, 8 | Medium |
-| 10 | PR-10: Deliver UsernameToken and Timestamp exchanges | 4, 5, 9 | Medium |
+| 10 | [PR-10: Deliver UsernameToken and Timestamp exchanges](https://github.com/stanimirivanov/xk6-soap/issues/31) | 4, 5, 9 | Medium |
 | 11 | PR-11: Build signed SOAP requests with the accepted provider | 7, 10 | Medium |
 | 12 | PR-12: Verify responses against exact coverage and trust | 4, 11 | Medium |
 | 13 | PR-13: Enforce signed timestamp freshness | 12 | Small |

@@ -1,9 +1,10 @@
 # Executable security policy
 
-PR-9 implements typed policy normalization and constructor validation. It does
-not activate UsernameToken, Timestamp, message signing/encryption, signature
-verification or decryption in the public Client. The internal kernel probes
-remain independent gate evidence. Valid requests for these unavailable features
+PR-9 implements typed policy normalization and constructor validation.
+[PR-10](username-token.md) activates outbound UsernameToken and Timestamp.
+Message signing/encryption, signature verification and decryption remain unavailable
+in the public Client. The internal kernel probes
+remain independent gate evidence. Valid requests for unavailable features
 throw `SOAP_FEATURE_UNAVAILABLE` at construction, before measured iterations.
 
 Omitting `security`, supplying `{}`, or an explicitly unsigned receive policy
@@ -60,7 +61,7 @@ bytes each. Receive `signedHeaders` and `encryptedHeaders` are unique expanded
 names `{namespace,localName}` with nonempty XML-safe namespace, NCName local name,
 the same entry bound and 4096-byte field bounds. Signing and encrypting the same
 header is permitted. Presence/uniqueness of actual header blocks is checked by
-the later header-building/receive tasks; currently every enabled path is rejected
+the later header-building/receive tasks; currently enabled header-signing/encryption paths are rejected
 before build. Credentials are bounded by the 4 MiB message input ceiling; username
 and PasswordText must be XML-safe, and all strings must be valid UTF-8. An explicit
 empty password is permitted; omission is not.
@@ -106,5 +107,5 @@ matrices, including undefined-field downgrade and secret-accessor regressions.
 A temporary mutation bypassing constructor availability made the silent-no-op
 regression fail; exact source restored. `make smoke` exercises actual k6 option
 handling and rejects the synthetic private sentinel if it appears in its policy
-probe output. Unit tests independently capture VU logger output. No independent
-SOAP-security capability is claimed or activated by this configuration task.
+probe output. Unit tests independently capture VU logger output. PR-10 activation retains these rejection controls for the remaining unavailable
+capabilities.
