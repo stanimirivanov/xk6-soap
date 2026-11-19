@@ -1,13 +1,13 @@
 # Maven 3.9.16, Temurin JDK 21.0.12.1; digest pins the multi-platform base.
-FROM maven:3.9-eclipse-temurin-21@sha256:99e61abcff91a9b1333463bd8451fb18495d6eba9250ac66a338b518f8278320 AS build
+FROM maven:3.9-eclipse-temurin-26@sha256:b2c1ad85954592f9928e84327c65201f308ad9b5d8ed7d5b823717c97bf23fbb AS build
 WORKDIR /build
 COPY pom.xml .
 COPY src src
 RUN mvn -B -ntp package dependency:copy-dependencies -DincludeScope=runtime
-COPY generate-keys.sh .
-RUN sh generate-keys.sh /build/test-keys
+COPY generate-keys.sh client-cert.pem ./
+RUN sh generate-keys.sh /build/test-keys && keytool -importcert -noprompt -alias fixture-client -file client-cert.pem -keystore test-keys/server.p12 -storepass fixture-only
 
-FROM maven:3.9-eclipse-temurin-21@sha256:99e61abcff91a9b1333463bd8451fb18495d6eba9250ac66a338b518f8278320
+FROM maven:3.9-eclipse-temurin-26@sha256:b2c1ad85954592f9928e84327c65201f308ad9b5d8ed7d5b823717c97bf23fbb
 WORKDIR /fixture
 COPY --from=build /build/target/classes ./classes
 COPY --from=build /build/target/dependency ./lib

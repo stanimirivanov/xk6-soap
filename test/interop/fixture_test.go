@@ -49,26 +49,7 @@ func TestApacheFixture(t *testing.T) {
 		t.Fatal("SOAP_INTEROP_URL missing; use make interop")
 	}
 	client := &http.Client{Timeout: 5 * time.Second}
-	// Probe both bound endpoints; the 30-second context bounds total readiness.
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	for _, version := range []string{"11", "12"} {
-		for {
-			req, _ := http.NewRequestWithContext(ctx, http.MethodGet, base+"/ut"+version+"?wsdl", nil)
-			res, err := client.Do(req)
-			if err == nil {
-				res.Body.Close()
-				if res.StatusCode == 200 {
-					break
-				}
-			}
-			select {
-			case <-ctx.Done():
-				t.Fatal("Apache fixture readiness deadline exceeded")
-			case <-time.After(100 * time.Millisecond):
-			}
-		}
-	}
+	waitApache(t, client, base, []string{"/ut11", "/ut12"})
 
 	post := func(t *testing.T, version, body string, wantFault bool) string {
 		t.Helper()
@@ -166,4 +147,29 @@ func TestApacheFixture(t *testing.T) {
 		}
 		post(t, version, `<s:Envelope xmlns:s="`+ns+`"><s:Body><m:echo xmlns:m="urn:xk6-soap:fixture"><value>synthetic</value></m:echo></s:Body></s:Envelope>`, true)
 	}
+}
+
+func waitApache(t *testing.T, client *http.Client, base string, paths []string) {
+	t.Helper()
+	// Probe both bound endpoints; the 30-second context bounds total readiness.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	for _, path := range paths {
+		for {
+			req, _ := http.NewRequestWithContext(ctx, http.MethodGet, base+path+"?wsdl", nil)
+			res, err := client.Do(req)
+			if err == nil {
+				res.Body.Close()
+				if res.StatusCode == 200 {
+					break
+				}
+			}
+			select {
+			case <-ctx.Done():
+				t.Fatal("Apache fixture readiness deadline exceeded")
+			case <-time.After(100 * time.Millisecond):
+			}
+		}
+	}
+
 }
