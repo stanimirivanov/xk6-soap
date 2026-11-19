@@ -9,7 +9,7 @@ import org.apache.wss4j.dom.handler.WSHandler;
 import org.w3c.dom.Element;
 
 /** Materialize the declarations SOAP serialization would otherwise add after signing.
- * WSS4J 4.0.2 WSSecEncryptedKey.createEncryptedKey creates prefixed DigestMethod
+ * WSS4J 4.0.2/4.0.3 WSSecEncryptedKey.createEncryptedKey creates prefixed DigestMethod
  * and MGF elements without xmlns attributes. Canonicalization assumes a namespace-
  * complete DOM; signing this incomplete DOM produces an invalid wire EK digest.
  * All signing/canonicalization/crypto remains Apache's, with no relaxed checks.

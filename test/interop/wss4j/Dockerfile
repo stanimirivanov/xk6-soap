@@ -1,4 +1,4 @@
-# Maven 3.9.16, Temurin JDK 21.0.12.1; digest pins the multi-platform base.
+# Maven 3.9.16, Temurin JDK 26.0.2.1; release-21 bytecode. Digest pins the base.
 FROM maven:3.9-eclipse-temurin-26@sha256:b2c1ad85954592f9928e84327c65201f308ad9b5d8ed7d5b823717c97bf23fbb AS build
 WORKDIR /build
 COPY pom.xml .

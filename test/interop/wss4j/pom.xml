@@ -2,7 +2,17 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>test.xk6-soap</groupId><artifactId>wss4j-fixture</artifactId><version>0.0.1</version>
   <properties><maven.compiler.release>21</maven.compiler.release><project.build.sourceEncoding>UTF-8</project.build.sourceEncoding><cxf.version>4.2.4</cxf.version><wss4j.version>4.0.3</wss4j.version></properties>
-  <dependencyManagement><dependencies><dependency><groupId>org.apache.cxf</groupId><artifactId>cxf-bom</artifactId><version>${cxf.version}</version><type>pom</type><scope>import</scope></dependency></dependencies></dependencyManagement>
+  <dependencyManagement><dependencies>
+    <dependency><groupId>org.apache.cxf</groupId><artifactId>cxf-bom</artifactId><version>${cxf.version}</version><type>pom</type><scope>import</scope></dependency>
+    <!-- CXF's BOM manages WSS4J too. Override the complete runtime family so
+         updating the DOM pin cannot leave its siblings at the BOM's release. -->
+    <dependency><groupId>org.apache.wss4j</groupId><artifactId>wss4j-bindings</artifactId><version>${wss4j.version}</version></dependency>
+    <dependency><groupId>org.apache.wss4j</groupId><artifactId>wss4j-policy</artifactId><version>${wss4j.version}</version></dependency>
+    <dependency><groupId>org.apache.wss4j</groupId><artifactId>wss4j-ws-security-common</artifactId><version>${wss4j.version}</version></dependency>
+    <dependency><groupId>org.apache.wss4j</groupId><artifactId>wss4j-ws-security-dom</artifactId><version>${wss4j.version}</version></dependency>
+    <dependency><groupId>org.apache.wss4j</groupId><artifactId>wss4j-ws-security-stax</artifactId><version>${wss4j.version}</version></dependency>
+    <dependency><groupId>org.apache.wss4j</groupId><artifactId>wss4j-ws-security-policy-stax</artifactId><version>${wss4j.version}</version></dependency>
+  </dependencies></dependencyManagement>
   <dependencies>
     <dependency><groupId>org.apache.cxf</groupId><artifactId>cxf-rt-frontend-jaxws</artifactId><version>${cxf.version}</version></dependency>
     <dependency><groupId>org.apache.cxf</groupId><artifactId>cxf-rt-transports-http-jetty</artifactId><version>${cxf.version}</version></dependency>
@@ -10,6 +20,18 @@
     <dependency><groupId>org.apache.wss4j</groupId><artifactId>wss4j-ws-security-dom</artifactId><version>${wss4j.version}</version></dependency>
   </dependencies>
   <build><plugins>
+    <!-- Check the resolved transitive graph, not only the direct DOM pin. -->
+    <plugin>
+      <groupId>org.apache.maven.plugins</groupId><artifactId>maven-enforcer-plugin</artifactId><version>3.7.0</version>
+      <executions><execution><id>aligned-wss4j</id><phase>validate</phase><goals><goal>enforce</goal></goals>
+        <configuration><rules><bannedDependencies>
+          <searchTransitive>true</searchTransitive>
+          <excludes><exclude>org.apache.wss4j:*</exclude></excludes>
+          <includes><include>org.apache.wss4j:*:[${wss4j.version}]</include></includes>
+          <message>All WSS4J artifacts must match wss4j.version.</message>
+        </bannedDependencies></rules></configuration>
+      </execution></executions>
+    </plugin>
     <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-resources-plugin</artifactId><version>3.3.1</version></plugin>
     <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-compiler-plugin</artifactId><version>3.16.0</version></plugin>
     <plugin><groupId>org.apache.maven.plugins</groupId><artifactId>maven-surefire-plugin</artifactId><version>3.6.1</version></plugin>
