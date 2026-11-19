@@ -37,11 +37,14 @@ type Verified struct {
 }
 
 func certificateOK(cert *x509.Certificate, now time.Time) bool {
+	return rsaCertificateOK(cert, now, x509.KeyUsageDigitalSignature)
+}
+func rsaCertificateOK(cert *x509.Certificate, now time.Time, usage x509.KeyUsage) bool {
 	if cert == nil || now.Before(cert.NotBefore) || !now.Before(cert.NotAfter) {
 		return false
 	}
 	pub, ok := cert.PublicKey.(*rsa.PublicKey)
-	return ok && pub.N.BitLen() >= 2048 && (cert.KeyUsage == 0 || cert.KeyUsage&x509.KeyUsageDigitalSignature != 0)
+	return ok && pub.N.BitLen() >= 2048 && (cert.KeyUsage == 0 || cert.KeyUsage&usage != 0)
 }
 func parsed(raw []byte) (*xmlsec.Document, string, error) {
 	tree, err := xmlsec.ParseWithLimits(raw, xmlsec.ParseLimits{MaxBytes: 4 << 20, MaxDepth: 64, MaxNodes: 50000})
@@ -74,29 +77,33 @@ func element(root *xdm.Node) *xdm.Node {
 	return nil
 }
 func prepare(raw []byte, identity Identity, now time.Time) (*xmlsec.Document, string, error) {
+	doc, ns, _, err := prepareSecurity(raw, identity, now)
+	return doc, ns, err
+}
+func prepareSecurity(raw []byte, identity Identity, now time.Time) (*xmlsec.Document, string, *wss.Header, error) {
 	if !certificateOK(identity.Certificate, now) || identity.Key == nil || !identity.Key.PublicKey.Equal(identity.Certificate.PublicKey) {
-		return nil, "", ErrKey
+		return nil, "", nil, ErrKey
 	}
 	doc, ns, err := parsed(raw)
 	if err != nil {
-		return nil, "", err
+		return nil, "", nil, err
 	}
 	env := element(doc.Root())
 	body := env.FirstElement(ns, "Body")
 	if _, err := wss.AssignIDWith(doc, body, "body-1"); err != nil {
-		return nil, "", ErrInvalidMessage
+		return nil, "", nil, ErrInvalidMessage
 	}
 	header, err := wss.NewHeader(doc, ns, "", true)
 	if err != nil {
-		return nil, "", ErrInvalidMessage
+		return nil, "", nil, ErrInvalidMessage
 	}
 	if _, err := header.AddTimestampWithID(now, 5*time.Minute, "ts-1"); err != nil {
-		return nil, "", ErrInvalidMessage
+		return nil, "", nil, ErrInvalidMessage
 	}
 	if _, err := header.AddBinarySecurityTokenWithID(identity.Certificate, nil, xmlsec.BSTValueTypeX509v3, "bst-1"); err != nil {
-		return nil, "", ErrInvalidMessage
+		return nil, "", nil, ErrInvalidMessage
 	}
-	return doc, ns, nil
+	return doc, ns, header, nil
 }
 
 // Sign uses fixed IDs scoped to a single message, and the caller's clock.
@@ -160,6 +167,18 @@ func Verify(raw []byte, trust *x509.Certificate, now time.Time) (result *Verifie
 	if err != nil {
 		return nil, err
 	}
+	return verifyDocument(doc, ns, trust, now, nil)
+}
+
+// verifyDocument checks coverage on this exact immutable snapshot. Encryption
+// callers may permit one previously validated EncryptedKey and Body ciphertext.
+func verifyDocument(doc *xmlsec.Document, ns string, trust *x509.Certificate, now time.Time, encryptedKey *xdm.Node) (*Verified, error) {
+	return verifyDocumentCore(doc, ns, trust, now, encryptedKey, encryptedKey != nil)
+}
+func verifyRecovered(doc *xmlsec.Document, ns string, trust *x509.Certificate, now time.Time) (*Verified, error) {
+	return verifyDocumentCore(doc, ns, trust, now, nil, true)
+}
+func verifyDocumentCore(doc *xmlsec.Document, ns string, trust *x509.Certificate, now time.Time, encryptedKey *xdm.Node, permitEncryption bool) (*Verified, error) {
 	env := element(doc.Root())
 	body := env.FirstElement(ns, "Body")
 	security, err := wss.FindHeader(doc.Root(), ns, "")
@@ -180,7 +199,7 @@ func Verify(raw []byte, trust *x509.Certificate, now time.Time) (result *Verifie
 		if n.IsElement(xmlsec.NSDSig, "Signature") {
 			count++
 		}
-		if n.IsElement(xmlsec.NSXEnc, "EncryptedData") || n.IsElement(xmlsec.NSXEnc, "EncryptedKey") {
+		if !permitEncryption && (n.IsElement(xmlsec.NSXEnc, "EncryptedData") || n.IsElement(xmlsec.NSXEnc, "EncryptedKey")) {
 			return false
 		}
 		for c := range n.Children() {
@@ -190,18 +209,22 @@ func Verify(raw []byte, trust *x509.Certificate, now time.Time) (result *Verifie
 		}
 		return true
 	}
-	if !walk(doc.Root()) || count != 1 || !signaturePolicy(signature) {
+	references := 2
+	if encryptedKey != nil {
+		references = 3
+	}
+	if !walk(doc.Root()) || count != 1 || !signaturePolicy(signature, references) {
 		return nil, ErrInvalidMessage
 	}
 	coverage, err := dsig.Verify(doc.Root(), signature, dsig.VerifyOptions{
 		Certificate: trust, AllowedSignatureAlgorithms: []string{xmlsec.SigRSASHA256}, AllowedDigestAlgorithms: []string{xmlsec.DigestSHA256},
-		AllowedCanonicalizationAlgorithms: []string{string(c14n.Exclusive10)}, MaxReferences: 2,
-		StrictBSP: true, RequireExplicitCanonicalization: true,
+		AllowedCanonicalizationAlgorithms: []string{string(c14n.Exclusive10)}, MaxReferences: references,
+		StrictBSP: true, RequireExplicitCanonicalization: true, IDAttributes: []xdm.QName{dsig.IDAttrDSig},
 	})
 	if err != nil {
 		return nil, ErrInvalidMessage
 	}
-	if !coverage.CoversNodes(body, stamp) {
+	if !coverage.CoversNodes(body, stamp) || encryptedKey != nil && !coverage.CoversNodes(encryptedKey) {
 		return nil, ErrCoverage
 	}
 	timestamp, err := wss.ParseTimestamp(stamp)
@@ -223,7 +246,7 @@ func Verify(raw []byte, trust *x509.Certificate, now time.Time) (result *Verifie
 	// would erase namespace bindings used only in signed QName-valued data.
 	var prefixes []string
 	for _, reference := range coverage.References {
-		target, resolveErr := wss.FindByID(doc.Root(), strings.TrimPrefix(reference.URI, "#"))
+		target, resolveErr := wss.FindByID(doc.Root(), strings.TrimPrefix(reference.URI, "#"), dsig.IDAttrDSig)
 		if resolveErr != nil {
 			return nil, ErrInvalidMessage
 		}
@@ -238,7 +261,7 @@ func Verify(raw []byte, trust *x509.Certificate, now time.Time) (result *Verifie
 	}
 	return &Verified{Body: consumed, Created: timestamp.Created, Expires: timestamp.Expires}, nil
 }
-func signaturePolicy(signature *xdm.Node) bool {
+func signaturePolicy(signature *xdm.Node, required int) bool {
 	info := signature.FirstElement(xmlsec.NSDSig, "SignedInfo")
 	if info == nil {
 		return false
@@ -278,7 +301,7 @@ func signaturePolicy(signature *xdm.Node) bool {
 			return false
 		}
 	}
-	return references == 2
+	return references == required
 }
 
 func prefixPolicy(parent *xdm.Node) bool {

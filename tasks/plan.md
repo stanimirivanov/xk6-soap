@@ -24,6 +24,8 @@ New commands supplied by PR-1: `make lint`, `make test` (race-enabled), `make vu
 | CP-P: release evidence | 14, 15, 25, 26 | Public API/metrics exercised; frozen benchmark and completed interop documentation |
 | CP-R: release ready | 27 | Supported-version matrix and release dry-run; no publication |
 
+CP-K passed for the bounded core profile in [ADR-0003](../docs/adr/0003-encryption-kernel.md); this does not enable the planned public crypto paths.
+
 PR-11 through PR-24 crypto paths transitively require CP-K via explicit dependencies. Plain SOAP/object work may proceed independently. Serialize commits touching shared options, provider and module lockfiles. Parallel scheduling is optional; this plan does not require additional agents. Core kernel failure blocks dependent work and requires an evidence-based ADR/replan; changing the fixture to weaken required security is not a valid fix.
 
 ## Ordered task index
@@ -36,7 +38,7 @@ PR-11 through PR-24 crypto paths transitively require CP-K via explicit dependen
 | 4 | [PR-4: Deliver plain build and parse with faults and XPath](https://github.com/stanimirivanov/xk6-soap/issues/13) | 2, 3 | Medium |
 | 5 | [PR-5: Establish the independent WSS4J fixture](https://github.com/stanimirivanov/xk6-soap/issues/15) | 1 | Medium |
 | 6 | [PR-6: Prove candidate signature coverage and serialization](https://github.com/stanimirivanov/xk6-soap/issues/21) | 3, 5 | Medium |
-| 7 | PR-7: Gate the candidate on both encryption orders | 6 | Medium |
+| 7 | [PR-7: Gate the candidate on both encryption orders](https://github.com/stanimirivanov/xk6-soap/issues/23) | 6 | Medium |
 | 8 | PR-8: Load and cache validated key material | 1 | Medium |
 | 9 | PR-9: Define executable security policy and option validation | 3, 8 | Medium |
 | 10 | PR-10: Deliver UsernameToken and Timestamp exchanges | 4, 5, 9 | Medium |
