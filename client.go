@@ -11,12 +11,13 @@ import (
 )
 
 type clientConfig struct {
-	url     string
-	version string
-	limits  message.Limits
-	keys    *clientKeys
-	policy  wssec.Policy
-	debug   bool
+	url       string
+	version   string
+	namespace string
+	limits    message.Limits
+	keys      *clientKeys
+	policy    wssec.Policy
+	debug     bool
 }
 
 func (i *instance) throw(code, stage string) {
@@ -91,7 +92,7 @@ func (i *instance) newClient(call sobek.ConstructorCall) *sobek.Object {
 	}
 	start := time.Now()
 	cfg := clientConfig{version: "1.1"}
-	options := i.object(call.Argument(0), "url", "soapVersion", "limits", "debug", "keys", "security")
+	options := i.object(call.Argument(0), "url", "soapVersion", "namespace", "limits", "debug", "keys", "security")
 	cfg.url = i.text(options.Get("url"))
 	parsed, err := url.Parse(cfg.url)
 	if err != nil || parsed.Hostname() == "" || parsed.Scheme != "http" && parsed.Scheme != "https" || parsed.User != nil || parsed.Fragment != "" {
@@ -103,6 +104,11 @@ func (i *instance) newClient(call sobek.ConstructorCall) *sobek.Object {
 			i.throw("INVALID_ARGUMENT", "soapVersion")
 		}
 	}
+	cfg.namespace, err = i.objectNamespace(options)
+	if err != nil {
+		i.throw("INVALID_ARGUMENT", "namespace")
+	}
+
 	if value := options.Get("debug"); !absent(value) {
 		enabled, ok := value.Export().(bool)
 		if !ok {
@@ -164,7 +170,28 @@ func (i *instance) build(cfg clientConfig, call sobek.FunctionCall) sobek.Value 
 	if len(call.Arguments) < 2 || len(call.Arguments) > 3 {
 		i.throw("INVALID_ARGUMENT", "build")
 	}
-	operation, payload := i.text(call.Argument(0)), i.text(call.Argument(1))
+	var operation string
+	var payload string
+	if _, ok := call.Argument(1).(sobek.String); ok {
+		operation = i.text(call.Argument(0))
+		payload = i.text(call.Argument(1))
+	} else {
+		operationValue, ok := call.Argument(0).(sobek.String)
+		if !ok {
+			i.throw("INVALID_ARGUMENT", "operation")
+		}
+		reader := objectCapture{limits: cfg.limits}
+		var err error
+		operation, err = reader.scalar(operationValue)
+		if err != nil {
+			i.throw("INVALID_ARGUMENT", "operation")
+		}
+		payload, err = i.objectPayload(operation, call.Argument(1), cfg)
+		if err != nil {
+			failure := err.(*message.Error)
+			i.throw(failure.Code, failure.Stage)
+		}
+	}
 	action := ""
 	var credentials *wssec.Credentials
 	if len(call.Arguments) == 3 && !sobek.IsUndefined(call.Argument(2)) {

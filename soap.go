@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/grafana/sobek"
 	"github.com/stanimirivanov/xk6-soap/internal/keys"
 	"go.k6.io/k6/v2/js/modules"
 	"go.k6.io/k6/v2/metrics"
@@ -30,15 +31,20 @@ func (r *RootModule) NewModuleInstance(vu modules.VU) modules.Instance {
 	if env := vu.InitEnv(); env != nil {
 		registered = r.registerMetrics(env.Registry)
 	}
-	return &instance{vu: vu, keyCache: r.keyCache, random: rand.Reader, now: time.Now, metrics: registered}
+	object := vu.Runtime().Get("Object").ToObject(vu.Runtime())
+	ownKeys, _ := sobek.AssertFunction(object.Get("keys"))
+	ownDescriptor, _ := sobek.AssertFunction(object.Get("getOwnPropertyDescriptor"))
+	return &instance{vu: vu, keyCache: r.keyCache, random: rand.Reader, now: time.Now, metrics: registered, ownKeys: ownKeys, ownDescriptor: ownDescriptor}
 }
 
 type instance struct {
-	vu       modules.VU
-	metrics  *soapMetrics
-	keyCache *keys.Cache
-	random   io.Reader
-	now      func() time.Time
+	vu            modules.VU
+	metrics       *soapMetrics
+	ownKeys       sobek.Callable
+	ownDescriptor sobek.Callable
+	keyCache      *keys.Cache
+	random        io.Reader
+	now           func() time.Time
 }
 
 func (i *instance) Exports() modules.Exports {

@@ -152,9 +152,15 @@ func TestMetricRegistrationAcrossConcurrentVUs(t *testing.T) {
 	root := New()
 	values := make(chan *soapMetrics, 20)
 	var wg sync.WaitGroup
-	for range 20 {
+	// VUs share the registry, never their Sobek runtime.
+	runtimes := make([]*modulestest.Runtime, 20)
+	for index := range runtimes {
+		runtimes[index] = modulestest.NewRuntime(t)
+		runtimes[index].VU.InitEnvField.Registry = rt.VU.InitEnvField.Registry
+	}
+	for _, runtime := range runtimes {
 		wg.Add(1)
-		go func() { defer wg.Done(); values <- root.NewModuleInstance(rt.VU).(*instance).metrics }()
+		go func() { defer wg.Done(); values <- root.NewModuleInstance(runtime.VU).(*instance).metrics }()
 	}
 	wg.Wait()
 	close(values)
