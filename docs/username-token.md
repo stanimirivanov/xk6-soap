@@ -3,8 +3,9 @@
 PR-10 enables outbound UsernameToken (PasswordDigest or PasswordText) and
 standalone Timestamp for SOAP 1.1/1.2. HTTP remains in k6/http. Responses in this
 stage are plain SOAP; sending credentials does not authenticate a response.
-Signing, encryption, required signature/Timestamp verification and decryption
-remain rejected by the constructor capability gate.
+[Core outbound signing](signing.md) can cover the token and Timestamp. Encryption,
+required signature/Timestamp verification and decryption remain rejected by the
+constructor capability gate.
 
 ```js
 import { Client } from 'k6/x/soap';

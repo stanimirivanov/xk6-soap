@@ -74,9 +74,9 @@ func TestMetadataDiagnosticsNeverReflectInputs(t *testing.T) {
 		t.Fatal("diagnostics enabled by default")
 	}
 	js(t, rt.VU.Runtime(), `try{new Client({url:'https://SECRET.invalid',debug:true,keys:{signing:{cert,key},trust:[cert]},security:{sign:{}}});throw new Error('unavailable accepted');}catch(e){if(e.code!=='SOAP_FEATURE_UNAVAILABLE')throw e;}
- var tokenClient=new Client({url:'https://SECRET.invalid',debug:true,security:{usernameToken:{user:'SECRET_USER',password:'SECRET_PASSWORD',passwordType:'PasswordText'}}});var client=new Client({url:'https://SECRET.invalid',debug:true});`)
+ var signedClient=new Client({url:'https://SECRET.invalid',debug:true,keys:{signing:{cert,key}},security:{sign:{},verify:{signature:false},usernameToken:{user:'SECRET_USER',password:'SECRET_PASSWORD',passwordType:'PasswordText'}}});var tokenClient=new Client({url:'https://SECRET.invalid',debug:true,security:{usernameToken:{user:'SECRET_USER',password:'SECRET_PASSWORD',passwordType:'PasswordText'}}});var client=new Client({url:'https://SECRET.invalid',debug:true});`)
 	rt.MoveToVUContext(&lib.State{Logger: logger})
-	js(t, rt.VU.Runtime(), `tokenClient.build('Echo','<Echo/>');var request=client.build('Echo','<Echo>SECRET_PAYLOAD</Echo>');client.parse({status:200,body:request.body});client.parse({status:500,body:'SECRET_FAULT'});`)
+	js(t, rt.VU.Runtime(), `signedClient.build('Echo','<Echo>SECRET_SIGNED_PAYLOAD</Echo>');tokenClient.build('Echo','<Echo/>');var request=client.build('Echo','<Echo>SECRET_PAYLOAD</Echo>');client.parse({status:200,body:request.body});client.parse({status:500,body:'SECRET_FAULT'});`)
 	logs := output.String()
 	for _, required := range []string{"stage=constructor", "stage=build", "stage=parse", "duration_ms=", "algorithm=", "code=SOAP_FEATURE_UNAVAILABLE"} {
 		if !strings.Contains(logs, required) {

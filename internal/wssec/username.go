@@ -12,6 +12,7 @@ import (
 	"github.com/knroy/go-xml/v2/xdm"
 	"github.com/knroy/go-xmlsec/v2"
 	"github.com/knroy/go-xmlsec/v2/wss"
+	"github.com/stanimirivanov/xk6-soap/internal/keys"
 	"github.com/stanimirivanov/xk6-soap/internal/message"
 )
 
@@ -28,7 +29,13 @@ const base64Encoding = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-
 
 // BuildCredentials owns a fresh tree per call. Time/randomness are internal Go
 // seams; the public Client always supplies time.Now and crypto/rand.Reader.
-func BuildCredentials(raw []byte, p Policy, now time.Time, random io.Reader, override *Credentials, limits message.Limits) (wire []byte, err error) {
+func BuildCredentials(raw []byte, p Policy, now time.Time, random io.Reader, override *Credentials, limits message.Limits) ([]byte, error) {
+	return BuildSecurity(raw, p, nil, now, random, override, limits)
+}
+
+// BuildSecurity constructs credentials and signatures in one request-local tree.
+// Only the completed tree is serialized to wire bytes.
+func BuildSecurity(raw []byte, p Policy, signing *keys.Material, now time.Time, random io.Reader, override *Credentials, limits message.Limits) (wire []byte, err error) {
 	defer func() {
 		if recover() != nil {
 			wire = nil
@@ -37,6 +44,14 @@ func BuildCredentials(raw []byte, p Policy, now time.Time, random io.Reader, ove
 	}()
 	if err = p.RequireAvailable(); err != nil {
 		return nil, err
+	}
+	if p.Sign != nil {
+		if signing == nil || signing.Validate(keys.Signing, now) != nil || !certificateOK(signing.Certificate(), now) {
+			return nil, ErrPolicyKey
+		}
+		if p.Timestamp == nil {
+			return nil, ErrPolicy
+		}
 	}
 	if p.Timestamp == nil {
 		if override != nil || p.UsernameToken != nil {
@@ -104,6 +119,11 @@ func BuildCredentials(raw []byte, p Policy, now time.Time, random io.Reader, ove
 		token.AppendElement(xdm.QName{URI: xmlsec.NSWSU, Prefix: "wsu", Local: "Created"}).AppendText(created)
 		if header.Prepend(token) != nil {
 			return nil, ErrCredentialBuild
+		}
+	}
+	if p.Sign != nil {
+		if e = appendSignature(doc, ns, header, signing, p.UsernameToken != nil); e != nil {
+			return nil, e
 		}
 	}
 	if wss.CheckUniqueIDs(doc.Root(), xdm.QName{Local: "Id"}) != nil {

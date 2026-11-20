@@ -76,14 +76,18 @@ public final class Fixture {
                 password.setPassword("fixture-only");
             }
         };
-        for (String mode : new String[]{"sig", "ste128", "ste256", "ets128", "ets256"}) {
+        for (String mode : new String[]{"sig", "sigut", "ste128", "ste256", "ets128", "ets256"}) {
             for (String version : new String[]{"11", "12"}) {
                 String ns = "11".equals(version) ? "http://schemas.xmlsoap.org/soap/envelope/" : "http://www.w3.org/2003/05/soap-envelope";
                 String binding = "11".equals(version) ? SOAPBinding.SOAP11HTTP_BINDING : SOAPBinding.SOAP12HTTP_BINDING;
                 EndpointImpl endpoint = new EndpointImpl(bus, new Echo(), binding);
                 Map<String, Object> in = new HashMap<>();
-                in.put(ConfigurationConstants.ACTION, "sig".equals(mode) ? "Timestamp Signature" : "Timestamp Signature Encryption");
-                if (!"sig".equals(mode)) {
+                in.put(ConfigurationConstants.ACTION, "sigut".equals(mode) ? "Timestamp UsernameToken Signature" : "sig".equals(mode) ? "Timestamp Signature" : "Timestamp Signature Encryption");
+                if ("sigut".equals(mode)) {
+                    in.put(ConfigurationConstants.PW_CALLBACK_REF, passwords);
+                    in.put(WSS4JInInterceptor.VALIDATOR_MAP, Map.of(org.apache.wss4j.dom.WSConstants.USERNAME_TOKEN, new FreshUsernameToken()));
+                }
+                if (!mode.startsWith("sig")) {
                     in.put(ConfigurationConstants.DEC_PROP_FILE, "signature.properties");
                     in.put(ConfigurationConstants.PW_CALLBACK_REF, signingPassword);
                 }
@@ -93,7 +97,14 @@ public final class Fixture {
                 in.put(ConfigurationConstants.TTL_TIMESTAMP, "300");
                 in.put(ConfigurationConstants.TTL_FUTURE_TIMESTAMP, "60");
                 endpoint.getInInterceptors().add(new WSS4JInInterceptor(in));
-                endpoint.getInInterceptors().add(new DefaultCryptoCoverageChecker());
+                DefaultCryptoCoverageChecker coverage = new DefaultCryptoCoverageChecker();
+                if ("sigut".equals(mode)) {
+                    // This endpoint deliberately exercises the outbound signed-token profile.
+                    // Keep Body/Timestamp coverage and independently require token signing.
+                    coverage.setEncryptUsernameToken(false);
+                    coverage.setSignUsernameToken(true);
+                }
+                endpoint.getInInterceptors().add(coverage);
                 Map<String, Object> out = new HashMap<>();
                 out.put(ConfigurationConstants.ACTION, mode.startsWith("ste") ? "Timestamp Signature Encryption" : mode.startsWith("ets") ? "Timestamp Encryption Signature" : "Timestamp Signature");
                 out.put(ConfigurationConstants.USER, "fixture-server");
@@ -105,7 +116,7 @@ public final class Fixture {
                 out.put(ConfigurationConstants.SIG_C14N_ALGO, "http://www.w3.org/2001/10/xml-exc-c14n#");
                 out.put(ConfigurationConstants.ADD_INCLUSIVE_PREFIXES, "true");
                 out.put(ConfigurationConstants.SIGNATURE_PARTS, "{Element}{" + ns + "}Body;{Element}{http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd}Timestamp");
-                if (!"sig".equals(mode)) {
+                if (!mode.startsWith("sig")) {
                     out.put(ConfigurationConstants.ENCRYPTION_USER, "fixture-client");
                     out.put(ConfigurationConstants.ENC_PROP_FILE, "signature.properties");
                     out.put(ConfigurationConstants.ENC_KEY_ID, "IssuerSerial");

@@ -188,3 +188,17 @@ fixture glue. Sending credentials confers no response-authenticity flag.
 
 [CP-T1 evidence](../../docs/username-token.md) records the fixed vector and scope.
 JMeter capture/migration parity remains unverified; no capture was supplied.
+
+## Public signed-request exchanges (PR-11)
+
+`signing.js` runs the actual custom k6 Client against `/sig11`, `/sig12`,
+`/sigut11` and `/sigut12`. It sends exact built bytes and requires Apache to
+accept RSA-SHA256/SHA256/BST signatures over Body/Timestamp and optional
+Digest/Text UsernameToken. Body, Timestamp and token mutations must produce SOAP
+faults. A valid Body/Timestamp signature with a separately inserted, valid but
+unsigned UsernameToken must also fail. The signed-token endpoints use Apache's
+`setSignUsernameToken(true)` coverage check in place of its default encrypted-token
+requirement, retaining Body/Timestamp signature requirements. Existing endpoints
+keep their original policies. The Go runner rejects synthetic secret sentinels in
+captured k6 diagnostic output. Signed responses remain the independent fixture's
+behavior; public response verification is PR-12 and is not claimed by this test.

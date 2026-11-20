@@ -216,10 +216,14 @@ func CompilePolicy(in SecurityOptions, material KeyMaterial, now time.Time) (Pol
 	return p, nil
 }
 
-// RequireAvailable activates only outbound UsernameToken/Timestamp. Kernel
-// signature/encryption probes do not activate those public capabilities.
+// RequireAvailable activates outbound credentials and the accepted core signature
+// profile. Receive verification and additional profiles remain fail-closed.
 func (p Policy) RequireAvailable() error {
-	if p.Sign != nil || p.Encrypt != nil || p.Receive.Signature || p.Receive.Timestamp || p.Receive.RequireEncryption || p.Receive.Order != "" {
+	if s := p.Sign; s != nil && (s.Algorithm != "rsa-sha256" || s.Digest != "sha256" || s.Canonicalization != "exclusive-c14n" || s.KeyID != "binary-security-token" || len(s.Headers) != 0) {
+		return ErrUnavailable
+	}
+
+	if p.Encrypt != nil || p.Receive.Signature || p.Receive.Timestamp || p.Receive.RequireEncryption || p.Receive.Order != "" {
 		return ErrUnavailable
 	}
 	return nil
