@@ -83,6 +83,9 @@ func (i *instance) newClient(call sobek.ConstructorCall) *sobek.Object {
 	if i.vu.State() != nil {
 		i.throw("SOAP_INIT_ONLY", "constructor")
 	}
+	if i.metrics == nil {
+		i.throw("SOAP_METRIC_REGISTRATION", "constructor")
+	}
 	if len(call.Arguments) != 1 {
 		i.throw("INVALID_ARGUMENT", "constructor")
 	}
@@ -155,8 +158,9 @@ func (i *instance) execution() {
 }
 func (i *instance) build(cfg clientConfig, call sobek.FunctionCall) sobek.Value {
 	i.execution()
-	i.validateKeys(cfg)
 	start := time.Now()
+	defer i.recordMetrics(cfg, start, false, false)
+	i.validateKeys(cfg)
 	if len(call.Arguments) < 2 || len(call.Arguments) > 3 {
 		i.throw("INVALID_ARGUMENT", "build")
 	}
@@ -192,8 +196,10 @@ func (i *instance) build(cfg clientConfig, call sobek.FunctionCall) sobek.Value 
 	return i.vu.Runtime().ToValue(map[string]any{"url": cfg.url, "body": request.Body, "headers": request.Headers, "buildDuration": float64(time.Since(start)) / float64(time.Millisecond)})
 }
 func (i *instance) parse(cfg clientConfig, call sobek.FunctionCall) sobek.Value {
-	start := time.Now()
 	i.execution()
+	start := time.Now()
+	var outcome *message.Parsed
+	defer func() { i.recordMetrics(cfg, start, true, outcome != nil && outcome.OK) }()
 	i.validateKeys(cfg)
 	if len(call.Arguments) != 1 {
 		i.throw("INVALID_ARGUMENT", "parse")
@@ -218,7 +224,8 @@ func (i *instance) parse(cfg clientConfig, call sobek.FunctionCall) sobek.Value 
 					i.throw("INVALID_ARGUMENT", "body")
 				}
 				if len(data.Bytes()) > cfg.limits.Bytes {
-					return i.parsedValue(&message.Parsed{Status: status, Error: &message.Error{Code: "LIMIT_EXCEEDED", Stage: "parse"}})
+					outcome = &message.Parsed{Status: status, Error: &message.Error{Code: "LIMIT_EXCEEDED", Stage: "parse"}}
+					return i.parsedValue(outcome)
 				}
 				body = string(data.Bytes())
 			default:
@@ -232,6 +239,7 @@ func (i *instance) parse(cfg clientConfig, call sobek.FunctionCall) sobek.Value 
 		code = parsed.Error.Code
 	}
 	i.diagnostic(cfg.debug, "parse", start, cfg.policy, code)
+	outcome = parsed
 	return i.parsedValue(parsed)
 }
 func resultError(err *message.Error) any {

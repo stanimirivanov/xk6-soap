@@ -73,3 +73,6 @@ security paths at construction. [UsernameToken and Timestamp exchanges](docs/use
 and [core RSA signed requests](docs/signing.md) are available, with
 [exact coverage and pinned response verification](docs/receive.md). Encryption and
 additional profiles remain planned.
+
+SOAP outcomes and build/receive processing costs are available as [k6 metrics](docs/metrics.md),
+with separate SOAP failure thresholds from HTTP status thresholds.

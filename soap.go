@@ -4,27 +4,38 @@ package soap
 import (
 	"crypto/rand"
 	"io"
+	"sync"
 	"time"
 
 	"github.com/stanimirivanov/xk6-soap/internal/keys"
 	"go.k6.io/k6/v2/js/modules"
+	"go.k6.io/k6/v2/metrics"
 )
 
 func init() { modules.Register("k6/x/soap", New()) }
 
-// RootModule shares only its bounded concurrency-safe key cache across VUs.
-type RootModule struct{ keyCache *keys.Cache }
+// RootModule shares immutable key material and k6-owned metric references across VUs.
+type RootModule struct {
+	keyCache  *keys.Cache
+	metricsMu sync.Mutex
+	metrics   map[*metrics.Registry]*soapMetrics
+}
 
 // New constructs the extension root.
 func New() *RootModule { return &RootModule{keyCache: keys.NewCache()} }
 
 // NewModuleInstance creates bindings owned exclusively by one VU.
 func (r *RootModule) NewModuleInstance(vu modules.VU) modules.Instance {
-	return &instance{vu: vu, keyCache: r.keyCache, random: rand.Reader, now: time.Now}
+	var registered *soapMetrics
+	if env := vu.InitEnv(); env != nil {
+		registered = r.registerMetrics(env.Registry)
+	}
+	return &instance{vu: vu, keyCache: r.keyCache, random: rand.Reader, now: time.Now, metrics: registered}
 }
 
 type instance struct {
 	vu       modules.VU
+	metrics  *soapMetrics
 	keyCache *keys.Cache
 	random   io.Reader
 	now      func() time.Time

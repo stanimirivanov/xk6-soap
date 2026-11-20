@@ -154,6 +154,8 @@ Implementation tracked in [issue #37](https://github.com/stanimirivanov/xk6-soap
 
 ### PR-14: Instrument SOAP outcomes and processing costs
 
+Implementation tracked in [issue #39](https://github.com/stanimirivanov/xk6-soap/issues/39).
+
 - **Scope/files:** metrics helper and summary E2E scripts. Four architecture §9 metrics, including receive duration; no new high-cardinality metadata.
 - **Acceptance:** metrics registered once with correct units/types; repeated parse, build failure, skipped parse and remote failure have exact sample counts; init misuse produces an error, not panic/deadlock, and canceled VU sampling is safe.
 - **Verify:** SG, metric-summary E2E including a SOAP-failure threshold with HTTP 200. Establish fixed extension tag values, not merely fixed tag names.
