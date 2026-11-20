@@ -10,7 +10,9 @@ The goal is deterministic checks for specified properties, with explicit limits.
 AGENTS.md                    task loop and root adapter constraints
 internal/AGENTS.md           internal-layer and security constraints
 internal/archtest/           tested AST import/layer sensors, including tagged source
-soap.go, client.go           named module, lifecycle and plain Client bindings
+soap.go, client.go           named module, lifecycle and Client bindings
+metrics.go                  registry-owned metrics and cancellation-aware sampling
+test/e2e/metrics.js          exact summary counts and HTTP-200 SOAP failure threshold
 internal/message/           bounded SOAP validation, faults and isolated XPath
 internal/keys/              byte-based key validation, private material and bounded cache
 keys.go, test/keys.js        constructor key decoding and actual k6 key-input probe
@@ -43,6 +45,7 @@ source for allowed first-party edges; new packages fail closed until reviewed th
 | Sobek values and module bindings | Per-VU root instance | Runtime isolation/lifecycle tests; internal imports forbidden |
 | XML/message state | Per request/response | Never shared; exact covered-Body projection and hostile security tests |
 | Decoded key cache | RootModule-owned immutable material | 256 entries/32 MiB encoded input; concrete-key and cross-VU race tests |
+| Extension metrics | RootModule references per k6 registry; per-call samples | Once-per-registry registration; fixed tag enums; cancellation tests |
 | HTTP, TLS, cookies, HTTP metrics | k6/http in script | Production direct transport imports forbidden |
 | Fixture servers/files | test directory | Exempt from production import rules, never imported into runtime |
 | Harness AST/filesystem operations | internal/archtest | Runtime imports of harness forbidden |

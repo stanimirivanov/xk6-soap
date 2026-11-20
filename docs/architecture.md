@@ -142,7 +142,7 @@ Default limits: 4 MiB input/output envelope, 4 MiB total recovered plaintext, XM
 | Metric | Semantics |
 | --- | --- |
 | `soap_build_duration` Trend, ms | One sample per valid execution-context build attempt, including failed builds |
-| `soap_parse_duration` Trend, ms | One sample per valid parse call, including remote failures; covers receive crypto |
+| `soap_parse_duration` Trend, ms | One sample per execution-context parse invocation, including API/remote failures; covers receive crypto |
 | `soap_reqs` Counter | One per parse invocation, including repeated parsing of the same response |
 | `soap_req_failed` Rate | One per parse invocation; sample is `!ok` |
 
