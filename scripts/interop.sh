@@ -21,7 +21,7 @@ cp test/interop/wss4j/Dockerfile test/interop/wss4j/pom.xml test/interop/wss4j/m
 cp -R test/interop/wss4j/src "$scratch/build/src"
 # Apache trusts only the committed synthetic client's public certificate.
 cp internal/wssec/testdata/signing-cert.pem "$scratch/build/client-cert.pem"
-timeout 600 docker build --iidfile "$scratch/image" "$scratch/build"
+timeout 600 docker build --no-cache --iidfile "$scratch/image" "$scratch/build"
 image=$(cat "$scratch/image")
 timeout 30 docker run --detach --init --read-only --tmpfs /tmp:rw,nosuid,size=64m \
     --cap-drop=ALL --security-opt=no-new-privileges --memory=512m --cpus=2 \

@@ -216,35 +216,53 @@ The encryption endpoints keep their existing fault policy and regression matrix.
 
 ## Central import-BOM resolution failures
 
-CI intermittently reported `cxf-bom:4.2.4` absent at the default Central URL before
-compilation. The same pinned POM succeeded in an uncached preceding CI build and
-in local cold builds. Both official Central HTTPS hostnames currently serve the
-artifact; the precise upstream cause of CI's inconsistent not-found response is
-unconfirmed. A local successful download alone does not resolve the CI problem.
+CI has reported the pinned `cxf-bom:4.2.4` absent on both
+`repo.maven.apache.org` and `repo1.maven.org`. These two official hostnames share
+CDN infrastructure; switching between them was insufficient. The precise upstream
+cause of CI's inconsistent not-found response is still unconfirmed. Successful
+local downloads alone do not establish availability from GitHub's network.
 
-`maven-build.sh` first runs forced-update `validate` to resolve the model/dependency
-graph and enforce WSS4J alignment before compilation/tests. Only a not-found imported
-BOM response allows one additional validation attempt, using
-`central-fallback.xml` to select `https://repo1.maven.org/maven2` instead of the
-default `https://repo.maven.apache.org/maven2`. Both are
-[official Central TLS endpoints](https://central.sonatype.org/faq/ssl/); this is
-not a third-party repository or a dependency-version fallback. They can share CDN
-infrastructure, so the second hostname is no guarantee against a Central outage.
+`maven-build.sh` resolves the model/dependency graph with forced-update `validate`
+before compilation/tests. Only a not-found imported BOM permits one additional
+validation attempt. The fallback now selects the independently hosted
+[Google Cloud Storage mirror of Maven Central](https://docs.cloud.google.com/docs/buildpacks/java#google_cloud_hosted_maven_central_mirror),
+`https://maven-central.storage-download.googleapis.com/maven2/`, rather than the
+other Central hostname. This changes the fallback download source to Google's
+mirror. Dependency versions and alignment checks are unchanged. The pinned CXF BOM
+was fetched from both primary Central and the mirror with identical SHA-256 bytes.
+The mirror may lag Central and has no availability guarantee; if both attempts fail,
+the build fails. No insecure TLS settings or dependency-version fallbacks are used.
 
-`-U` matters: a controlled real-Maven experiment returning HTTP 404 once produced
-the exact missing-import error; the next ordinary invocation reused the negative
-cache without another HTTP request. Forced update fetched the now-available BOM.
-There is no unbounded retry loop. A permanent missing pin still fails. Transfer
-errors, malformed models, WSS4J alignment errors and compilation/test failures do
-not trigger this recovery. After successful validation the selected endpoint is
-retained for exactly one `package dependency:copy-dependencies` invocation. Original
-failure output and the recovery decision remain visible; fixture timeouts still apply.
+`-U` bypasses Maven's cached negative lookup. Original failure output and the
+recovery decision remain visible. Transfer/validation/compilation/test errors do
+not trigger recovery. After validation, exactly one package/copy-dependencies
+invocation uses the selected source. Deterministic controller/settings tests run
+in `make verify`; cold Docker builds exercise actual Maven resolution.
 
-`TestMavenBuildRecovery` deterministically checks success, recovery, permanent
-failure, non-not-found errors, selected endpoint propagation and preservation of
-build/test failures. `TestMavenFallbackSettings` constrains the alternate repository.
-These use a fake Maven process to test the shell controller, not to claim artifact
-availability. Verification also forced a real primary HTTP 404 in a temporary cold
-Docker build: the alternate official endpoint resolved the unchanged full fixture,
-passed Maven Enforcer and completed packaging. Normal `make interop` then passed the
-independent Apache suite. No dependency pins or security checks were weakened.
+`make interop` now always uses `docker build --no-cache`, matching a clean CI build
+rather than trusting a previous Maven layer. With repository hooks enabled,
+pre-push runs that full gate against clean committed HEAD and blocks publication
+on failure. This requires local Docker, GNU timeout and network access. It catches
+local dependency/build/interop failures before delivery; local success cannot
+predict a later outage or a different regional response in CI.
+
+## Signed Timestamp freshness (PR-13)
+
+`timestamp.js` exercises `/sig11`, `/sig12`, `/sigstale11`, `/sigstale12`,
+`/sigfuture11` and `/sigfuture12` using real k6 and the server's exact public pin.
+The new endpoints retain core incoming signature/coverage checks. Their outbound
+Timestamp action uses a request-local Apache `WSSecTimestamp` builder with an offset
+clock source: -600 seconds for stale responses and +120 seconds for future ones.
+Apache generates Created/Expires, canonicalizes and signs the Timestamp normally.
+The endpoint's shared WSSConfig is never mutated, and signed wire bytes are not
+edited after signing. Production extension time/randomness remain unchanged.
+
+For both SOAP versions, native k6 verifies signature math before rejecting stale
+or future Timestamp content. A 180-second configured receive skew accepts the future
+fixture; a one-second configured max age rejects a normal 300-second lifetime.
+Signed service faults exercise freshness precedence and content withholding too.
+Explicit Timestamp skip preserves a true signature flag with null Timestamp flag;
+re-parsing a fresh response remains accepted because freshness is not replay detection.
+Captured debug output must omit a synthetic private payload sentinel. Go tests
+separately prove exact nanosecond/equality boundaries and malformed/unsigned/missing
+Timestamp handling without depending on network delivery timing.

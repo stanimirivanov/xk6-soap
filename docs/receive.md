@@ -62,16 +62,32 @@ rejected and never executed. `verify:{signature:true,timestamp:false}` authentic
 Body and any present Timestamp but skips freshness, leaving `timestampValid` null.
 The core profile still requires coverage of a present Timestamp.
 
-The existing kernel's default freshness check (300-second age/lifetime, 60-second
-skew) remains active when required. Configurable skew/max-age activation and the
-full freshness boundary suite are PR-13; nondefault values with required signature
-verification currently fail construction with `SOAP_FEATURE_UNAVAILABLE`. Freshness
-is distinct from replay detection. Encryption/order/decryption, broader algorithms,
-key IDs and custom headers remain gated. No broader signed-response checkpoint is
-claimed by this task alone.
+PR-13 activates `clockSkewSeconds` (0–300, default 60) and `maxAgeSeconds`
+(1–3600, default 300). Required Timestamp fields must be scalar UTC values: exactly
+one Created followed by exactly one Expires, with no nested elements or mixed
+Timestamp text. XML whitespace remains permitted. The actual
+Timestamp, including both fields, must be covered by the trusted signature.
+For receive time `now`, acceptance requires all of:
+
+- `Expires > Created` and `Expires - Created <= maxAge`.
+- `Created <= now + skew`.
+- `now < Expires + skew` (equality is expired).
+- `now - Created <= maxAge + skew`.
+
+The age equality cannot override the strict expiry condition: when lifetime equals
+maxAge, age at maxAge + skew also reaches expiry + skew and is rejected. Tests use
+an injected Go-only clock for nanosecond boundary checks without waiting or changing
+production randomness. Receive time is sampled independently of outbound Timestamp
+clock offset/TTL; neither silently widens receive tolerance.
+
+Freshness is distinct from replay detection. Repeated parsing of the same valid
+response is permitted while it remains fresh; no receive replay cache is introduced.
+Encryption/order/decryption, broader algorithms, key IDs and custom headers remain
+gated. No broader signed-response checkpoint is claimed by this task alone.
 
 Evidence includes hostile exact-coverage/duplicate-ID fixtures, a different DER
 certificate with the same public key, overlapping pins, namespace-preserving
 projection and canonical expansion limits, and real k6 exchanges against independently
-signed WSS4J responses and service faults for both SOAP versions. Metadata-only
+signed WSS4J responses and service faults for both SOAP versions, including stale
+and future-dated Timestamp fixtures generated before Apache signs them. Metadata-only
 logging is checked with synthetic private response sentinels.

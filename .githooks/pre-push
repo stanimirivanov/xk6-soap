@@ -1,0 +1,20 @@
+#!/bin/sh
+set -eu
+if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
+    printf 'Commit or preserve outstanding edits before pushing; interop must verify the pushed snapshot.\n' >&2
+    exit 1
+fi
+head=$(git rev-parse HEAD)
+check=false
+while read -r local_ref local_sha remote_ref remote_sha; do
+    case "$local_sha" in 0000000000000000000000000000000000000000) continue ;; esac
+    pushed_commit=$(git rev-parse --verify "$local_sha^{commit}" 2>/dev/null || true)
+    if [ "$pushed_commit" != "$head" ]; then
+        printf 'Check out the commit being pushed before running the pre-push interop gate.\n' >&2
+        exit 1
+    fi
+    check=true
+done
+if "$check"; then
+    exec make interop
+fi

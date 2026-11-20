@@ -112,7 +112,7 @@ func TestMavenFallbackSettings(t *testing.T) {
 	if e = xml.Unmarshal(b, &settings); e != nil {
 		t.Fatal(e)
 	}
-	if len(settings.Mirrors) != 1 || settings.Mirrors[0].MirrorOf != "central" || settings.Mirrors[0].URL != "https://repo1.maven.org/maven2" {
-		t.Fatal("fallback must use only the alternate official HTTPS Central endpoint", settings)
+	if len(settings.Mirrors) != 1 || settings.Mirrors[0].MirrorOf != "central" || settings.Mirrors[0].URL != "https://maven-central.storage-download.googleapis.com/maven2/" {
+		t.Fatal("fallback must use only the independently hosted HTTPS Central mirror", settings)
 	}
 }

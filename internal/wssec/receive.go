@@ -174,10 +174,10 @@ func Receive(status int, raw, version string, limits message.Limits, policy Rece
 			if stamp == nil {
 				return fail("TIMESTAMP_INVALID")
 			}
-			ts, e := wss.ParseTimestamp(stamp)
-			if e != nil || ts.Expires.IsZero() || !ts.Expires.After(ts.Created) || ts.Expires.Sub(ts.Created) > 5*time.Minute || ts.Check(now, time.Minute, 5*time.Minute) != nil {
+			if !timestampFresh(stamp, now, policy) {
 				return fail("TIMESTAMP_INVALID")
 			}
+
 			yes := true
 			result.TimestampValid = &yes
 		}

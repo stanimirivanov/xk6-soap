@@ -3,7 +3,8 @@
 PR-9 implements typed policy normalization and constructor validation.
 [PR-10](username-token.md) activates outbound UsernameToken and Timestamp.
 [PR-11](signing.md) activates RSA-SHA256/SHA256/exclusive-C14N/BST signing.
-[PR-12](receive.md) activates core pinned response verification. Encryption,
+[PR-12](receive.md) activates core pinned response verification; PR-13 enforces
+configured signed Timestamp freshness. Encryption,
 additional signing profiles and decryption remain unavailable in the public Client. The internal kernel probes remain
 independent gate evidence. Valid requests for unavailable features
 throw `SOAP_FEATURE_UNAVAILABLE` at construction, before measured iterations.
@@ -108,5 +109,5 @@ matrices, including undefined-field downgrade and secret-accessor regressions.
 A temporary mutation bypassing constructor availability made the silent-no-op
 regression fail; exact source restored. `make smoke` exercises actual k6 option
 handling and rejects the synthetic private sentinel if it appears in its policy
-probe output. Unit tests independently capture VU logger output. PR-12 activation retains these rejection controls for the remaining unavailable
+probe output. Unit tests independently capture VU logger output. PR-13 activation retains these rejection controls for the remaining unavailable
 capabilities.
