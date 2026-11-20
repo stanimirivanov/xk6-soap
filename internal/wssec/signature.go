@@ -32,8 +32,9 @@ type Identity struct {
 // Verified contains only serialization of the actual covered Body, not a
 // separately reparsed or reselected application element. No provider node escapes.
 type Verified struct {
-	Body             []byte
-	Created, Expires time.Time
+	Body    []byte
+	Created time.Time
+	Expires time.Time
 }
 
 func certificateOK(cert *x509.Certificate, now time.Time) bool {

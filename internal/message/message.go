@@ -14,14 +14,22 @@ const (
 )
 
 // Error contains only stable diagnostics; hostile XML and action values are omitted.
-type Error struct{ Code, Stage string }
+type Error struct {
+	Code  string
+	Stage string
+}
 
 func (e *Error) Error() string         { return fmt.Sprintf("%s: %s", e.Code, e.Stage) }
 func failure(code, stage string) error { return &Error{Code: code, Stage: stage} }
 
 // Limits may reduce defaults. Zero selects the default; increases are unsupported.
 // Nodes counts all decoder tokens, including closing tags, text and comments.
-type Limits struct{ Bytes, Depth, Nodes, Attributes int }
+type Limits struct {
+	Bytes      int
+	Depth      int
+	Nodes      int
+	Attributes int
+}
 
 // Normalized validates the limits and fills omitted fields with finite defaults.
 func (l Limits) Normalized() (Limits, error) {
@@ -38,8 +46,9 @@ func (l Limits) Normalized() (Limits, error) {
 }
 
 type Options struct {
-	Version, Action string
-	Limits          Limits
+	Version string
+	Action  string
+	Limits  Limits
 }
 type Request struct {
 	Body    string

@@ -19,31 +19,59 @@ var (
 	ErrUnavailable = errors.New("SOAP_FEATURE_UNAVAILABLE")
 )
 
-type UsernameTokenPolicy struct{ User, Password, PasswordType string }
-type TimestampOptions struct{ TTLSeconds, ClockOffsetSeconds *int }
-type TimestampPolicy struct{ TTLSeconds, ClockOffsetSeconds int }
+type UsernameTokenPolicy struct {
+	User         string
+	Password     string
+	PasswordType string
+}
+type TimestampOptions struct {
+	TTLSeconds         *int
+	ClockOffsetSeconds *int
+}
+type TimestampPolicy struct {
+	TTLSeconds         int
+	ClockOffsetSeconds int
+}
 type SigningPolicy struct {
-	Algorithm, Digest, Canonicalization, KeyID string
-	Headers                                    []string
+	Algorithm        string
+	Digest           string
+	Canonicalization string
+	KeyID            string
+	Headers          []string
 }
 type EncryptionPolicy struct {
-	Algorithm, KeyTransport, Target string
-	Headers                         []string
+	Algorithm    string
+	KeyTransport string
+	Target       string
+	Headers      []string
 }
-type ExpandedName struct{ Namespace, LocalName string }
+type ExpandedName struct {
+	Namespace string
+	LocalName string
+}
 type ReceiveOptions struct {
-	Signature, Timestamp, RequireEncryption *bool
-	Order                                   string
-	SignatureAlgorithms, DigestAlgorithms   []string
-	SignedHeaders, EncryptedHeaders         []ExpandedName
-	ClockSkewSeconds, MaxAgeSeconds         *int
+	Signature           *bool
+	Timestamp           *bool
+	RequireEncryption   *bool
+	Order               string
+	SignatureAlgorithms []string
+	DigestAlgorithms    []string
+	SignedHeaders       []ExpandedName
+	EncryptedHeaders    []ExpandedName
+	ClockSkewSeconds    *int
+	MaxAgeSeconds       *int
 }
 type ReceivePolicy struct {
-	Signature, Timestamp, RequireEncryption bool
-	Order                                   string
-	SignatureAlgorithms, DigestAlgorithms   []string
-	SignedHeaders, EncryptedHeaders         []ExpandedName
-	ClockSkewSeconds, MaxAgeSeconds         int
+	Signature           bool
+	Timestamp           bool
+	RequireEncryption   bool
+	Order               string
+	SignatureAlgorithms []string
+	DigestAlgorithms    []string
+	SignedHeaders       []ExpandedName
+	EncryptedHeaders    []ExpandedName
+	ClockSkewSeconds    int
+	MaxAgeSeconds       int
 }
 type SecurityOptions struct {
 	UsernameToken *UsernameTokenPolicy
@@ -54,8 +82,10 @@ type SecurityOptions struct {
 	Verify        *ReceiveOptions
 }
 type KeyMaterial struct {
-	Signing, Decryption, Recipient *keys.Material
-	Trust                          []*keys.Material
+	Signing    *keys.Material
+	Decryption *keys.Material
+	Recipient  *keys.Material
+	Trust      []*keys.Material
 }
 
 // Policy is a client-owned normalized value. All slices/blocks are copied from

@@ -9,14 +9,15 @@ import (
 
 // Parsed owns an isolated read-only Body projection. No node is exported.
 type Parsed struct {
-	OK                          bool
-	Status                      int
-	Body                        *string
-	Fault                       map[string]any
-	Error                       *Error
-	root                        *xmlquery.Node
-	budget                      int
-	SigVerified, TimestampValid *bool
+	OK             bool
+	Status         int
+	Body           *string
+	Fault          map[string]any
+	Error          *Error
+	root           *xmlquery.Node
+	budget         int
+	SigVerified    *bool
+	TimestampValid *bool
 }
 
 func Parse(status int, body, version string, limits Limits) (result *Parsed) {

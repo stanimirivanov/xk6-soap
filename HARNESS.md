@@ -56,7 +56,7 @@ possible. Remove guidance that duplicates an effective check.
 | Command | Sensor and failure meaning | Where |
 | --- | --- | --- |
 | `make fmt` | Explicit formatting mutation | Developer command only |
-| `make lint` | gofmt, go vet, Staticcheck, Actionlint, shell syntax | Local/CI |
+| `make lint` | Declaration style, gofmt, go vet, Staticcheck, Actionlint, shell syntax | Local/CI |
 | `make arch` | First-party AST architecture and sensor negative tests | Local/CI |
 | `make test` | Go race tests; Go compilation is the type checker | Local/CI |
 | `make deps` | Non-mutating module tidy diff and downloaded-module checksum verification | Local/CI |
@@ -162,3 +162,12 @@ merely because source-only analysis passes. Relevant advisory evidence:
 [x/crypto](https://pkg.go.dev/vuln/GO-2026-5932),
 [brotli](https://pkg.go.dev/vuln/GO-2026-6888), and
 [compress](https://pkg.go.dev/vuln/GO-2026-6865).
+
+## Declaration style
+
+Go struct fields and var/const declarations use one name per declaration line.
+The AST declaration-style sensor runs in `make lint`, including test, fixture and
+build-tagged Go files. It rejects grouped names and semicolon-packed declarations
+with a file/line diagnostic. Function signatures and multi-value assignments use
+ordinary Go syntax. This rule does not inspect declaration-like text inside strings
+or comments.

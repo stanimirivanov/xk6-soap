@@ -15,8 +15,9 @@ const maxCaptures = 128
 
 // Capture is an in-memory synthetic request, never written to production logs.
 type Capture struct {
-	Path, Body string
-	Header     http.Header
+	Path   string
+	Body   string
+	Header http.Header
 }
 
 type Server struct {

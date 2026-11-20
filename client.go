@@ -11,11 +11,12 @@ import (
 )
 
 type clientConfig struct {
-	url, version string
-	limits       message.Limits
-	keys         *clientKeys
-	policy       wssec.Policy
-	debug        bool
+	url     string
+	version string
+	limits  message.Limits
+	keys    *clientKeys
+	policy  wssec.Policy
+	debug   bool
 }
 
 func (i *instance) throw(code, stage string) {
