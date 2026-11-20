@@ -46,13 +46,18 @@ func (l Limits) Normalized() (Limits, error) {
 }
 
 type Options struct {
-	Version string
-	Action  string
-	Limits  Limits
+	ActionSet  bool
+	URL        string
+	Headers    []Header
+	Addressing *Addressing
+	Version    string
+	Action     string
+	Limits     Limits
 }
 type Request struct {
-	Body    string
-	Headers map[string]string
+	HeaderSelectors []HeaderSelector
+	Body            string
+	Headers         map[string]string
 }
 
 func namespace(version string) (string, error) {
@@ -80,6 +85,11 @@ func Build(operation, payload string, options Options) (Request, error) {
 	if !utf8.ValidString(operation) || !ncname(operation) {
 		return result, failure("INVALID_ARGUMENT", "operation")
 	}
+	blocks, selectors, action, err := headerBlocks(options, limits, ns)
+	if err != nil {
+		return result, err
+	}
+	options.Action = action
 	if !utf8.ValidString(options.Action) || len(options.Action) > limits.Bytes {
 		return result, failure("INVALID_ARGUMENT", "soapAction")
 	}
@@ -92,7 +102,11 @@ func Build(operation, payload string, options Options) (Request, error) {
 		return result, err
 	}
 	// A prefixed wrapper adds no default namespace to the standalone payload.
-	prefix := `<s:Envelope xmlns:s="` + ns + `"><s:Body>`
+	prefix := `<s:Envelope xmlns:s="` + ns + `">`
+	if blocks != "" {
+		prefix += "<s:Header>" + blocks + "</s:Header>"
+	}
+	prefix += "<s:Body>"
 	suffix := `</s:Body></s:Envelope>`
 	if len(payload) > limits.Bytes-len(prefix)-len(suffix) {
 		return result, failure("LIMIT_EXCEEDED", "xml")
@@ -111,7 +125,7 @@ func Build(operation, payload string, options Options) (Request, error) {
 			headers["Content-Type"] += `; action="` + options.Action + `"`
 		}
 	}
-	return Request{Body: body, Headers: headers}, nil
+	return Request{Body: body, Headers: headers, HeaderSelectors: selectors}, nil
 }
 
 func ValidateEnvelope(document, version string, limits Limits) error {

@@ -82,8 +82,8 @@ clock offset/TTL; neither silently widens receive tolerance.
 
 Freshness is distinct from replay detection. Repeated parsing of the same valid
 response is permitted while it remains fresh; no receive replay cache is introduced.
-Encryption/order/decryption, broader algorithms, key IDs and custom headers remain
-gated. No broader signed-response checkpoint is claimed by this task alone.
+[Required signed custom headers and WS-Addressing coverage](headers.md) are available.
+Encryption/order/decryption, broader algorithms and key IDs remain gated. No broader signed-response checkpoint is claimed by this task alone.
 
 Evidence includes hostile exact-coverage/duplicate-ID fixtures, a different DER
 certificate with the same public key, overlapping pins, namespace-preserving

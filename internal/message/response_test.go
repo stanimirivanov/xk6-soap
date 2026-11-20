@@ -161,3 +161,19 @@ func TestMalformedFaultStructure(t *testing.T) {
 		}
 	}
 }
+
+func TestMandatoryHeaderVersionMetadata(t *testing.T) {
+	for _, ns := range []string{SOAP11, SOAP12} {
+		version := "1.1"
+		wrong := "role"
+		if ns == SOAP12 {
+			version = "1.2"
+			wrong = "actor"
+		}
+		raw := `<s:Envelope xmlns:s="` + ns + `"><s:Header><h:Unknown xmlns:h="urn:h" s:mustUnderstand="1" s:` + wrong + `="urn:other"/></s:Header><s:Body/></s:Envelope>`
+		got := Parse(200, raw, version, Limits{})
+		if got.OK {
+			t.Fatal("invalid role attribute bypassed targeted mandatory handling")
+		}
+	}
+}

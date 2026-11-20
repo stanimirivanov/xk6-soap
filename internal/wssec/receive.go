@@ -3,6 +3,7 @@ package wssec
 import (
 	"bytes"
 	"crypto/rsa"
+	"encoding/xml"
 	"errors"
 	"strings"
 	"time"
@@ -51,7 +52,11 @@ func Receive(status int, raw, version string, limits message.Limits, policy Rece
 	if security == nil && !policy.Signature {
 		return message.Parse(status, raw, version, limits)
 	}
-	if e := message.CheckSecurityEnvelope(raw, version, limits); e != nil {
+	var understood []xml.Name
+	for _, name := range policy.SignedHeaders {
+		understood = append(understood, xml.Name{Space: name.Namespace, Local: name.LocalName})
+	}
+	if e := message.CheckSecurityEnvelope(raw, version, limits, understood...); e != nil {
 		result.Error = e
 		return result
 	}
@@ -104,19 +109,54 @@ func Receive(status int, raw, version string, limits message.Limits, policy Rece
 			return fail("POLICY_VIOLATION")
 		}
 	}
-	if policy.Signature && header != nil {
+	var requiredHeaders []*xdm.Node
+	var allowedHeaders []*xdm.Node
+	seenAddressing := map[string]bool{}
+	if header != nil {
 		for c := range header.Children() {
-			if c.Name().URI == "http://www.w3.org/2005/08/addressing" {
-				return fail("POLICY_VIOLATION")
+			if c.Kind() != xdm.KindElement || c.IsElement(xmlsec.NSWSSE, "Security") {
+				continue
+			}
+			allowedHeaders = append(allowedHeaders, c)
+			if message.IsAddressingHeader(c.Name().URI, c.Name().Local) {
+				if seenAddressing[c.Name().Local] {
+					return fail("POLICY_VIOLATION")
+				}
+				seenAddressing[c.Name().Local] = true
+				requiredHeaders = append(requiredHeaders, c)
 			}
 		}
+	}
+	for _, name := range policy.SignedHeaders {
+		var found *xdm.Node
+		for _, c := range allowedHeaders {
+			if c.IsElement(name.Namespace, name.LocalName) {
+				if found != nil {
+					return fail("SIGNATURE_INVALID")
+				}
+				found = c
+			}
+		}
+		if found == nil {
+			return fail("SIGNATURE_INVALID")
+		}
+		requiredHeaders = append(requiredHeaders, found)
 	}
 	body := env.FirstElement(ns, "Body")
 	stamp := security.FirstElement(xmlsec.NSWSU, "Timestamp")
 	signature := security.FirstElement(xmlsec.NSDSig, "Signature")
-	refs := 1
-	if stamp != nil {
-		refs++
+	refs := 0
+	if signature != nil {
+		if si := signature.FirstElement(xmlsec.NSDSig, "SignedInfo"); si != nil {
+			for c := range si.Children() {
+				if c.IsElement(xmlsec.NSDSig, "Reference") {
+					refs++
+				}
+			}
+		}
+	}
+	if refs < 1 || refs > 16 {
+		return fail("POLICY_VIOLATION")
 	}
 	if signature == nil || !coreSignatureShape(signature, refs) || !signaturePolicy(signature, refs) {
 		return fail("POLICY_VIOLATION")
@@ -147,7 +187,7 @@ func Receive(status int, raw, version string, limits message.Limits, policy Rece
 		return fail("POLICY_VIOLATION")
 	}
 	normalized, _ := limits.Normalized()
-	accepted, e := receiveBodyOctets(doc, info, body, stamp, normalized.Bytes)
+	accepted, e := receiveBodyOctets(doc, info, body, stamp, normalized.Bytes, allowedHeaders...)
 	if e != nil {
 		return fail(e.Error())
 	}
@@ -162,9 +202,14 @@ func Receive(status int, raw, version string, limits message.Limits, policy Rece
 		if pin == nil || !certificateOK(pin.Certificate(), now) {
 			return fail("SIGNATURE_INVALID")
 		}
-		coverage, e := dsig.Verify(doc.Root(), signature, dsig.VerifyOptions{Certificate: pin.Certificate(), AllowedSignatureAlgorithms: []string{xmlsec.SigRSASHA256}, AllowedDigestAlgorithms: []string{xmlsec.DigestSHA256}, AllowedCanonicalizationAlgorithms: []string{string(c14n.Exclusive10)}, MaxReferences: 2, StrictBSP: true, RequireExplicitCanonicalization: true, IDAttributes: []xdm.QName{dsig.IDAttrDSig}})
+		coverage, e := dsig.Verify(doc.Root(), signature, dsig.VerifyOptions{Certificate: pin.Certificate(), AllowedSignatureAlgorithms: []string{xmlsec.SigRSASHA256}, AllowedDigestAlgorithms: []string{xmlsec.DigestSHA256}, AllowedCanonicalizationAlgorithms: []string{string(c14n.Exclusive10)}, MaxReferences: 16, StrictBSP: true, RequireExplicitCanonicalization: true, IDAttributes: []xdm.QName{dsig.IDAttrDSig}})
 		if e != nil || !coverage.CoversNodes(body) || stamp != nil && !coverage.CoversNodes(stamp) {
 			return fail("SIGNATURE_INVALID")
+		}
+		for _, node := range requiredHeaders {
+			if !coverage.CoversNodes(node) {
+				return fail("SIGNATURE_INVALID")
+			}
 		}
 		yes := true
 		result.SigVerified = &yes
@@ -216,7 +261,7 @@ func elementCount(node *xdm.Node) int {
 
 // Bound every canonicalization before the provider's cryptographic verifier.
 // Inclusive namespace rendering can expand beyond the source envelope size.
-func receiveBodyOctets(doc *xmlsec.Document, info, body, stamp *xdm.Node, max int) ([]byte, error) {
+func receiveBodyOctets(doc *xmlsec.Document, info, body, stamp *xdm.Node, max int, headers ...*xdm.Node) ([]byte, error) {
 	render := func(node, params *xdm.Node) ([]byte, error) {
 		var prefixes []string
 		if inc := params.FirstElement(string(c14n.Exclusive10), "InclusiveNamespaces"); inc != nil {
@@ -243,7 +288,13 @@ func receiveBodyOctets(doc *xmlsec.Document, info, body, stamp *xdm.Node, max in
 	for r := range info.Children() {
 		if r.IsElement(xmlsec.NSDSig, "Reference") {
 			target, e := wss.FindByID(doc.Root(), strings.TrimPrefix(r.AttrValue("URI"), "#"), dsig.IDAttrDSig)
-			if e != nil || target == nil || (!target.Is(body) && (stamp == nil || !target.Is(stamp))) {
+			allowed := target != nil && (target.Is(body) || stamp != nil && target.Is(stamp))
+			for _, h := range headers {
+				if target != nil && target.Is(h) {
+					allowed = true
+				}
+			}
+			if e != nil || !allowed {
 				return nil, errReceiveSignature
 			}
 			transform := r.FirstElement(xmlsec.NSDSig, "Transforms").FirstElement(xmlsec.NSDSig, "Transform")

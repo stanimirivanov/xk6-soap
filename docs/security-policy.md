@@ -4,7 +4,8 @@ PR-9 implements typed policy normalization and constructor validation.
 [PR-10](username-token.md) activates outbound UsernameToken and Timestamp.
 [PR-11](signing.md) activates RSA-SHA256/SHA256/exclusive-C14N/BST signing.
 [PR-12](receive.md) activates core pinned response verification; PR-13 enforces
-configured signed Timestamp freshness. Encryption,
+configured signed Timestamp freshness. PR-16 enables [custom/header addressing
+selectors and required receive coverage](headers.md). Encryption,
 additional signing profiles and decryption remain unavailable in the public Client. The internal kernel probes remain
 independent gate evidence. Valid requests for unavailable features
 throw `SOAP_FEATURE_UNAVAILABLE` at construction, before measured iterations.

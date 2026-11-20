@@ -38,7 +38,7 @@ func BuildCredentials(raw []byte, p Policy, now time.Time, random io.Reader, ove
 
 // BuildSecurity constructs credentials and signatures in one request-local tree.
 // Only the completed tree is serialized to wire bytes.
-func BuildSecurity(raw []byte, p Policy, signing *keys.Material, now time.Time, random io.Reader, override *Credentials, limits message.Limits) (wire []byte, err error) {
+func BuildSecurity(raw []byte, p Policy, signing *keys.Material, now time.Time, random io.Reader, override *Credentials, limits message.Limits, selectors ...message.HeaderSelector) (wire []byte, err error) {
 	defer func() {
 		if recover() != nil {
 			wire = nil
@@ -125,7 +125,7 @@ func BuildSecurity(raw []byte, p Policy, signing *keys.Material, now time.Time, 
 		}
 	}
 	if p.Sign != nil {
-		if e = appendSignature(doc, ns, header, signing, p.UsernameToken != nil); e != nil {
+		if e = appendSignature(doc, ns, header, signing, p.UsernameToken != nil, p.Sign.Headers, selectors); e != nil {
 			return nil, e
 		}
 	}

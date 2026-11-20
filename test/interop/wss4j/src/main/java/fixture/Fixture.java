@@ -76,7 +76,7 @@ public final class Fixture {
                 password.setPassword("fixture-only");
             }
         };
-        for (String mode : new String[]{"sig", "sigut", "sigstale", "sigfuture", "ste128", "ste256", "ets128", "ets256"}) {
+        for (String mode : new String[]{"sig", "sighdr", "sighdrweak", "sigut", "sigstale", "sigfuture", "ste128", "ste256", "ets128", "ets256"}) {
             for (String version : new String[]{"11", "12"}) {
                 String ns = "11".equals(version) ? "http://schemas.xmlsoap.org/soap/envelope/" : "http://www.w3.org/2003/05/soap-envelope";
                 String binding = "11".equals(version) ? SOAPBinding.SOAP11HTTP_BINDING : SOAPBinding.SOAP12HTTP_BINDING;
@@ -104,6 +104,11 @@ public final class Fixture {
                     coverage.setEncryptUsernameToken(false);
                     coverage.setSignUsernameToken(true);
                 }
+                if (mode.startsWith("sighdr")) {
+                    SignedHeaders.requireCoverage(coverage);
+                    endpoint.getOutInterceptors().add(new SignedHeaders());
+                    endpoint.getOutFaultInterceptors().add(new SignedHeaders());
+                }
                 endpoint.getInInterceptors().add(coverage);
                 Map<String, Object> out = new HashMap<>();
                 out.put(ConfigurationConstants.ACTION, mode.startsWith("ste") ? "Timestamp Signature Encryption" : mode.startsWith("ets") ? "Timestamp Encryption Signature" : "Timestamp Signature");
@@ -116,6 +121,9 @@ public final class Fixture {
                 out.put(ConfigurationConstants.SIG_C14N_ALGO, "http://www.w3.org/2001/10/xml-exc-c14n#");
                 out.put(ConfigurationConstants.ADD_INCLUSIVE_PREFIXES, "true");
                 out.put(ConfigurationConstants.SIGNATURE_PARTS, "{Element}{" + ns + "}Body;{Element}{http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd}Timestamp");
+                if ("sighdr".equals(mode)) {
+                    out.put(ConfigurationConstants.SIGNATURE_PARTS, out.get(ConfigurationConstants.SIGNATURE_PARTS) + SignedHeaders.parts());
+                }
                 if (!mode.startsWith("sig")) {
                     out.put(ConfigurationConstants.ENCRYPTION_USER, "fixture-client");
                     out.put(ConfigurationConstants.ENC_PROP_FILE, "signature.properties");
