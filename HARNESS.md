@@ -27,7 +27,8 @@ test/fixture/              bounded synthetic SOAP HTTP server and capture
 test/e2e/                  bounded subprocess runner and raw SOAP k6 script
 Makefile, .go-version        canonical commands and exact tool versions
 scripts/                    smoke runner and non-destructive hook installer
-.githooks/pre-commit         local fast delivery checks (opt-in)
+.githooks/pre-commit         local quality checks (opt-in)
+.githooks/pre-push           cold Docker/Maven interop for committed HEAD
 .github/workflows/ci.yml     same gates on every PR/main push
 .github/dependabot.yml       Go dependency and action update proposals
 .github/pull_request_template.md  concise evidence at handoff
@@ -96,7 +97,7 @@ commands/outcomes in the PR. Never automatically retry a flaky failure until it 
 Do not rerun unchanged successful expensive checks for reassurance. CI rechecks the
 committed snapshot independently.
 
-`make hooks` is opt-in and refuses existing hooksPath/pre-commit configuration. The hook
+`make hooks` is opt-in and refuses conflicting hooksPath or legacy pre-commit/pre-push configuration. The hook
 never stashes/resets edits: it refuses unstaged/untracked changes so verification is not
 silently performed against a different snapshot than the commit. Hooks are bypassable;
 CI plus server-side required checks are the merge boundary. The hook does not install tools
@@ -172,3 +173,18 @@ build-tagged Go files. It rejects grouped names and semicolon-packed declaration
 with a file/line diagnostic. Function signatures and multi-value assignments use
 ordinary Go syntax. This rule does not inspect declaration-like text inside strings
 or comments.
+
+## Cold delivery gate
+
+The pre-push hook requires a clean committed HEAD matching every pushed commit
+(annotated tags are resolved to commits). It runs `make interop` once before refs
+are published; deletion-only pushes need no build. Interop always passes Docker
+`--no-cache`, so cached Maven build layers cannot hide missing dependencies.
+Docker, GNU timeout and network access are required for this local gate. Hook
+regressions cover snapshot mismatch, dirty work, failure propagation and existing
+hook preservation. Hooks remain opt-in/bypassable; CI remains required.
+
+The local gate verifies the local network at push time. It cannot guarantee future
+availability from GitHub's different network. The fixture's bounded resolution
+recovery uses a Google-hosted Central mirror after a primary import-BOM not-found
+response; see test/interop/README.md for its trust/availability limits.

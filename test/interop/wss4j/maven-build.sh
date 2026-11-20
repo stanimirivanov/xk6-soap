@@ -18,7 +18,7 @@ else
         || ! grep -F 'Could not find artifact' "$resolution_log" >/dev/null; then
         exit "$result"
     fi
-    printf 'Central import-BOM lookup failed; trying the alternate official Central endpoint once.\n' >&2
+    printf 'Central import-BOM lookup failed; trying the independently hosted Central mirror once.\n' >&2
     set -- --settings "$script_dir/central-fallback.xml"
     mvn -U -B -ntp "$@" validate
 fi

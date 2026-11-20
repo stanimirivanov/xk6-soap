@@ -14,7 +14,7 @@ Linux is the initial CI host; commands also target POSIX developer environments.
 make tools
 make verify
 make smoke e2e vuln
-make hooks  # optional; refuses to overwrite an existing hook setup
+make hooks  # optional: verify on commit; cold Docker interop before push
 ```
 
 [HARNESS.md](HARNESS.md) maps files, commands, ownership, CI enforcement and the hardening
