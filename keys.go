@@ -10,8 +10,10 @@ import (
 )
 
 type clientKeys struct {
-	signing, decryption, recipient *keys.Material
-	trust                          []*keys.Material
+	signing    *keys.Material
+	decryption *keys.Material
+	recipient  *keys.Material
+	trust      []*keys.Material
 }
 
 func (k *clientKeys) validate(now time.Time) error {

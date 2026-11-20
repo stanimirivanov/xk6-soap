@@ -13,9 +13,10 @@ import (
 func TestResponses(t *testing.T) {
 	server := Start(t)
 	for _, tc := range []struct {
-		path              string
-		status            int
-		contentType, body string
+		path        string
+		status      int
+		contentType string
+		body        string
 	}{
 		{"/echo", 200, "text/xml; charset=utf-8", "<request/>"},
 		{"/fault11", 500, "text/xml; charset=utf-8", ""},

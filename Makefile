@@ -30,6 +30,7 @@ $(TOOLS)/actionlint: Makefile .go-version
 fmt:
 	gofmt -w $$(git ls-files --cached --others --exclude-standard '*.go')
 lint: $(TOOLS)/staticcheck $(TOOLS)/actionlint
+	go test ./internal/archtest -run 'TestDeclarationStyle|TestRepositoryDeclarationStyle' -count=1
 	@files=$$(gofmt -l $$(git ls-files --cached --others --exclude-standard '*.go')); if [ -n "$$files" ]; then printf 'Run make fmt:\n%s\n' "$$files"; exit 1; fi
 	go vet ./...
 	$(TOOLS)/staticcheck ./...

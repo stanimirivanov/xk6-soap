@@ -11,11 +11,12 @@ import (
 )
 
 type clientConfig struct {
-	url, version string
-	limits       message.Limits
-	keys         *clientKeys
-	policy       wssec.Policy
-	debug        bool
+	url     string
+	version string
+	limits  message.Limits
+	keys    *clientKeys
+	policy  wssec.Policy
+	debug   bool
 }
 
 func (i *instance) throw(code, stage string) {
@@ -225,7 +226,7 @@ func (i *instance) parse(cfg clientConfig, call sobek.FunctionCall) sobek.Value 
 			}
 		}
 	}
-	parsed := message.Parse(status, body, cfg.version, cfg.limits)
+	parsed := wssec.Receive(status, body, cfg.version, cfg.limits, cfg.policy.Receive, cfg.keys.policyMaterial().Trust, i.now())
 	code := "OK"
 	if parsed.Error != nil {
 		code = parsed.Error.Code
@@ -248,7 +249,7 @@ func (i *instance) parsedValue(parsed *message.Parsed) sobek.Value {
 	if parsed.Fault != nil {
 		fault = parsed.Fault
 	}
-	obj := i.vu.Runtime().ToValue(map[string]any{"ok": parsed.OK, "status": parsed.Status, "body": body, "fault": fault, "error": resultError(parsed.Error), "sigVerified": nil, "timestampValid": nil}).ToObject(i.vu.Runtime())
+	obj := i.vu.Runtime().ToValue(map[string]any{"ok": parsed.OK, "status": parsed.Status, "body": body, "fault": fault, "error": resultError(parsed.Error), "sigVerified": optionalBool(parsed.SigVerified), "timestampValid": optionalBool(parsed.TimestampValid)}).ToObject(i.vu.Runtime())
 	_ = obj.Set("xpath", func(call sobek.FunctionCall) sobek.Value {
 		i.execution()
 		errorResult := func(code string) sobek.Value {
@@ -286,4 +287,11 @@ func (i *instance) parsedValue(parsed *message.Parsed) sobek.Value {
 		return i.vu.Runtime().ToValue(map[string]any{"value": value, "error": failure})
 	})
 	return obj
+}
+
+func optionalBool(v *bool) any {
+	if v == nil {
+		return nil
+	}
+	return *v
 }

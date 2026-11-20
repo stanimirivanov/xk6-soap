@@ -19,31 +19,59 @@ var (
 	ErrUnavailable = errors.New("SOAP_FEATURE_UNAVAILABLE")
 )
 
-type UsernameTokenPolicy struct{ User, Password, PasswordType string }
-type TimestampOptions struct{ TTLSeconds, ClockOffsetSeconds *int }
-type TimestampPolicy struct{ TTLSeconds, ClockOffsetSeconds int }
+type UsernameTokenPolicy struct {
+	User         string
+	Password     string
+	PasswordType string
+}
+type TimestampOptions struct {
+	TTLSeconds         *int
+	ClockOffsetSeconds *int
+}
+type TimestampPolicy struct {
+	TTLSeconds         int
+	ClockOffsetSeconds int
+}
 type SigningPolicy struct {
-	Algorithm, Digest, Canonicalization, KeyID string
-	Headers                                    []string
+	Algorithm        string
+	Digest           string
+	Canonicalization string
+	KeyID            string
+	Headers          []string
 }
 type EncryptionPolicy struct {
-	Algorithm, KeyTransport, Target string
-	Headers                         []string
+	Algorithm    string
+	KeyTransport string
+	Target       string
+	Headers      []string
 }
-type ExpandedName struct{ Namespace, LocalName string }
+type ExpandedName struct {
+	Namespace string
+	LocalName string
+}
 type ReceiveOptions struct {
-	Signature, Timestamp, RequireEncryption *bool
-	Order                                   string
-	SignatureAlgorithms, DigestAlgorithms   []string
-	SignedHeaders, EncryptedHeaders         []ExpandedName
-	ClockSkewSeconds, MaxAgeSeconds         *int
+	Signature           *bool
+	Timestamp           *bool
+	RequireEncryption   *bool
+	Order               string
+	SignatureAlgorithms []string
+	DigestAlgorithms    []string
+	SignedHeaders       []ExpandedName
+	EncryptedHeaders    []ExpandedName
+	ClockSkewSeconds    *int
+	MaxAgeSeconds       *int
 }
 type ReceivePolicy struct {
-	Signature, Timestamp, RequireEncryption bool
-	Order                                   string
-	SignatureAlgorithms, DigestAlgorithms   []string
-	SignedHeaders, EncryptedHeaders         []ExpandedName
-	ClockSkewSeconds, MaxAgeSeconds         int
+	Signature           bool
+	Timestamp           bool
+	RequireEncryption   bool
+	Order               string
+	SignatureAlgorithms []string
+	DigestAlgorithms    []string
+	SignedHeaders       []ExpandedName
+	EncryptedHeaders    []ExpandedName
+	ClockSkewSeconds    int
+	MaxAgeSeconds       int
 }
 type SecurityOptions struct {
 	UsernameToken *UsernameTokenPolicy
@@ -54,8 +82,10 @@ type SecurityOptions struct {
 	Verify        *ReceiveOptions
 }
 type KeyMaterial struct {
-	Signing, Decryption, Recipient *keys.Material
-	Trust                          []*keys.Material
+	Signing    *keys.Material
+	Decryption *keys.Material
+	Recipient  *keys.Material
+	Trust      []*keys.Material
 }
 
 // Policy is a client-owned normalized value. All slices/blocks are copied from
@@ -217,13 +247,17 @@ func CompilePolicy(in SecurityOptions, material KeyMaterial, now time.Time) (Pol
 }
 
 // RequireAvailable activates outbound credentials and the accepted core signature
-// profile. Receive verification and additional profiles remain fail-closed.
+// profile plus core pinned receive verification. Additional profiles stay gated.
 func (p Policy) RequireAvailable() error {
 	if s := p.Sign; s != nil && (s.Algorithm != "rsa-sha256" || s.Digest != "sha256" || s.Canonicalization != "exclusive-c14n" || s.KeyID != "binary-security-token" || len(s.Headers) != 0) {
 		return ErrUnavailable
 	}
 
-	if p.Encrypt != nil || p.Receive.Signature || p.Receive.Timestamp || p.Receive.RequireEncryption || p.Receive.Order != "" {
+	if r := p.Receive; r.Signature && (len(r.SignatureAlgorithms) != 1 || r.SignatureAlgorithms[0] != "rsa-sha256" || len(r.DigestAlgorithms) != 1 || r.DigestAlgorithms[0] != "sha256" || len(r.SignedHeaders) != 0 || len(r.EncryptedHeaders) != 0 || r.ClockSkewSeconds != 60 || r.MaxAgeSeconds != 300) {
+		return ErrUnavailable
+	}
+
+	if p.Encrypt != nil || p.Receive.RequireEncryption || p.Receive.Order != "" {
 		return ErrUnavailable
 	}
 	return nil

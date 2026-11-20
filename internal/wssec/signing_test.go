@@ -67,7 +67,10 @@ func TestSignedSecurityCoverageAndSerialization(t *testing.T) {
 			if !coverage.CoversNodes(required...) {
 				t.Fatal("actual nodes not covered")
 			}
-			for _, mutation := range []struct{ old, new string }{{"synthetic</value>", "changed</value>"}, {"2030-01-02T03:04:05.000Z", "2030-01-02T03:04:06.000Z"}, {"synthetic-user", "tampered-user"}} {
+			for _, mutation := range []struct {
+				old string
+				new string
+			}{{"synthetic</value>", "changed</value>"}, {"2030-01-02T03:04:05.000Z", "2030-01-02T03:04:06.000Z"}, {"synthetic-user", "tampered-user"}} {
 				if !strings.Contains(string(wire), mutation.old) {
 					if mutation.old == "synthetic-user" && !withToken {
 						continue

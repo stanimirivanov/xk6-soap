@@ -22,7 +22,10 @@ var (
 	ErrOutputLimit     = errors.New("LIMIT_EXCEEDED")
 )
 
-type Credentials struct{ User, Password string }
+type Credentials struct {
+	User     string
+	Password string
+}
 
 const tokenProfile = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-username-token-profile-1.0#"
 const base64Encoding = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-soap-message-security-1.0#Base64Binary"

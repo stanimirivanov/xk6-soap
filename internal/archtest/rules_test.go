@@ -10,8 +10,9 @@ import (
 
 func TestImportRules(t *testing.T) {
 	for _, tc := range []struct {
-		path, dependency string
-		want             bool
+		path       string
+		dependency string
+		want       bool
 	}{
 		{"soap.go", "go.k6.io/k6/v2/js/modules", false},
 		{"soap.go", "net/url", false},

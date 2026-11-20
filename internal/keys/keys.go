@@ -45,8 +45,10 @@ const (
 )
 
 type Input struct {
-	Cert, Key, PKCS12 []byte
-	Password          string
+	Cert     []byte
+	Key      []byte
+	PKCS12   []byte
+	Password string
 }
 
 // Material never exposes its concrete private key or internal certificate.
