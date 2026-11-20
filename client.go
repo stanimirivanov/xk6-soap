@@ -193,17 +193,27 @@ func (i *instance) build(cfg clientConfig, call sobek.FunctionCall) sobek.Value 
 		}
 	}
 	action := ""
+	actionSet := false
 	var credentials *wssec.Credentials
+	var headers []message.Header
+	var addressing *message.Addressing
 	if len(call.Arguments) == 3 && !sobek.IsUndefined(call.Argument(2)) {
-		options := i.object(call.Argument(2), "soapAction", "credentials")
-		if value := options.Get("soapAction"); !absent(value) {
+		options := i.object(call.Argument(2), "soapAction", "credentials", "headers", "addressing")
+		var e error
+		headers, addressing, e = i.headerOptions(options, cfg.limits)
+		if e != nil {
+			failure := e.(*message.Error)
+			i.throw(failure.Code, failure.Stage)
+		}
+		if value := policyField(options, "soapAction"); !absent(value) {
 			action = i.text(value)
+			actionSet = true
 		}
 	}
 	if len(call.Arguments) == 3 && !sobek.IsUndefined(call.Argument(2)) {
 		credentials = i.decodeCredentials(call.Argument(2).ToObject(i.vu.Runtime()), cfg.policy)
 	}
-	request, err := message.Build(operation, payload, message.Options{Version: cfg.version, Action: action, Limits: cfg.limits})
+	request, err := message.Build(operation, payload, message.Options{Version: cfg.version, Action: action, ActionSet: actionSet, Limits: cfg.limits, URL: cfg.url, Headers: headers, Addressing: addressing})
 	if err != nil {
 		failure := err.(*message.Error)
 		i.diagnostic(cfg.debug, "build", start, cfg.policy, failure.Code)
@@ -211,7 +221,7 @@ func (i *instance) build(cfg clientConfig, call sobek.FunctionCall) sobek.Value 
 	}
 	if cfg.policy.Timestamp != nil {
 		i.execution()
-		wire, buildErr := wssec.BuildSecurity([]byte(request.Body), cfg.policy, cfg.keys.policyMaterial().Signing, i.now(), i.random, credentials, cfg.limits)
+		wire, buildErr := wssec.BuildSecurity([]byte(request.Body), cfg.policy, cfg.keys.policyMaterial().Signing, i.now(), i.random, credentials, cfg.limits, request.HeaderSelectors...)
 		if buildErr != nil {
 			i.diagnostic(cfg.debug, "build", start, cfg.policy, buildErr.Error())
 			i.throw(buildErr.Error(), "build")

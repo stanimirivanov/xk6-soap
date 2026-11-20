@@ -92,6 +92,10 @@ func validate(input string, limits Limits, mode, operation, soapNS string) error
 					if expanded.Local != operation {
 						return bad()
 					}
+				} else if mode == "header" {
+					if expanded.Space == "" {
+						return bad()
+					}
 				} else if mode == "body" {
 					if expanded != (xml.Name{Space: soapNS, Local: "Body"}) {
 						return bad()

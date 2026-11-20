@@ -79,3 +79,6 @@ with separate SOAP failure thresholds from HTTP status thresholds.
 
 [Object payload mapping](docs/object-payloads.md) adds ordered object/array inputs with
 an explicit Client namespace; raw XML remains available for multi-namespace payloads.
+
+[Custom headers and signed WS-Addressing](docs/headers.md) support per-build header
+inputs, exact selector signing and required response header coverage.

@@ -42,7 +42,8 @@ Timestamp and present token. One bounded final serialization follows signing,
 with envelope limits checked on the result. Per-build credential overrides are
 applied before signing and never mutate constructor defaults.
 
-Other signing algorithms/digests/key IDs, custom signed headers, encryption and
+[Custom signed headers and WS-Addressing](headers.md) are available in PR-16.
+Other signing algorithms/digests/key IDs, encryption and
 additional receive profiles remain unavailable. Unknown options, invalid keys and unsupported
 profiles fail before transport. Raw XML payload namespace semantics, including
 QName-valued text, retain the limitations documented in the

@@ -4,9 +4,8 @@ PR-4 enables raw-XML `build()` and plain-response `parse()` on the named `Client
 export. [PR-8 key loading](keys.md) is available during construction.
 [PR-9 policy validation](security-policy.md) rejects enabled unavailable security
 features explicitly. [PR-10 UsernameToken/Timestamp](username-token.md) is now
-available for outbound requests. Object payloads, custom headers/WS-Addressing, production
-SOAP metrics and payload diagnostics remain unavailable and are rejected as
-unsupported options. Plain results make no authenticity claim.
+available for outbound requests. [Object payloads](object-payloads.md), [custom headers/WS-Addressing](headers.md) and
+[SOAP metrics](metrics.md) are available. Payload diagnostics remain unavailable. Plain results make no authenticity claim.
 
 ```js
 import { Client } from 'k6/x/soap';

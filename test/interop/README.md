@@ -266,3 +266,11 @@ re-parsing a fresh response remains accepted because freshness is not replay det
 Captured debug output must omit a synthetic private payload sentinel. Go tests
 separately prove exact nanosecond/equality boundaries and malformed/unsigned/missing
 Timestamp handling without depending on network delivery timing.
+
+PR-16 adds `/sighdr11`, `/sighdr12` and intentionally uncovered response controls
+`/sighdrweak11`, `/sighdrweak12`. `SignedHeaders` builds independent DOM blocks
+before WSS4J signs responses/faults; Apache coverage checks require Trace plus
+Action/To/MessageID/ReplyTo on requests. Native `headers.js` verifies final signed
+responses, rejects uncovered/tampered headers and requires Apache rejection of
+request-header and MessageID tampering. These endpoints use the same synthetic
+identities, offline inputs, cold Maven/Docker gate and pinned dependencies.

@@ -1,6 +1,7 @@
 package message
 
 import (
+	"encoding/xml"
 	"strings"
 
 	"github.com/antchfx/xmlquery"
@@ -278,7 +279,7 @@ func (p *Parsed) XPath(expression string, ns map[string]string) (value any, err 
 
 // CheckSecurityEnvelope applies ordinary SOAP header handling while allowing the
 // security adapter to understand exactly the targeted Security header.
-func CheckSecurityEnvelope(body, version string, limits Limits) *Error {
+func CheckSecurityEnvelope(body, version string, limits Limits, understood ...xml.Name) *Error {
 	if e := ValidateEnvelope(body, version, limits); e != nil {
 		return e.(*Error)
 	}
@@ -287,10 +288,10 @@ func CheckSecurityEnvelope(body, version string, limits Limits) *Error {
 		return &Error{Code: "XML_INVALID", Stage: "parse"}
 	}
 	ns, _ := namespace(version)
-	return headerPolicy(child(doc, ns, "Envelope"), ns, true)
+	return headerPolicy(child(doc, ns, "Envelope"), ns, true, understood...)
 }
 func plainPolicy(env *xmlquery.Node, ns string) *Error { return headerPolicy(env, ns, false) }
-func headerPolicy(env *xmlquery.Node, ns string, security bool) *Error {
+func headerPolicy(env *xmlquery.Node, ns string, security bool, allowed ...xml.Name) *Error {
 	// Plain mode never reports success for encrypted content it cannot interpret.
 	var visit func(*xmlquery.Node) bool
 	visit = func(n *xmlquery.Node) bool {
@@ -326,13 +327,21 @@ func headerPolicy(env *xmlquery.Node, ns string, security bool) *Error {
 						}
 						required = a.Value == "1" || a.Value == "true"
 					case "role", "actor":
+						if (a.Name.Local == "role" && ns != SOAP12) || (a.Name.Local == "actor" && ns != SOAP11) || !absoluteURI(a.Value) {
+							return &Error{Code: "XML_INVALID", Stage: "parse"}
+						}
 						role = a.Value
 					}
 				}
 			}
 			targeted := role == "" || ns == SOAP12 && (role == SOAP12+"/role/ultimateReceiver" || role == SOAP12+"/role/next") || ns == SOAP11 && role == "http://schemas.xmlsoap.org/soap/actor/next"
-			addressing := n.NamespaceURI == "http://www.w3.org/2005/08/addressing" && (n.Data == "Action" || n.Data == "To" || n.Data == "ReplyTo" || n.Data == "MessageID" || n.Data == "RelatesTo")
+			addressing := IsAddressingHeader(n.NamespaceURI, n.Data)
 			understood := security && n.NamespaceURI == "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" && n.Data == "Security"
+			for _, name := range allowed {
+				if name.Space == n.NamespaceURI && name.Local == n.Data {
+					understood = true
+				}
+			}
 			if required && targeted && !addressing && !understood {
 				return &Error{Code: "POLICY_VIOLATION", Stage: "parse"}
 			}

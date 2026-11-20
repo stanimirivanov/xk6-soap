@@ -104,7 +104,7 @@ func TestSigningProfileActivation(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		active := s.Algorithm == "" && s.Digest == "" && (s.KeyID == "" || s.KeyID == "direct") && len(s.Headers) == 0
+		active := s.Algorithm == "" && s.Digest == "" && (s.KeyID == "" || s.KeyID == "direct")
 		if (p.RequireAvailable() == nil) != active {
 			t.Fatalf("wrong capability gate: %+v", s)
 		}
