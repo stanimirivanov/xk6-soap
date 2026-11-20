@@ -162,6 +162,8 @@ Implementation tracked in [issue #39](https://github.com/stanimirivanov/xk6-soap
 
 ### PR-15: Add deterministic object payload mapping
 
+Implementation tracked in [issue #41](https://github.com/stanimirivanov/xk6-soap/issues/41).
+
 - **Scope/files:** object marshaler and runtime/E2E tests; no XSD-aware schema inference.
 - **Acceptance:** JS own-property/array order, attributes, text, escaping and namespace inheritance match §5; invalid types/cycles/mixed content fail; raw multi-namespace XML remains available and unchanged.
 - **Verify:** exact envelope fixtures, Sobek tests proving no unordered Go-map conversion, SG and request echo E2E.

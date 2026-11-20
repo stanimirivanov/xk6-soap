@@ -76,3 +76,6 @@ additional profiles remain planned.
 
 SOAP outcomes and build/receive processing costs are available as [k6 metrics](docs/metrics.md),
 with separate SOAP failure thresholds from HTTP status thresholds.
+
+[Object payload mapping](docs/object-payloads.md) adds ordered object/array inputs with
+an explicit Client namespace; raw XML remains available for multi-namespace payloads.

@@ -11,8 +11,11 @@ AGENTS.md                    task loop and root adapter constraints
 internal/AGENTS.md           internal-layer and security constraints
 internal/archtest/           tested AST import/layer sensors, including tagged source
 soap.go, client.go           named module, lifecycle and Client bindings
+object_payload.go           ordered per-VU Sobek capture, no payload map export
+internal/message/object.go  bounded XML encoding for ordered object payloads
 metrics.go                  registry-owned metrics and cancellation-aware sampling
 test/e2e/metrics.js          exact summary counts and HTTP-200 SOAP failure threshold
+test/e2e/object.js           object envelopes through native k6 HTTP echo
 internal/message/           bounded SOAP validation, faults and isolated XPath
 internal/keys/              byte-based key validation, private material and bounded cache
 keys.go, test/keys.js        constructor key decoding and actual k6 key-input probe
