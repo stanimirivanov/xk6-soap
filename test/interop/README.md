@@ -213,3 +213,38 @@ verification skips must yield null flags. XPath cannot traverse into the origina
 Security header. Captured diagnostic output must omit a synthetic private response
 sentinel. These are independent response signatures, not a candidate self-round-trip.
 The encryption endpoints keep their existing fault policy and regression matrix.
+
+## Central import-BOM resolution failures
+
+CI intermittently reported `cxf-bom:4.2.4` absent at the default Central URL before
+compilation. The same pinned POM succeeded in an uncached preceding CI build and
+in local cold builds. Both official Central HTTPS hostnames currently serve the
+artifact; the precise upstream cause of CI's inconsistent not-found response is
+unconfirmed. A local successful download alone does not resolve the CI problem.
+
+`maven-build.sh` first runs forced-update `validate` to resolve the model/dependency
+graph and enforce WSS4J alignment before compilation/tests. Only a not-found imported
+BOM response allows one additional validation attempt, using
+`central-fallback.xml` to select `https://repo1.maven.org/maven2` instead of the
+default `https://repo.maven.apache.org/maven2`. Both are
+[official Central TLS endpoints](https://central.sonatype.org/faq/ssl/); this is
+not a third-party repository or a dependency-version fallback. They can share CDN
+infrastructure, so the second hostname is no guarantee against a Central outage.
+
+`-U` matters: a controlled real-Maven experiment returning HTTP 404 once produced
+the exact missing-import error; the next ordinary invocation reused the negative
+cache without another HTTP request. Forced update fetched the now-available BOM.
+There is no unbounded retry loop. A permanent missing pin still fails. Transfer
+errors, malformed models, WSS4J alignment errors and compilation/test failures do
+not trigger this recovery. After successful validation the selected endpoint is
+retained for exactly one `package dependency:copy-dependencies` invocation. Original
+failure output and the recovery decision remain visible; fixture timeouts still apply.
+
+`TestMavenBuildRecovery` deterministically checks success, recovery, permanent
+failure, non-not-found errors, selected endpoint propagation and preservation of
+build/test failures. `TestMavenFallbackSettings` constrains the alternate repository.
+These use a fake Maven process to test the shell controller, not to claim artifact
+availability. Verification also forced a real primary HTTP 404 in a temporary cold
+Docker build: the alternate official endpoint resolved the unchanged full fixture,
+passed Maven Enforcer and completed packaging. Normal `make interop` then passed the
+independent Apache suite. No dependency pins or security checks were weakened.
