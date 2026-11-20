@@ -130,6 +130,8 @@ Scaffold delivered in PR #4; remaining runtime probes and [ADR-0001](../docs/adr
 
 ### PR-11: Build signed SOAP requests with the accepted provider
 
+Implementation tracked in [issue #33](https://github.com/stanimirivanov/xk6-soap/issues/33).
+
 - **Scope/files:** sign integration and bindings; activate RSA-SHA256/SHA256/BST. No encryption or additional key-ID support enabled.
 - **Acceptance:** actual Body, Timestamp and present UsernameToken signed in one tree; one final wire serialization preserves verified digests; missing coverage/selectors or incompatible keys fail before transport.
 - **Verify:** SG, deterministic RSA/canonical fixtures and real k6 → WSS4J signed request; synthetic secret sentinels absent from metadata logs. Depends on the successful PR-7 gate, not merely the existence of its code.

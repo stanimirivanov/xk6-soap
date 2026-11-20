@@ -17,7 +17,8 @@ keys.go, test/keys.js        constructor key decoding and actual k6 key-input pr
 security.go, internal/wssec/policy.go  strict policy decoding and typed validation
 diagnostics.go, test/security.js      metadata-only diagnostics and capability gate
 credentials.go, internal/wssec/username.go  per-build overrides and outbound UT/Timestamp
-test/interop/username.js             actual public k6-to-Apache credential exchanges
+internal/wssec/signing.go            single-tree outbound core RSA signing
+test/interop/{username,signing}.js    actual public k6-to-Apache security exchanges
 test/AGENTS.md              runtime/interop fixture rules
 test/smoke.js               actual custom-k6 positive and negative runtime probe
 test/fixture/              bounded synthetic SOAP HTTP server and capture
@@ -62,7 +63,7 @@ possible. Remove guidance that duplicates an effective check.
 | `make build` | All module packages compile | Local/CI |
 | `make verify` | All of the preceding non-mutating checks | Pre-commit/CI quality |
 | `make smoke` | Pinned xk6 builds a binary; valid runtime succeeds and forced failed check exits 99 | CI runtime |
-| `make interop` | Independent Docker CXF/WSS4J UsernameToken/timestamp/replay fixture | CI interop |
+| `make interop` | Independent Docker CXF/WSS4J credentials, signature and encryption/order fixture | CI interop |
 | `make e2e` | Real k6 HTTP fixture scenarios and exact exit-99 negative control | CI runtime |
 | `make vuln` | govulncheck source and the actual custom k6 binary | CI vulnerabilities; online database |
 
