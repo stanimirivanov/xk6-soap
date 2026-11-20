@@ -167,3 +167,24 @@ The matrix checks decrypted protected application content, absence of clear Body
 values, altered request tag rejection by Apache, and Go rejection of altered
 response tags/MGF, partial Body and the opposite receive order. All HTTP reads
 in signature/encryption tests are capped at 4 MiB, matching the kernel limits.
+
+## Public UsernameToken/Timestamp exchanges (CP-T1)
+
+`make interop` builds the custom k6 binary and runs `username.js` through the
+same bounded subprocess runner as plain E2E. The script uses public Client.build,
+k6/http and Client.parse for Digest/Text × SOAP 1.1/1.2, replay, wrong credentials,
+successful overrides/default restoration and parsed authentication faults.
+`/ts11` and `/ts12` require only Timestamp and exercise standalone generation.
+The child has a 25-second deadline, five-second HTTP timeouts, capped diagnostics
+and a failing checks threshold; the suite retains its 90-second deadline.
+
+The selected UT profile requires nonce and Created for both password forms.
+`FreshUsernameToken` adds only those presence checks before delegating to Apache's
+normal validator. This was needed because default WSS4J accepts PasswordText
+without Created. Independent negative requests isolate missing/stale token Created
+from a fresh envelope Timestamp; all earlier expiry/replay/credential controls stay.
+No password hashing, replay cache or freshness arithmetic is implemented in Java
+fixture glue. Sending credentials confers no response-authenticity flag.
+
+[CP-T1 evidence](../../docs/username-token.md) records the fixed vector and scope.
+JMeter capture/migration parity remains unverified; no capture was supplied.

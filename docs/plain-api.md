@@ -3,7 +3,8 @@
 PR-4 enables raw-XML `build()` and plain-response `parse()` on the named `Client`
 export. [PR-8 key loading](keys.md) is available during construction.
 [PR-9 policy validation](security-policy.md) rejects enabled unavailable security
-features explicitly. Object payloads, custom headers/WS-Addressing, production
+features explicitly. [PR-10 UsernameToken/Timestamp](username-token.md) is now
+available for outbound requests. Object payloads, custom headers/WS-Addressing, production
 SOAP metrics and payload diagnostics remain unavailable and are rejected as
 unsupported options. Plain results make no authenticity claim.
 
@@ -39,8 +40,8 @@ types are rejected. No implicit JavaScript string/number coercion is performed.
 context and check VU cancellation. Local errors throw TypeError with stable
 `code` and `stage` properties; diagnostics omit XML, credentials and supplied
 URLs. Build returns `{url,body,headers,buildDuration}`; duration is milliseconds.
-Only raw operation strings and soapAction are currently accepted, following
-PR-3's operation/namespace/header/limit rules.
+Raw operation strings, soapAction and the documented per-build credential override
+are accepted, following PR-3's operation/namespace/header/limit rules.
 
 Parse accepts a k6 response or `{status,body}` object. Status is an integer
 0–599. Text bodies and attached ArrayBuffers are accepted; binary data must be

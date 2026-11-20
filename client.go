@@ -161,17 +161,31 @@ func (i *instance) build(cfg clientConfig, call sobek.FunctionCall) sobek.Value 
 	}
 	operation, payload := i.text(call.Argument(0)), i.text(call.Argument(1))
 	action := ""
+	var credentials *wssec.Credentials
 	if len(call.Arguments) == 3 && !sobek.IsUndefined(call.Argument(2)) {
-		options := i.object(call.Argument(2), "soapAction")
+		options := i.object(call.Argument(2), "soapAction", "credentials")
 		if value := options.Get("soapAction"); !absent(value) {
 			action = i.text(value)
 		}
+	}
+	if len(call.Arguments) == 3 && !sobek.IsUndefined(call.Argument(2)) {
+		credentials = i.decodeCredentials(call.Argument(2).ToObject(i.vu.Runtime()), cfg.policy)
 	}
 	request, err := message.Build(operation, payload, message.Options{Version: cfg.version, Action: action, Limits: cfg.limits})
 	if err != nil {
 		failure := err.(*message.Error)
 		i.diagnostic(cfg.debug, "build", start, cfg.policy, failure.Code)
 		i.throw(failure.Code, failure.Stage)
+	}
+	if cfg.policy.Timestamp != nil {
+		i.execution()
+		wire, buildErr := wssec.BuildCredentials([]byte(request.Body), cfg.policy, i.now(), i.random, credentials, cfg.limits)
+		if buildErr != nil {
+			i.diagnostic(cfg.debug, "build", start, cfg.policy, buildErr.Error())
+			i.throw(buildErr.Error(), "build")
+		}
+		i.execution()
+		request.Body = string(wire)
 	}
 	i.diagnostic(cfg.debug, "build", start, cfg.policy, "OK")
 	return i.vu.Runtime().ToValue(map[string]any{"url": cfg.url, "body": request.Body, "headers": request.Headers, "buildDuration": float64(time.Since(start)) / float64(time.Millisecond)})

@@ -31,7 +31,7 @@ func TestK6SOAPFixture(t *testing.T) {
 			if negative {
 				env[1] = "SOAP_E2E_FAIL=1"
 			}
-			output, err := runCommand(ctx, binary, []string{"run", "--quiet", "--no-usage-report", "http.js"}, env)
+			output, err := Run(ctx, binary, []string{"run", "--quiet", "--no-usage-report", "http.js"}, env)
 			if negative {
 				var exit *exec.ExitError
 				if !errors.As(err, &exit) || exit.ExitCode() != 99 {

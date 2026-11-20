@@ -216,11 +216,10 @@ func CompilePolicy(in SecurityOptions, material KeyMaterial, now time.Time) (Pol
 	return p, nil
 }
 
-// RequireAvailable is deliberately closed: no public security orchestration has
-// shipped yet. Future tasks must activate implemented paths and retain negatives
-// for every remaining capability. Kernel probes alone do not activate the API.
+// RequireAvailable activates only outbound UsernameToken/Timestamp. Kernel
+// signature/encryption probes do not activate those public capabilities.
 func (p Policy) RequireAvailable() error {
-	if p.UsernameToken != nil || p.Timestamp != nil || p.Sign != nil || p.Encrypt != nil || p.Receive.Signature || p.Receive.Timestamp || p.Receive.RequireEncryption || p.Receive.Order != "" {
+	if p.Sign != nil || p.Encrypt != nil || p.Receive.Signature || p.Receive.Timestamp || p.Receive.RequireEncryption || p.Receive.Order != "" {
 		return ErrUnavailable
 	}
 	return nil

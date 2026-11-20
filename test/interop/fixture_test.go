@@ -120,6 +120,17 @@ func TestApacheFixture(t *testing.T) {
 				start = strings.Index(complete, "<wsu:Expires>")
 				end = strings.Index(complete, "</wsu:Expires>") + len("</wsu:Expires>")
 				post(t, version, complete[:start]+complete[end:], true)
+				// Missing UsernameToken Created while the envelope Timestamp remains fresh.
+				complete = request(version, kind, "fixture-password", now, freshNonce(t))
+				start = strings.Index(complete, "<wsse:UsernameToken")
+				tokenCreated := "<wsu:Created>" + now.UTC().Format("2006-01-02T15:04:05.000Z") + "</wsu:Created>"
+				post(t, version, complete[:start]+strings.Replace(complete[start:], tokenCreated, "", 1), true)
+				// Correct password/digest with stale token Created but fresh Timestamp.
+				old := now.Add(-10 * time.Minute)
+				staleToken := request(version, kind, "fixture-password", old, freshNonce(t))
+				staleToken = strings.Replace(staleToken, old.UTC().Format("2006-01-02T15:04:05.000Z"), now.UTC().Format("2006-01-02T15:04:05.000Z"), 1)
+				staleToken = strings.Replace(staleToken, old.Add(300*time.Second).UTC().Format("2006-01-02T15:04:05.000Z"), now.Add(300*time.Second).UTC().Format("2006-01-02T15:04:05.000Z"), 1)
+				post(t, version, staleToken, true)
 				// Expired Timestamp with a fresh, correctly hashed UsernameToken.
 				staleTime := time.Now().Add(-10 * time.Minute)
 				stamp := now.UTC().Format("2006-01-02T15:04:05.000Z")

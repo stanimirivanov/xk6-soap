@@ -65,5 +65,5 @@ e2e: build-k6
 	go test -race -tags=e2e ./test/e2e -count=1 -timeout=60s
 
 .PHONY: interop
-interop:
+interop: build-k6
 	sh scripts/interop.sh

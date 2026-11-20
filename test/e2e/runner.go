@@ -25,7 +25,8 @@ func (b *cappedOutput) Write(p []byte) (int, error) {
 	return n, nil
 }
 
-func runCommand(ctx context.Context, binary string, args, env []string) (string, error) {
+// Run executes a bounded test process and drains capped diagnostics.
+func Run(ctx context.Context, binary string, args, env []string) (string, error) {
 	// Every child has a deadline even if a caller forgets to supply one.
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()

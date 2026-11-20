@@ -23,7 +23,7 @@ func TestRunner(t *testing.T) {
 				ctx, cancel = context.WithTimeout(context.Background(), 100*time.Millisecond)
 				defer cancel()
 			}
-			output, err := runCommand(ctx, binary, []string{"-test.run=^TestRunnerHelper$"}, []string{"SOAP_RUNNER_HELPER=" + mode})
+			output, err := Run(ctx, binary, []string{"-test.run=^TestRunnerHelper$"}, []string{"SOAP_RUNNER_HELPER=" + mode})
 			switch mode {
 			case "pass":
 				if err != nil || !strings.Contains(output, "synthetic output") {
@@ -57,7 +57,7 @@ func TestRunnerHelper(t *testing.T) {
 }
 
 func TestRunnerMissingBinary(t *testing.T) {
-	if _, err := runCommand(context.Background(), "/nonexistent/soap-k6", nil, nil); err == nil {
+	if _, err := Run(context.Background(), "/nonexistent/soap-k6", nil, nil); err == nil {
 		t.Fatal("missing executable succeeded")
 	}
 }

@@ -69,4 +69,5 @@ This does not enable public Client signing; encryption/order gating remains PR-7
 
 Key loading and cache ownership are documented in [Key material and cache](docs/keys.md).
 [Executable policy validation](docs/security-policy.md) rejects enabled unavailable
-security paths at construction; public message crypto remains planned.
+security paths at construction. [UsernameToken and Timestamp exchanges](docs/username-token.md)
+are available; public message signing/encryption remains planned.
