@@ -18,7 +18,8 @@ security.go, internal/wssec/policy.go  strict policy decoding and typed validati
 diagnostics.go, test/security.js      metadata-only diagnostics and capability gate
 credentials.go, internal/wssec/username.go  per-build overrides and outbound UT/Timestamp
 internal/wssec/signing.go            single-tree outbound core RSA signing
-test/interop/{username,signing}.js    actual public k6-to-Apache security exchanges
+internal/wssec/receive.go            exact-coverage receive acceptance and trust
+test/interop/{username,signing,receive}.js  public k6-to-Apache security exchanges
 test/AGENTS.md              runtime/interop fixture rules
 test/smoke.js               actual custom-k6 positive and negative runtime probe
 test/fixture/              bounded synthetic SOAP HTTP server and capture
@@ -38,7 +39,7 @@ source for allowed first-party edges; new packages fail closed until reviewed th
 | State/resource | Owner | Constraint/evidence |
 | --- | --- | --- |
 | Sobek values and module bindings | Per-VU root instance | Runtime isolation/lifecycle tests; internal imports forbidden |
-| XML/message state | Future request/response | Never shared; exact-node security tests added with feature |
+| XML/message state | Per request/response | Never shared; exact covered-Body projection and hostile security tests |
 | Decoded key cache | RootModule-owned immutable material | 256 entries/32 MiB encoded input; concrete-key and cross-VU race tests |
 | HTTP, TLS, cookies, HTTP metrics | k6/http in script | Production direct transport imports forbidden |
 | Fixture servers/files | test directory | Exempt from production import rules, never imported into runtime |

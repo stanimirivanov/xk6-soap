@@ -138,6 +138,8 @@ Implementation tracked in [issue #33](https://github.com/stanimirivanov/xk6-soap
 
 ### PR-12: Verify responses against exact coverage and trust
 
+Implementation tracked in [issue #35](https://github.com/stanimirivanov/xk6-soap/issues/35).
+
 - **Scope/files:** receive service/provider result integration and security-first fault extraction. Activate exact pinned trust, RSA-SHA256 and structured results.
 - **Acceptance:** WSS4J response accepted; missing signature, duplicate IDs, decoy Body, unsigned consumed content and wrong trust fail; body/fault/XPath are unavailable when required acceptance fails, and explicit skipped signature yields null.
 - **Verify:** SG, hostile unit fixtures and independently signed E2E response. No reparse/reselection of a different application Body after verification.

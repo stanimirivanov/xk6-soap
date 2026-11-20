@@ -200,5 +200,16 @@ unsigned UsernameToken must also fail. The signed-token endpoints use Apache's
 `setSignUsernameToken(true)` coverage check in place of its default encrypted-token
 requirement, retaining Body/Timestamp signature requirements. Existing endpoints
 keep their original policies. The Go runner rejects synthetic secret sentinels in
-captured k6 diagnostic output. Signed responses remain the independent fixture's
-behavior; public response verification is PR-12 and is not claimed by this test.
+captured k6 diagnostic output. The separate PR-12 receive test below exercises public response verification.
+
+## Public response verification (PR-12)
+
+`receive.js` sends real k6 signed requests and verifies WSS4J responses using only
+the fixture server's public leaf certificate. Both SOAP versions exercise successful
+responses and independently signed service faults. The signature endpoints attach
+the same outbound WSS4J policy to the fault interceptor chain. Wrong trust and
+modified Body/fault data must withhold Body, fault and XPath content; explicit
+verification skips must yield null flags. XPath cannot traverse into the original
+Security header. Captured diagnostic output must omit a synthetic private response
+sentinel. These are independent response signatures, not a candidate self-round-trip.
+The encryption endpoints keep their existing fault policy and regression matrix.

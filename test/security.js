@@ -10,9 +10,9 @@ function rejects(security, code, material=keys) {
   return false;
 }
 const constructorChecks = [
-  rejects({sign:{}}, 'SOAP_FEATURE_UNAVAILABLE'),
+  rejects({sign:{algorithm:'rsa-sha384'}}, 'SOAP_FEATURE_UNAVAILABLE'),
   rejects({encrypt:{}}, 'SOAP_FEATURE_UNAVAILABLE'),
-  rejects({verify:{signature:true}}, 'SOAP_FEATURE_UNAVAILABLE'),
+  rejects({verify:{signature:true,signatureAlgorithms:['rsa-sha384']}}, 'SOAP_FEATURE_UNAVAILABLE'),
   rejects({sign:{algorithm:'rsa-sha1'}}, 'SOAP_POLICY_INVALID'),
   rejects({sign:undefined}, 'SOAP_POLICY_INVALID'),
   rejects({verify:{signature:true}}, 'SOAP_POLICY_KEY', {}),

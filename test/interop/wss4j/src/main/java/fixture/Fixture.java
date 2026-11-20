@@ -131,6 +131,9 @@ public final class Fixture {
                     }
                 }
                 endpoint.getOutInterceptors().add(new WSS4JOutInterceptor(out));
+                if (mode.startsWith("sig")) {
+                    endpoint.getOutFaultInterceptors().add(new WSS4JOutInterceptor(out));
+                }
                 endpoint.publish("http://0.0.0.0:8080/" + mode + version);
             }
         }
