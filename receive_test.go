@@ -9,10 +9,14 @@ import (
 	"time"
 
 	"github.com/stanimirivanov/xk6-soap/internal/wssec"
+	"go.k6.io/k6/v2/js/modulestest"
 	"go.k6.io/k6/v2/lib"
 )
 
 func signedResponse(t *testing.T, payload string) string {
+	return signedResponseAt(t, payload, time.Now())
+}
+func signedResponseAt(t *testing.T, payload string, now time.Time) string {
 	t.Helper()
 	b, e := os.ReadFile("internal/wssec/testdata/signing-key.pem")
 	if e != nil {
@@ -23,7 +27,7 @@ func signedResponse(t *testing.T, payload string) string {
 	if e != nil {
 		t.Fatal(e)
 	}
-	wire, e := wssec.Sign([]byte(`<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body>`+payload+`</s:Body></s:Envelope>`), wssec.Identity{Certificate: signingCertificate(t), Key: key.(*rsa.PrivateKey)}, time.Now())
+	wire, e := wssec.Sign([]byte(`<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body>`+payload+`</s:Body></s:Envelope>`), wssec.Identity{Certificate: signingCertificate(t), Key: key.(*rsa.PrivateKey)}, now)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -36,4 +40,28 @@ func TestVerifiedResponsePublic(t *testing.T) {
 	rt.MoveToVUContext(&lib.State{})
 	js(t, rt.VU.Runtime(), `var p=receiver.parse({status:200,body:wire});if(!p.ok||p.sigVerified!==true||p.timestampValid!==true||!p.body.includes('PRIVATE_RESPONSE')||p.xpath('string(Echo)').value!=='PRIVATE_RESPONSE')throw new Error('verified response unavailable');
  var bad=receiver.parse({status:500,body:wire.replace('PRIVATE_RESPONSE','TAMPERED')});if(bad.ok||bad.body!==null||bad.fault!==null||bad.sigVerified!==false||bad.xpath('string(.)').error.code!=='CONTENT_UNAVAILABLE')throw new Error('unverified content escaped');`)
+}
+
+func TestTimestampClockInjectionAndPolicyIndependence(t *testing.T) {
+	rt := modulestest.NewRuntime(t)
+	inst := New().NewModuleInstance(rt.VU).(*instance)
+	created := time.Date(2030, 1, 2, 3, 4, 5, 0, time.UTC)
+	clockNow := created
+	inst.now = func() time.Time { return clockNow }
+	rt.VU.Runtime().Set("Client", inst.Exports().Named["Client"])
+	cert, e := os.ReadFile("internal/wssec/testdata/signing-cert.pem")
+	if e != nil {
+		t.Fatal(e)
+	}
+	rt.VU.Runtime().Set("cert", rt.VU.Runtime().NewArrayBuffer(cert))
+	rt.VU.Runtime().Set("wire", signedResponseAt(t, "<Echo>PRIVATE_TIMESTAMP</Echo>", created))
+	js(t, rt.VU.Runtime(), `var receiver=new Client({url:'https://example.test',keys:{trust:[cert]},security:{timestamp:{clockOffsetSeconds:300,ttlSeconds:3600},verify:{signature:true,clockSkewSeconds:0,maxAgeSeconds:300}}});
+ var skip=new Client({url:'https://example.test',keys:{trust:[cert]},security:{verify:{signature:true,timestamp:false,clockSkewSeconds:0,maxAgeSeconds:1}}});
+ for(const option of ['now','clock','random']){try{new Client({url:'https://example.test',[option]:()=>0});throw new Error('public clock/random override accepted');}catch(e){if(e.code!=='INVALID_ARGUMENT')throw e;}}`)
+	rt.MoveToVUContext(&lib.State{})
+	clockNow = created.Add(300*time.Second - time.Nanosecond)
+	js(t, rt.VU.Runtime(), `var good=receiver.parse({status:200,body:wire});if(!good.ok||good.sigVerified!==true||good.timestampValid!==true)throw new Error('valid timestamp rejected');`)
+	clockNow = created.Add(300 * time.Second)
+	js(t, rt.VU.Runtime(), `var bad=receiver.parse({status:500,body:wire});if(bad.ok||bad.body!==null||bad.fault!==null||bad.error.code!=='TIMESTAMP_INVALID'||bad.sigVerified!==true||bad.timestampValid!==false||bad.xpath('string(.)').error.code!=='CONTENT_UNAVAILABLE')throw new Error('outbound offset affected receive tolerance');
+ var skipped=skip.parse({status:200,body:wire});if(!skipped.ok||skipped.sigVerified!==true||skipped.timestampValid!==null)throw new Error('freshness skip changed');`)
 }

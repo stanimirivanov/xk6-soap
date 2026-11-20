@@ -19,7 +19,8 @@ diagnostics.go, test/security.js      metadata-only diagnostics and capability g
 credentials.go, internal/wssec/username.go  per-build overrides and outbound UT/Timestamp
 internal/wssec/signing.go            single-tree outbound core RSA signing
 internal/wssec/receive.go            exact-coverage receive acceptance and trust
-test/interop/{username,signing,receive}.js  public k6-to-Apache security exchanges
+internal/wssec/timestamp.go          required signed Timestamp freshness
+test/interop/{username,signing,receive,timestamp}.js  public k6-to-Apache security exchanges
 test/AGENTS.md              runtime/interop fixture rules
 test/smoke.js               actual custom-k6 positive and negative runtime probe
 test/fixture/              bounded synthetic SOAP HTTP server and capture

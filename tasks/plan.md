@@ -146,6 +146,8 @@ Implementation tracked in [issue #35](https://github.com/stanimirivanov/xk6-soap
 
 ### PR-13: Enforce signed timestamp freshness
 
+Implementation tracked in [issue #37](https://github.com/stanimirivanov/xk6-soap/issues/37).
+
 - **Scope/files:** freshness policy and table tests. Separate clock skew/max age from outbound clock offset; require signed Created/Expires for required timestamp.
 - **Acceptance:** equality boundaries, future Created, expired/reversed/excess lifetime, missing/duplicate/unsigned Timestamp rejected; explicit skip semantics stable; local wall-clock fixture injectable without changing production randomness.
 - **Verify:** SG and independent valid/stale response fixture. Freshness is documented as distinct from replay protection.

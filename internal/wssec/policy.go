@@ -253,7 +253,7 @@ func (p Policy) RequireAvailable() error {
 		return ErrUnavailable
 	}
 
-	if r := p.Receive; r.Signature && (len(r.SignatureAlgorithms) != 1 || r.SignatureAlgorithms[0] != "rsa-sha256" || len(r.DigestAlgorithms) != 1 || r.DigestAlgorithms[0] != "sha256" || len(r.SignedHeaders) != 0 || len(r.EncryptedHeaders) != 0 || r.ClockSkewSeconds != 60 || r.MaxAgeSeconds != 300) {
+	if r := p.Receive; r.Signature && (len(r.SignatureAlgorithms) != 1 || r.SignatureAlgorithms[0] != "rsa-sha256" || len(r.DigestAlgorithms) != 1 || r.DigestAlgorithms[0] != "sha256" || len(r.SignedHeaders) != 0 || len(r.EncryptedHeaders) != 0) {
 		return ErrUnavailable
 	}
 

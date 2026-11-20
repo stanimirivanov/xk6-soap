@@ -248,3 +248,24 @@ availability. Verification also forced a real primary HTTP 404 in a temporary co
 Docker build: the alternate official endpoint resolved the unchanged full fixture,
 passed Maven Enforcer and completed packaging. Normal `make interop` then passed the
 independent Apache suite. No dependency pins or security checks were weakened.
+
+## Signed Timestamp freshness (PR-13)
+
+`timestamp.js` exercises `/sig11`, `/sig12`, `/sigstale11`, `/sigstale12`,
+`/sigfuture11` and `/sigfuture12` using real k6 and the server's exact public pin.
+The new endpoints retain core incoming signature/coverage checks. Their outbound
+Timestamp action uses a request-local Apache `WSSecTimestamp` builder with an offset
+clock source: -600 seconds for stale responses and +120 seconds for future ones.
+Apache generates Created/Expires, canonicalizes and signs the Timestamp normally.
+The endpoint's shared WSSConfig is never mutated, and signed wire bytes are not
+edited after signing. Production extension time/randomness remain unchanged.
+
+For both SOAP versions, native k6 verifies signature math before rejecting stale
+or future Timestamp content. A 180-second configured receive skew accepts the future
+fixture; a one-second configured max age rejects a normal 300-second lifetime.
+Signed service faults exercise freshness precedence and content withholding too.
+Explicit Timestamp skip preserves a true signature flag with null Timestamp flag;
+re-parsing a fresh response remains accepted because freshness is not replay detection.
+Captured debug output must omit a synthetic private payload sentinel. Go tests
+separately prove exact nanosecond/equality boundaries and malformed/unsigned/missing
+Timestamp handling without depending on network delivery timing.

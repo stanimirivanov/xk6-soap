@@ -76,13 +76,13 @@ public final class Fixture {
                 password.setPassword("fixture-only");
             }
         };
-        for (String mode : new String[]{"sig", "sigut", "ste128", "ste256", "ets128", "ets256"}) {
+        for (String mode : new String[]{"sig", "sigut", "sigstale", "sigfuture", "ste128", "ste256", "ets128", "ets256"}) {
             for (String version : new String[]{"11", "12"}) {
                 String ns = "11".equals(version) ? "http://schemas.xmlsoap.org/soap/envelope/" : "http://www.w3.org/2003/05/soap-envelope";
                 String binding = "11".equals(version) ? SOAPBinding.SOAP11HTTP_BINDING : SOAPBinding.SOAP12HTTP_BINDING;
                 EndpointImpl endpoint = new EndpointImpl(bus, new Echo(), binding);
                 Map<String, Object> in = new HashMap<>();
-                in.put(ConfigurationConstants.ACTION, "sigut".equals(mode) ? "Timestamp UsernameToken Signature" : "sig".equals(mode) ? "Timestamp Signature" : "Timestamp Signature Encryption");
+                in.put(ConfigurationConstants.ACTION, "sigut".equals(mode) ? "Timestamp UsernameToken Signature" : mode.startsWith("sig") ? "Timestamp Signature" : "Timestamp Signature Encryption");
                 if ("sigut".equals(mode)) {
                     in.put(ConfigurationConstants.PW_CALLBACK_REF, passwords);
                     in.put(WSS4JInInterceptor.VALIDATOR_MAP, Map.of(org.apache.wss4j.dom.WSConstants.USERNAME_TOKEN, new FreshUsernameToken()));
@@ -129,6 +129,11 @@ public final class Fixture {
                         out.put(WSS4JOutInterceptor.WSS4J_ACTION_MAP, Map.of(org.apache.wss4j.dom.WSConstants.SIGN, new NamespaceStableSignature()));
                         out.put(ConfigurationConstants.SIGNATURE_PARTS, out.get(ConfigurationConstants.SIGNATURE_PARTS) + ";{Element}{http://www.w3.org/2001/04/xmlenc#}EncryptedKey");
                     }
+                }
+                if ("sigstale".equals(mode) || "sigfuture".equals(mode)) {
+                    out.put(WSS4JOutInterceptor.WSS4J_ACTION_MAP,
+                            Map.of(org.apache.wss4j.dom.WSConstants.TS,
+                                    new OffsetTimestamp("sigstale".equals(mode) ? -600 : 120)));
                 }
                 endpoint.getOutInterceptors().add(new WSS4JOutInterceptor(out));
                 if (mode.startsWith("sig")) {
