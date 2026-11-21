@@ -44,7 +44,8 @@ the digest and MGF1. The EncryptedKey names the recipient by issuer and
 serial number. Send the generated body unchanged.
 
 Both orders require outbound signing. [Encrypted response parsing](receive.md#encrypted-responses-and-faults)
-uses a separate receive policy. Header encryption remains gated.
+uses a separate receive policy. Use [header encryption](headers.md#encrypting-selected-headers)
+to protect selected blocks instead of the Body.
 
 The local and native interop tests cover both targets and AES sizes. The
 WSS4J exchange runs with SOAP 1.1 and 1.2. A local test unwraps two requests

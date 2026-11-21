@@ -108,11 +108,12 @@ const client = new Client({
 });
 ```
 
-The accepted profile uses one wholly encrypted Body region and one local
+The Body profile uses one wholly encrypted Body region and one local
 EncryptedKey identifying the configured RSA decryption certificate by issuer
 and serial. The Body content or its sole operation element may be encrypted
 with AES-128/256-GCM. Key transport uses RSA-OAEP with SHA-256 and MGF1-SHA256.
-Header encryption remains gated.
+[Selected headers](headers.md#encrypting-selected-headers) can also be protected.
+Header-only protection does not satisfy required Body encryption.
 
 With `requireEncryption: true`, unauthenticated, plain or partially encrypted
 Bodies cannot yield content. Omit that flag to accept either a valid signed

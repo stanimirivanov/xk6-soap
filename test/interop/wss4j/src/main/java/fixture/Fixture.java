@@ -79,7 +79,7 @@ public final class Fixture {
                 password.setPassword("fixture-only");
             }
         };
-        for (String mode : new String[]{"sig", "sigissuer", "sigx509", "sigski", "sigthumb", "sigrsa384", "sigrsa512", "sigec256", "sigec384", "sigec521", "sigecwrongcurve", "sighdr", "sighdrweak", "sigut", "sigstale", "sigfuture", "ste128", "ste256", "stefault128", "stefault256", "ets128", "ets256", "etsfault128", "etsfault256"}) {
+        for (String mode : new String[]{"sig", "sigissuer", "sigx509", "sigski", "sigthumb", "sigrsa384", "sigrsa512", "sigec256", "sigec384", "sigec521", "sigecwrongcurve", "sighdr", "sighdrweak", "sigut", "sigstale", "sigfuture", "ste128", "ste256", "stefault128", "stefault256", "stehdr", "etshdr", "ets128", "ets256", "etsfault128", "etsfault256"}) {
             for (String version : new String[]{"11", "12"}) {
                 String ns = "11".equals(version) ? "http://schemas.xmlsoap.org/soap/envelope/" : "http://www.w3.org/2003/05/soap-envelope";
                 String binding = "11".equals(version) ? SOAPBinding.SOAP11HTTP_BINDING : SOAPBinding.SOAP12HTTP_BINDING;
@@ -124,6 +124,10 @@ public final class Fixture {
                     SignedHeaders.requireCoverage(coverage);
                     endpoint.getOutInterceptors().add(new SignedHeaders());
                     endpoint.getOutFaultInterceptors().add(new SignedHeaders());
+                }
+                boolean headerEncryption = mode.endsWith("hdr") && !mode.startsWith("sig");
+                if (headerEncryption) {
+                    endpoint.getOutInterceptors().add(new SignedHeaders(false));
                 }
                 endpoint.getInInterceptors().add(coverage);
                 Map<String, Object> out = new HashMap<>();
@@ -172,7 +176,13 @@ public final class Fixture {
                     out.put(ConfigurationConstants.ENC_KEY_TRANSPORT, "http://www.w3.org/2009/xmlenc11#rsa-oaep");
                     out.put(ConfigurationConstants.ENC_DIGEST_ALGO, "http://www.w3.org/2001/04/xmlenc#sha256");
                     out.put(ConfigurationConstants.ENC_MGF_ALGO, "http://www.w3.org/2009/xmlenc11#mgf1sha256");
-                    out.put(ConfigurationConstants.ENCRYPTION_PARTS, "{Content}{" + ns + "}Body");
+                    out.put(ConfigurationConstants.ENCRYPTION_PARTS, headerEncryption ? "{Header}{urn:trace}Trace" : "{Content}{" + ns + "}Body");
+                    if (headerEncryption) {
+                        String signedHeader = mode.startsWith("ets")
+                                ? "{Element}{http://docs.oasis-open.org/wss/oasis-wss-wssecurity-secext-1.1.xsd}EncryptedHeader"
+                                : "{Element}{urn:trace}Trace";
+                        out.put(ConfigurationConstants.SIGNATURE_PARTS, out.get(ConfigurationConstants.SIGNATURE_PARTS) + ";" + signedHeader);
+                    }
                     if (mode.startsWith("ets")) {
                         out.put(WSS4JOutInterceptor.WSS4J_ACTION_MAP, Map.of(org.apache.wss4j.dom.WSConstants.SIGN, new NamespaceStableSignature()));
                         out.put(ConfigurationConstants.SIGNATURE_PARTS, out.get(ConfigurationConstants.SIGNATURE_PARTS) + ";{Element}{http://www.w3.org/2001/04/xmlenc#}EncryptedKey");

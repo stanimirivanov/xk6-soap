@@ -320,7 +320,10 @@ func headerPolicy(env *xmlquery.Node, ns string, security bool, allowed ...xml.N
 			required := false
 			role := ""
 			for _, a := range n.Attr {
-				if a.NamespaceURI == ns {
+				if a.NamespaceURI == SOAP11 || a.NamespaceURI == SOAP12 {
+					if a.NamespaceURI != ns {
+						return &Error{Code: "XML_INVALID", Stage: "parse"}
+					}
 					switch a.Name.Local {
 					case "mustUnderstand":
 						if a.Value != "0" && a.Value != "1" && (ns != SOAP12 || a.Value != "true" && a.Value != "false") {
@@ -332,6 +335,10 @@ func headerPolicy(env *xmlquery.Node, ns string, security bool, allowed ...xml.N
 							return &Error{Code: "XML_INVALID", Stage: "parse"}
 						}
 						role = a.Value
+					case "relay":
+						if ns != SOAP12 || (a.Value != "0" && a.Value != "1" && a.Value != "true" && a.Value != "false") {
+							return &Error{Code: "XML_INVALID", Stage: "parse"}
+						}
 					}
 				}
 			}

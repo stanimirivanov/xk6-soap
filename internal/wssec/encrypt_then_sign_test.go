@@ -73,7 +73,7 @@ func TestCiphertextSignatureGatesDecryption(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	encrypted, err := encryptRequest(doc, ns, header, policy.Encrypt, outbound.Recipient.Certificate(), rand.Reader)
+	encrypted, err := encryptRequest(doc, ns, header, policy.Encrypt, outbound.Recipient.Certificate(), rand.Reader, message.Limits{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

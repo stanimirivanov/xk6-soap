@@ -58,10 +58,11 @@ func receiveWithDecryptor(status int, raw, version string, limits message.Limits
 		}
 	}
 	var understood []xml.Name
-	for _, name := range policy.SignedHeaders {
+	for _, name := range append(slices.Clone(policy.SignedHeaders), policy.EncryptedHeaders...) {
 		understood = append(understood, xml.Name{Space: name.Namespace, Local: name.LocalName})
 	}
-	if e := message.CheckSecurityEnvelope(raw, version, limits, understood...); e != nil {
+	wireUnderstood := append(slices.Clone(understood), xml.Name{Space: xmlsec.NSWSSE11, Local: "EncryptedHeader"})
+	if e := message.CheckSecurityEnvelope(raw, version, limits, wireUnderstood...); e != nil {
 		result.Error = e
 		return result
 	}
@@ -78,7 +79,7 @@ func receiveWithDecryptor(status int, raw, version string, limits message.Limits
 		}
 		var ok bool
 		graph, ok = inspectResponseEncryption(doc, ns)
-		if !ok {
+		if !ok || policy.RequireEncryption && graph.data == nil {
 			return fail("POLICY_VIOLATION")
 		}
 		verifyCiphertext = policy.Order == string(EncryptThenSign)
@@ -86,12 +87,16 @@ func receiveWithDecryptor(status int, raw, version string, limits message.Limits
 			retainedKey = graph.key
 		} else {
 			var code string
-			doc, retainedKey, code = recoverEncryptedBody(decrypt, graph, doc, material.Decryption, now, version, limits)
+			slotsBefore := len(headerBlocks(doc, ns))
+			doc, retainedKey, code = recoverEncryptedRegions(decrypt, graph, doc, material.Decryption, now, version, limits, understood...)
 			if code != "" {
 				return fail(code)
 			}
+			if len(headerBlocks(doc, ns)) != slotsBefore {
+				return fail("POLICY_VIOLATION")
+			}
 		}
-	} else if policy.RequireEncryption {
+	} else if policy.RequireEncryption || len(policy.EncryptedHeaders) != 0 {
 		return fail("POLICY_VIOLATION")
 	}
 	env := element(doc.Root())
@@ -141,7 +146,16 @@ func receiveWithDecryptor(status int, raw, version string, limits message.Limits
 			return fail("POLICY_VIOLATION")
 		}
 	}
+	blocks := headerBlocks(doc, ns)
+	if !verifyCiphertext && !validRecoveredHeaders(blocks, graph, policy) {
+		return fail("POLICY_VIOLATION")
+	}
 	var requiredHeaders []*xdm.Node
+	for _, slot := range graph.headerSlots {
+		requiredHeaders = append(requiredHeaders, blocks[slot])
+	}
+	var coveredSlots []bool
+
 	var allowedHeaders []*xdm.Node
 	seenAddressing := map[string]bool{}
 	if header != nil {
@@ -159,20 +173,14 @@ func receiveWithDecryptor(status int, raw, version string, limits message.Limits
 			}
 		}
 	}
-	for _, name := range policy.SignedHeaders {
-		var found *xdm.Node
-		for _, c := range allowedHeaders {
-			if c.IsElement(name.Namespace, name.LocalName) {
-				if found != nil {
-					return fail("SIGNATURE_INVALID")
-				}
-				found = c
+	if !verifyCiphertext || len(graph.headerSlots) == 0 {
+		for _, name := range policy.SignedHeaders {
+			idx := uniqueHeader(blocks, name.Namespace, name.LocalName)
+			if idx < 0 {
+				return fail("SIGNATURE_INVALID")
 			}
+			requiredHeaders = append(requiredHeaders, blocks[idx])
 		}
-		if found == nil {
-			return fail("SIGNATURE_INVALID")
-		}
-		requiredHeaders = append(requiredHeaders, found)
 	}
 	body := env.FirstElement(ns, "Body")
 	stamp := security.FirstElement(xmlsec.NSWSU, "Timestamp")
@@ -251,6 +259,12 @@ func receiveWithDecryptor(status int, raw, version string, limits message.Limits
 				return fail("SIGNATURE_INVALID")
 			}
 		}
+		if verifyCiphertext && len(graph.headerSlots) != 0 {
+			coveredSlots = make([]bool, len(blocks))
+			for i, block := range blocks {
+				coveredSlots[i] = coverage.CoversNodes(block)
+			}
+		}
 		yes := true
 		result.SigVerified = &yes
 		if policy.Timestamp {
@@ -271,9 +285,21 @@ func receiveWithDecryptor(status int, raw, version string, limits message.Limits
 	if verifyCiphertext {
 		// The signature covered the original Body and the exact key used here.
 		// The validated graph has one replacement, inside that same Body.
-		restored, _, code := recoverEncryptedBody(decrypt, graph, doc, material.Decryption, now, version, limits)
+		restored, _, code := recoverEncryptedRegions(decrypt, graph, doc, material.Decryption, now, version, limits, understood...)
 		if code != "" {
 			return fail(code)
+		}
+		recoveredBlocks := headerBlocks(restored, ns)
+		if len(recoveredBlocks) != len(blocks) || !validRecoveredHeaders(recoveredBlocks, graph, policy) {
+			return fail("POLICY_VIOLATION")
+		}
+		if len(graph.headerSlots) != 0 {
+			for _, name := range policy.SignedHeaders {
+				idx := uniqueHeader(recoveredBlocks, name.Namespace, name.LocalName)
+				if idx < 0 || !coveredSlots[idx] {
+					return fail("SIGNATURE_INVALID")
+				}
+			}
 		}
 		recoveredBody := element(restored.Root()).FirstElement(ns, "Body")
 		output := limitedXML{max: normalized.Bytes}
