@@ -108,19 +108,27 @@ func readSignatureKey(doc, signature, bst *xdm.Node, bstCount int) (signatureKey
 		}
 		return out, false
 	}
-	if !ref.IsElement(xmlsec.NSDSig, "X509Data") || elementCount(ref) != 1 || wss.CheckSecurityTokenReference(str) != nil {
-		return out, false
+	return out, validIssuerSerialReference(str)
+}
+
+func validIssuerSerialReference(str *xdm.Node) bool {
+	if str == nil || wss.CheckSecurityTokenReference(str) != nil {
+		return false
+	}
+	ref := str.FirstElement(xmlsec.NSDSig, "X509Data")
+	if ref == nil || elementCount(ref) != 1 {
+		return false
 	}
 	issuerSerial := ref.FirstElement(xmlsec.NSDSig, "X509IssuerSerial")
 	if issuerSerial == nil || elementCount(issuerSerial) != 2 {
-		return out, false
+		return false
 	}
 	issuer := issuerSerial.FirstElement(xmlsec.NSDSig, "X509IssuerName")
 	serial := issuerSerial.FirstElement(xmlsec.NSDSig, "X509SerialNumber")
 	if issuer == nil || serial == nil || elementCount(issuer) != 0 || elementCount(serial) != 0 {
-		return out, false
+		return false
 	}
-	return out, len(issuer.StringValue()) > 0 && len(issuer.StringValue()) <= 4096 && len(serial.StringValue()) > 0 && len(serial.StringValue()) <= 64
+	return len(issuer.StringValue()) > 0 && len(issuer.StringValue()) <= 4096 && len(serial.StringValue()) > 0 && len(serial.StringValue()) <= 64
 }
 
 func (id signatureKeyIdentifier) pinnedCertificate(trust []*keys.Material, now time.Time) *x509.Certificate {

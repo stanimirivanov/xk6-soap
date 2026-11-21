@@ -90,7 +90,40 @@ clock offset/TTL; neither silently widens receive tolerance.
 Freshness is distinct from replay detection. Repeated parsing of the same valid
 response is permitted while it remains fresh; no receive replay cache is introduced.
 [Required signed custom headers and WS-Addressing coverage](headers.md) are available.
-[Outbound encryption](request-encryption.md) is available. Encrypted response parsing remains gated.
+## Encrypted responses and faults
+
+Supply a decryption identity and explicitly set the receive order. Keep your
+usual trust pins for the signing certificate.
+
+```js
+const client = new Client({
+  url: 'https://example.test/service',
+  keys: {
+    decryption: {cert: open('./client-cert.pem', 'b'), key: open('./client-key.pem', 'b')},
+    trust: [open('./server-signing-cert.pem', 'b')],
+  },
+  security: {
+    verify: {signature: true, order: 'sign-then-encrypt', requireEncryption: true},
+  },
+});
+```
+
+The accepted profile uses one wholly encrypted Body region and one local
+EncryptedKey identifying the configured RSA decryption certificate by issuer
+and serial. The Body content or its sole operation element may be encrypted
+with AES-128/256-GCM. Key transport uses RSA-OAEP with SHA-256 and MGF1-SHA256.
+Header encryption and encrypt-then-sign remain gated.
+
+With `requireEncryption: true`, unauthenticated, plain or partially encrypted
+Bodies cannot yield content. Omit that flag to accept either a valid signed
+plain reply or a valid signed encrypted reply. Both paths require signature
+verification. The explicit receive order is independent of outbound order.
+
+The recovered envelope must fit the configured XML limits and pass ID,
+signature coverage and applicable Timestamp checks before Body, Fault or XPath
+become available. GCM or key failures return `DECRYPTION_FAILED` with a fixed
+message. A valid encrypted SOAP fault returns `SOAP_FAULT` with its accepted
+fault details after verification.
 
 Evidence includes hostile exact-coverage/duplicate-ID fixtures, a different DER
 certificate with the same public key, overlapping pins, namespace-preserving

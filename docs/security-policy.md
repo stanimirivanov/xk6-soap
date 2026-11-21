@@ -5,7 +5,7 @@ PR-9 implements typed policy normalization and constructor validation.
 [PR-11](signing.md) activates RSA-SHA256/SHA256/exclusive-C14N/BST signing.
 [PR-12](receive.md) activates core pinned response verification; PR-13 enforces
 configured signed Timestamp freshness. PR-16 enables [custom/header addressing
-selectors and required receive coverage](headers.md). PR-17 activates the [RSA and ECDSA SHA-2 signature and reference digest profiles](signing.md). PR-18 activates the [X.509 key identifiers](signing.md). PR-19 activates [outbound sign-then-encrypt](request-encryption.md) for the Body content or operation element. Encrypted receive remains unavailable. The internal kernel probes remain
+selectors and required receive coverage](headers.md). PR-17 activates the [RSA and ECDSA SHA-2 signature and reference digest profiles](signing.md). PR-18 activates the [X.509 key identifiers](signing.md). PR-19 activates [outbound sign-then-encrypt](request-encryption.md) for the Body content or operation element. PR-20 activates [sign-then-encrypt responses and faults](receive.md#encrypted-responses-and-faults). The internal kernel probes remain
 independent gate evidence. Valid requests for unavailable features
 throw `SOAP_FEATURE_UNAVAILABLE` at construction, before measured iterations.
 
@@ -78,11 +78,9 @@ or header encryption additionally needs a decryption identity.
 
 Every decryption key, including one for optional encrypted responses, requires
 an explicit `verify.order`. It is never inferred from outbound order or trial
-cryptography. Receive order without a decryption key is invalid. In this PR,
-requests to use that decryption path remain unavailable. Thus PR-8's permissive
-key-only decryption constructor example is intentionally tightened: supported
-plain key-loading examples now use signing/recipient/trust material, and private
-loader tests continue exercising decryption keys.
+cryptography. Receive order without a decryption key is invalid. The available
+receive profile requires signature verification and `sign-then-encrypt`.
+Set `requireEncryption:true` to require complete Body protection on every reply.
 
 ## Errors and diagnostics
 

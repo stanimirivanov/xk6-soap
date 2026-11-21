@@ -270,7 +270,7 @@ func (i *instance) parse(cfg clientConfig, call sobek.FunctionCall) sobek.Value 
 			}
 		}
 	}
-	parsed := wssec.Receive(status, body, cfg.version, cfg.limits, cfg.policy.Receive, cfg.keys.policyMaterial().Trust, i.now())
+	parsed := wssec.ReceiveWithKeys(status, body, cfg.version, cfg.limits, cfg.policy.Receive, cfg.keys.policyMaterial(), i.now())
 	code := "OK"
 	if parsed.Error != nil {
 		code = parsed.Error.Code
