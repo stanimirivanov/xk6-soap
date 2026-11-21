@@ -128,22 +128,54 @@ func BuildSecurity(raw []byte, p Policy, material KeyMaterial, now time.Time, ra
 			return nil, ErrCredentialBuild
 		}
 	}
+	encryptFirst := p.Encrypt != nil && p.Order == string(EncryptThenSign)
+	var keyInfo *xdm.Node
 	if p.Sign != nil {
-		if e = appendSignature(doc, ns, header, signing, p.UsernameToken != nil, p.Sign, selectors); e != nil {
+		keyInfo, e = signingTokenReference(p.Sign.KeyID, signing.Certificate())
+		if e != nil {
+			return nil, ErrSignatureBuild
+		}
+		if keyInfo == nil {
+			if _, e = header.AddBinarySecurityTokenWithID(signing.Certificate(), nil, xmlsec.BSTValueTypeX509v3, "bst-1"); e != nil {
+				return nil, ErrSignatureBuild
+			}
+		}
+	}
+	if encryptFirst {
+		encrypted, err := encryptRequest(doc, ns, header, p.Encrypt, material.Recipient.Certificate(), random)
+		if err != nil {
+			return nil, err
+		}
+		if len(encrypted) > limits.Bytes {
+			return nil, ErrOutputLimit
+		}
+		doc, ns, e = parsed(encrypted)
+		if e != nil {
+			return nil, ErrEncryptionBuild
+		}
+	}
+	if p.Sign != nil {
+		if e = appendSignature(doc, ns, signing, p.UsernameToken != nil, p.Sign, keyInfo, encryptFirst, selectors); e != nil {
 			return nil, e
 		}
 	}
 	if wss.CheckUniqueIDs(doc.Root(), xdm.QName{Local: "Id"}) != nil {
 		return nil, ErrCredentialBuild
 	}
-	if p.Encrypt != nil {
+	if p.Encrypt != nil && !encryptFirst {
 		wire, e = encryptRequest(doc, ns, header, p.Encrypt, material.Recipient.Certificate(), random)
 		if e != nil {
 			return nil, e
 		}
 	} else {
+		root := doc.Root()
+		if encryptFirst {
+			// WSS4J processes these siblings in wire order. Keep the signature
+			// before the key without moving any signed node to a new context.
+			root = signatureBeforeKey(root, ns)
+		}
 		output := limitedXML{max: limits.Bytes}
-		if e = c14n.Write(&output, doc.Root(), c14n.Options{Algorithm: c14n.Inclusive10WithComments}); e != nil {
+		if e = c14n.Write(&output, root, c14n.Options{Algorithm: c14n.Inclusive10WithComments}); e != nil {
 			if output.exceeded {
 				return nil, ErrOutputLimit
 			}

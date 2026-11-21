@@ -112,16 +112,20 @@ The accepted profile uses one wholly encrypted Body region and one local
 EncryptedKey identifying the configured RSA decryption certificate by issuer
 and serial. The Body content or its sole operation element may be encrypted
 with AES-128/256-GCM. Key transport uses RSA-OAEP with SHA-256 and MGF1-SHA256.
-Header encryption and encrypt-then-sign remain gated.
+Header encryption remains gated.
 
 With `requireEncryption: true`, unauthenticated, plain or partially encrypted
 Bodies cannot yield content. Omit that flag to accept either a valid signed
 plain reply or a valid signed encrypted reply. Both paths require signature
-verification. The explicit receive order is independent of outbound order.
+verification. The explicit receive order is independent of outbound order. Set it to
+`encrypt-then-sign` when the peer signs ciphertext.
 
-The recovered envelope must fit the configured XML limits and pass ID,
-signature coverage and applicable Timestamp checks before Body, Fault or XPath
-become available. GCM or key failures return `DECRYPTION_FAILED` with a fixed
+With sign-then-encrypt, the client recovers the XML before verifying the
+signature over the plaintext Body. With encrypt-then-sign, it verifies the
+ciphertext Body, the EncryptedKey it will use, required headers and applicable
+Timestamp checks before decryption. The client applies the configured order
+without fallback. Both orders enforce XML and ID limits after decryption.
+Body, Fault and XPath become available only after acceptance. GCM or key failures return `DECRYPTION_FAILED` with a fixed
 message. A valid encrypted SOAP fault returns `SOAP_FAULT` with its accepted
 fault details after verification.
 

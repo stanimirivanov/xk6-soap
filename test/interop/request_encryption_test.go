@@ -14,12 +14,12 @@ import (
 	"github.com/stanimirivanov/xk6-soap/test/e2e"
 )
 
-func TestK6SignThenEncryptRequests(t *testing.T) {
+func TestK6EncryptedRequests(t *testing.T) {
 	base := os.Getenv("SOAP_INTEROP_URL")
 	if base == "" {
 		t.Fatal("use make interop")
 	}
-	waitApache(t, &http.Client{Timeout: 5 * time.Second}, base, []string{"/ste12811", "/ste25611", "/ste12812", "/ste25612"})
+	waitApache(t, &http.Client{Timeout: 5 * time.Second}, base, []string{"/ste12811", "/ste25611", "/ste12812", "/ste25612", "/ets12811", "/ets25612"})
 	binary, err := filepath.Abs("../../bin/k6")
 	if err != nil {
 		t.Fatal(err)
