@@ -258,7 +258,10 @@ func (p Policy) RequireAvailable() error {
 		return ErrUnavailable
 	}
 
-	if p.Encrypt != nil || p.Receive.RequireEncryption || p.Receive.Order != "" {
+	if e := p.Encrypt; e != nil && (p.Sign == nil || p.Order != string(SignThenEncrypt) || (e.Target != "content" && e.Target != "body") || len(e.Headers) != 0 || e.KeyTransport != "rsa-oaep-sha256" || (e.Algorithm != "aes-128-gcm" && e.Algorithm != "aes-256-gcm")) {
+		return ErrUnavailable
+	}
+	if p.Receive.RequireEncryption || p.Receive.Order != "" {
 		return ErrUnavailable
 	}
 	return nil

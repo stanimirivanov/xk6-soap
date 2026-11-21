@@ -43,7 +43,7 @@ with envelope limits checked on the result. Per-build credential overrides are
 applied before signing and never mutate constructor defaults.
 
 [Custom signed headers and WS-Addressing](headers.md) are available in PR-16.
-Encryption and decryption remain unavailable. Unknown options, invalid keys and unsupported
+Signed requests can use [outbound sign-then-encrypt](request-encryption.md). Unknown options, invalid keys and unsupported
 profiles fail before transport. Raw XML payload namespace semantics, including
 QName-valued text, retain the limitations documented in the
 [signature kernel decision](adr/0002-signature-kernel.md); no inclusive-prefix

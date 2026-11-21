@@ -25,7 +25,7 @@ func TestExpandedSignaturePolicy(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			wire, err := BuildSecurity(envelope("1.1"), p, material.Signing, fixedTime, rand.Reader, nil, message.Limits{})
+			wire, err := BuildSecurity(envelope("1.1"), p, material, fixedTime, rand.Reader, nil, message.Limits{})
 			if err != nil {
 				t.Fatal(err)
 			}

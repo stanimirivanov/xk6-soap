@@ -5,7 +5,7 @@ PR-9 implements typed policy normalization and constructor validation.
 [PR-11](signing.md) activates RSA-SHA256/SHA256/exclusive-C14N/BST signing.
 [PR-12](receive.md) activates core pinned response verification; PR-13 enforces
 configured signed Timestamp freshness. PR-16 enables [custom/header addressing
-selectors and required receive coverage](headers.md). PR-17 activates the [RSA and ECDSA SHA-2 signature and reference digest profiles](signing.md). PR-18 activates the [X.509 key identifiers](signing.md). Encryption and decryption remain unavailable in the public Client. The internal kernel probes remain
+selectors and required receive coverage](headers.md). PR-17 activates the [RSA and ECDSA SHA-2 signature and reference digest profiles](signing.md). PR-18 activates the [X.509 key identifiers](signing.md). PR-19 activates [outbound sign-then-encrypt](request-encryption.md) for the Body content or operation element. Encrypted receive remains unavailable. The internal kernel probes remain
 independent gate evidence. Valid requests for unavailable features
 throw `SOAP_FEATURE_UNAVAILABLE` at construction, before measured iterations.
 

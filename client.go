@@ -221,7 +221,7 @@ func (i *instance) build(cfg clientConfig, call sobek.FunctionCall) sobek.Value 
 	}
 	if cfg.policy.Timestamp != nil {
 		i.execution()
-		wire, buildErr := wssec.BuildSecurity([]byte(request.Body), cfg.policy, cfg.keys.policyMaterial().Signing, i.now(), i.random, credentials, cfg.limits, request.HeaderSelectors...)
+		wire, buildErr := wssec.BuildSecurity([]byte(request.Body), cfg.policy, cfg.keys.policyMaterial(), i.now(), i.random, credentials, cfg.limits, request.HeaderSelectors...)
 		if buildErr != nil {
 			i.diagnostic(cfg.debug, "build", start, cfg.policy, buildErr.Error())
 			i.throw(buildErr.Error(), "build")
