@@ -10,7 +10,7 @@ ACTIONLINT_VERSION := v1.7.12
 
 .PHONY: help tools fmt lint arch test build verify smoke vuln hooks test-hooks deps e2e
 help:
-	@printf '%s\n' 'make tools   Install pinned verification tools' 'make fmt     Format Go source' 'make verify  Format, architecture, vet, staticcheck, race tests, build' 'make e2e     Run local SOAP HTTP fixtures with real k6' 'make smoke   Build custom k6 and run positive/negative smoke tests' 'make vuln    Scan source and custom k6 binary (online advisory DB)' 'make fuzz-smoke  Run bounded SOAP and policy fuzz targets' 'make interop Run the independent Apache fixture (requires Docker)' 'make hooks   Install opt-in pre-commit hook without replacing existing hooks'
+	@printf '%s\n' 'make tools   Install pinned verification tools' 'make fmt     Format Go source' 'make verify  Format, architecture, vet, staticcheck, race tests, build' 'make e2e     Run local SOAP HTTP fixtures with real k6' 'make smoke   Build custom k6 and run positive/negative smoke tests' 'make vuln    Scan source and custom k6 binary (online advisory DB)' 'make fuzz-smoke  Run bounded SOAP and policy fuzz targets' 'make bench     Compare fixed performance and retention budgets on the pinned runner' 'make interop Run the independent Apache fixture (requires Docker)' 'make hooks   Install opt-in pre-commit hook without replacing existing hooks'
 
 tools: $(TOOLS)/staticcheck $(TOOLS)/govulncheck $(TOOLS)/xk6 $(TOOLS)/actionlint
 $(TOOLS)/staticcheck: Makefile .go-version
@@ -47,7 +47,7 @@ test-hooks:
 deps:
 	go mod tidy -diff
 	go mod verify
-verify: lint arch test build test-hooks deps
+verify: lint arch test build test-hooks deps perf-budget-test
 
 # Always rebuild: changes in any source or pin must be reflected in smoke tests.
 .PHONY: build-k6
@@ -72,3 +72,9 @@ interop: build-k6
 .PHONY: fuzz-smoke
 fuzz-smoke:
 	sh scripts/fuzz-smoke.sh
+
+.PHONY: bench perf-budget-test
+bench: build-k6
+	PYTHONDONTWRITEBYTECODE=1 python3 test/perf/run.py
+perf-budget-test:
+	PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s test/perf -p test_budgets.py

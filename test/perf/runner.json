@@ -1,0 +1,19 @@
+{
+  "id": "xk6-perf-i7-12800h",
+  "architecture": "x86_64",
+  "cpu_model": "12th Gen Intel(R) Core(TM) i7-12800H",
+  "cpus": [0, 2, 4, 6],
+  "governor": "powersave",
+  "os": "Ubuntu 26.04.1 LTS",
+  "kernel": "7.0.0-43-generic",
+  "fixture_cert_sha256": "f24d8a71e6b28d7ff09f85088a24ed18ba4a2511f7260e66178ea51948a8e545",
+  "go_gc_percent": 100,
+  "go_memory_limit": "off",
+  "go": "1.27.4",
+  "k6": "v2.4.0",
+  "dependencies": {
+    "github.com/knroy/go-xml/v2": "v2.2.0",
+    "github.com/knroy/go-xmlsec/v2": "v2.0.2",
+    "software.sslmate.com/src/go-pkcs12": "v0.7.4"
+  }
+}
