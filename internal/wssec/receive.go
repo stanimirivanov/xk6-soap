@@ -20,7 +20,11 @@ var errReceiveSignature = errors.New("SIGNATURE_INVALID")
 
 // Receive never returns application content before all required security checks
 // succeed. Provider nodes are request-local and never escape this adapter.
-func Receive(status int, raw, version string, limits message.Limits, policy ReceivePolicy, trust []*keys.Material, now time.Time) (result *message.Parsed) {
+func Receive(status int, raw, version string, limits message.Limits, policy ReceivePolicy, trust []*keys.Material, now time.Time) *message.Parsed {
+	return ReceiveWithKeys(status, raw, version, limits, policy, KeyMaterial{Trust: trust}, now)
+}
+
+func ReceiveWithKeys(status int, raw, version string, limits message.Limits, policy ReceivePolicy, material KeyMaterial, now time.Time) (result *message.Parsed) {
 	result = &message.Parsed{Status: status}
 	fail := func(code string) *message.Parsed {
 		result.Error = &message.Error{Code: code, Stage: "security"}
@@ -42,14 +46,12 @@ func Receive(status int, raw, version string, limits message.Limits, policy Rece
 	if e != nil {
 		return fail("POLICY_VIOLATION")
 	}
-	env := element(doc.Root())
-	header := env.FirstElement(ns, "Header")
-	var security *xdm.Node
-	if header != nil {
-		security = header.FirstElement(xmlsec.NSWSSE, "Security")
-	}
-	if security == nil && !policy.Signature {
-		return message.Parse(status, raw, version, limits)
+	if !policy.Signature && !policy.RequireEncryption {
+		env := element(doc.Root())
+		head := env.FirstElement(ns, "Header")
+		if head == nil || head.FirstElement(xmlsec.NSWSSE, "Security") == nil {
+			return message.Parse(status, raw, version, limits)
+		}
 	}
 	var understood []xml.Name
 	for _, name := range policy.SignedHeaders {
@@ -63,11 +65,51 @@ func Receive(status int, raw, version string, limits message.Limits, policy Rece
 		no := false
 		result.SigVerified = &no
 	}
+	var retainedKey *xdm.Node
+	if hasEncryptionOutside(doc.Root(), nil, nil) {
+		if !policy.Signature || policy.Order != string(SignThenEncrypt) {
+			return fail("POLICY_VIOLATION")
+		}
+		recovered, code := decryptResponse(doc, ns, material.Decryption, now)
+		if code != "" {
+			return fail(code)
+		}
+		defer clear(recovered)
+		if e := message.ValidateEnvelope(string(recovered), version, limits); e != nil {
+			if e.(*message.Error).Code == "LIMIT_EXCEEDED" {
+				return fail("LIMIT_EXCEEDED")
+			}
+			return fail("DECRYPTION_FAILED")
+		}
+		doc, ns, e = parsed(recovered)
+		if e != nil {
+			return fail("DECRYPTION_FAILED")
+		}
+		child := element(doc.Root()).FirstElement(ns, "Header")
+		if child == nil {
+			return fail("DECRYPTION_FAILED")
+		}
+		secured := child.FirstElement(xmlsec.NSWSSE, "Security")
+		if secured == nil {
+			return fail("DECRYPTION_FAILED")
+		}
+		retainedKey = secured.FirstElement(xmlsec.NSXEnc, "EncryptedKey")
+		if retainedKey == nil || hasEncryptionOutside(doc.Root(), retainedKey, nil) {
+			return fail("POLICY_VIOLATION")
+		}
+	} else if policy.RequireEncryption {
+		return fail("POLICY_VIOLATION")
+	}
+	env := element(doc.Root())
+	header := env.FirstElement(ns, "Header")
+	var security *xdm.Node
+	if header != nil {
+		security = header.FirstElement(xmlsec.NSWSSE, "Security")
+	}
 	if security == nil {
 		return fail("SIGNATURE_INVALID")
 	}
 	counts := map[string]int{}
-	bad := false
 	var walk func(*xdm.Node)
 	walk = func(n *xdm.Node) {
 		if n.Kind() == xdm.KindElement {
@@ -80,16 +122,13 @@ func Receive(status int, raw, version string, limits message.Limits, policy Rece
 			if n.IsElement(xmlsec.NSDSig, "Signature") {
 				counts["Signature"]++
 			}
-			if n.Name().URI == xmlsec.NSXEnc || n.Name().URI == "http://www.w3.org/2009/xmlenc11#" {
-				bad = true
-			}
 		}
 		for c := range n.Children() {
 			walk(c)
 		}
 	}
 	walk(doc.Root())
-	if bad || counts["Security"] != 1 || counts["Signature"] != 1 || counts["BinarySecurityToken"] > 1 || counts["Timestamp"] > 1 {
+	if counts["Security"] != 1 || counts["Signature"] != 1 || counts["BinarySecurityToken"] > 1 || counts["Timestamp"] > 1 {
 		return fail("POLICY_VIOLATION")
 	}
 	attrName := "actor"
@@ -104,7 +143,7 @@ func Receive(status int, raw, version string, limits message.Limits, policy Rece
 		return fail("POLICY_VIOLATION")
 	}
 	for c := range security.Children() {
-		if c.Kind() == xdm.KindElement && !c.IsElement(xmlsec.NSWSU, "Timestamp") && !c.IsElement(xmlsec.NSDSig, "Signature") && !c.IsElement(xmlsec.NSWSSE, "BinarySecurityToken") {
+		if c.Kind() == xdm.KindElement && !(retainedKey != nil && c.Is(retainedKey)) && !c.IsElement(xmlsec.NSWSU, "Timestamp") && !c.IsElement(xmlsec.NSDSig, "Signature") && !c.IsElement(xmlsec.NSWSSE, "BinarySecurityToken") {
 			return fail("POLICY_VIOLATION")
 		}
 	}
@@ -199,7 +238,7 @@ func Receive(status int, raw, version string, limits message.Limits, policy Rece
 		return fail(e.Error())
 	}
 	if policy.Signature {
-		pin := identifier.pinnedCertificate(trust, now)
+		pin := identifier.pinnedCertificate(material.Trust, now)
 		if pin == nil || !compatiblePublicKey(pin.PublicKey, algorithm) {
 			return fail("SIGNATURE_INVALID")
 		}

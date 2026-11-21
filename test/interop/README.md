@@ -293,3 +293,8 @@ still requires verification of the signature with that key.
 sign-then-encrypt endpoints. It covers operation-element and Body-content
 targets with both AES-GCM key sizes and both SOAP versions. Apache decrypts
 and authenticates each request and rejects its signature-tampered counterpart.
+
+`TestK6EncryptedResponsesAndFaults` uses dedicated `stefault` endpoints.
+WSS4J signs and encrypts successful replies and SOAP service faults for both
+SOAP versions and AES key sizes. Native k6 verifies then projects the replies
+and faults, and withholds output for an altered wrapped key or signature.

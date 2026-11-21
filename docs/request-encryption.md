@@ -43,8 +43,8 @@ the digest and MGF1. The EncryptedKey names the recipient by issuer and
 serial number. Send the generated body unchanged.
 
 The public API currently supports this order for outgoing requests with
-signing enabled. Encrypted response parsing, encrypt-then-sign, and header
-encryption require separate profiles and remain gated.
+signing enabled. [Encrypted response parsing](receive.md#encrypted-responses-and-faults)
+uses a separate receive policy. Encrypt-then-sign and header encryption remain gated.
 
 The local and native interop tests cover both targets and AES sizes. The
 WSS4J exchange runs with SOAP 1.1 and 1.2. A local test unwraps two requests

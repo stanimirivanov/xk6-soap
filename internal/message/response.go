@@ -278,7 +278,8 @@ func (p *Parsed) XPath(expression string, ns map[string]string) (value any, err 
 }
 
 // CheckSecurityEnvelope applies ordinary SOAP header handling while allowing the
-// security adapter to understand exactly the targeted Security header.
+// security adapter to understand the targeted Security header. The security
+// adapter is responsible for checking the encryption graph.
 func CheckSecurityEnvelope(body, version string, limits Limits, understood ...xml.Name) *Error {
 	if e := ValidateEnvelope(body, version, limits); e != nil {
 		return e.(*Error)
@@ -295,7 +296,7 @@ func headerPolicy(env *xmlquery.Node, ns string, security bool, allowed ...xml.N
 	// Plain mode never reports success for encrypted content it cannot interpret.
 	var visit func(*xmlquery.Node) bool
 	visit = func(n *xmlquery.Node) bool {
-		if n.Type == xmlquery.ElementNode && (n.NamespaceURI == "http://www.w3.org/2001/04/xmlenc#" || n.NamespaceURI == "http://www.w3.org/2009/xmlenc11#") {
+		if n.Type == xmlquery.ElementNode && (n.NamespaceURI == "http://www.w3.org/2001/04/xmlenc#" || n.NamespaceURI == "http://www.w3.org/2009/xmlenc11#" || n.NamespaceURI == "http://docs.oasis-open.org/wss/oasis-wss-wssecurity-secext-1.1.xsd" && n.Data == "EncryptedHeader") {
 			return false
 		}
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
@@ -305,7 +306,7 @@ func headerPolicy(env *xmlquery.Node, ns string, security bool, allowed ...xml.N
 		}
 		return true
 	}
-	if !visit(env) {
+	if !security && !visit(env) {
 		return &Error{Code: "POLICY_VIOLATION", Stage: "parse"}
 	}
 	if header := child(env, ns, "Header"); header != nil {

@@ -110,7 +110,7 @@ func Open(raw []byte, trust *x509.Certificate, recipient Identity, now time.Time
 	if err != nil {
 		return nil, ErrEncryption
 	}
-	ed, ek, err := encryptionGraph(doc, ns, alg)
+	ed, ek, err := encryptionGraph(doc, ns, alg, false)
 	if err != nil {
 		return nil, err
 	}
@@ -170,7 +170,7 @@ func countElements(n *xdm.Node, ns, local string) int {
 	return count
 }
 
-func encryptionGraph(doc *xmlsec.Document, ns, alg string) (*xdm.Node, *xdm.Node, error) {
+func encryptionGraph(doc *xmlsec.Document, ns, alg string, allowElement bool) (*xdm.Node, *xdm.Node, error) {
 	body := element(doc.Root()).FirstElement(ns, "Body")
 	sec, err := wss.FindHeader(doc.Root(), ns, "")
 	if err != nil || sec == nil || body == nil {
@@ -178,7 +178,7 @@ func encryptionGraph(doc *xmlsec.Document, ns, alg string) (*xdm.Node, *xdm.Node
 	}
 	ed := body.FirstElement(xmlsec.NSXEnc, "EncryptedData")
 	ek := sec.FirstElement(xmlsec.NSXEnc, "EncryptedKey")
-	if ed == nil || ek == nil || countElements(doc.Root(), xmlsec.NSXEnc, "EncryptedData") != 1 || countElements(doc.Root(), xmlsec.NSXEnc, "EncryptedKey") != 1 || ed.AttrValue("Type") != xenc.TypeContent {
+	if ed == nil || ek == nil || countElements(doc.Root(), xmlsec.NSXEnc, "EncryptedData") != 1 || countElements(doc.Root(), xmlsec.NSXEnc, "EncryptedKey") != 1 || (ed.AttrValue("Type") != xenc.TypeContent && (!allowElement || ed.AttrValue("Type") != xenc.TypeElement)) {
 		return nil, nil, ErrEncryption
 	}
 	for c := range body.Children() {

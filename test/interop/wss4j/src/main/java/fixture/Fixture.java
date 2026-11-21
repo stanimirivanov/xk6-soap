@@ -79,7 +79,7 @@ public final class Fixture {
                 password.setPassword("fixture-only");
             }
         };
-        for (String mode : new String[]{"sig", "sigissuer", "sigx509", "sigski", "sigthumb", "sigrsa384", "sigrsa512", "sigec256", "sigec384", "sigec521", "sigecwrongcurve", "sighdr", "sighdrweak", "sigut", "sigstale", "sigfuture", "ste128", "ste256", "ets128", "ets256"}) {
+        for (String mode : new String[]{"sig", "sigissuer", "sigx509", "sigski", "sigthumb", "sigrsa384", "sigrsa512", "sigec256", "sigec384", "sigec521", "sigecwrongcurve", "sighdr", "sighdrweak", "sigut", "sigstale", "sigfuture", "ste128", "ste256", "stefault128", "stefault256", "ets128", "ets256"}) {
             for (String version : new String[]{"11", "12"}) {
                 String ns = "11".equals(version) ? "http://schemas.xmlsoap.org/soap/envelope/" : "http://www.w3.org/2003/05/soap-envelope";
                 String binding = "11".equals(version) ? SOAPBinding.SOAP11HTTP_BINDING : SOAPBinding.SOAP12HTTP_BINDING;
@@ -184,7 +184,7 @@ public final class Fixture {
                                     new OffsetTimestamp("sigstale".equals(mode) ? -600 : 120)));
                 }
                 endpoint.getOutInterceptors().add(new WSS4JOutInterceptor(out));
-                if (mode.startsWith("sig")) {
+                if (mode.startsWith("sig") || mode.startsWith("stefault")) {
                     endpoint.getOutFaultInterceptors().add(new WSS4JOutInterceptor(out));
                 }
                 endpoint.publish("http://0.0.0.0:8080/" + mode + version);
