@@ -1,4 +1,4 @@
-package soap
+package adapter
 
 import (
 	"go.k6.io/k6/v2/lib"

@@ -4,6 +4,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -12,29 +13,56 @@ func TestImportRules(t *testing.T) {
 	for _, tc := range []struct {
 		path       string
 		dependency string
-		want       bool
+		want       string
 	}{
-		{"soap.go", "go.k6.io/k6/v2/js/modules", false},
-		{"soap.go", "net/url", false},
-		{"soap.go", "net/http", true},
-		{"internal/message/envelope.go", "github.com/grafana/sobek", true},
-		{"internal/message/envelope.go", "github.com/stanimirivanov/xk6-soap/internal/wssec", true},
-		{"internal/wssec/provider.go", "github.com/stanimirivanov/xk6-soap/internal/message", false},
-		{"internal/keys/load.go", "go.k6.io/k6/v2/js/modules", true},
-		{"internal/wssec/provider.go", "github.com/knroy/go-xmlsec/v2/dsig", false},
-		{"soap.go", "github.com/knroy/go-xmlsec/v2/dsig", true},
-		{"internal/keys/load.go", "os", true},
-		{"internal/wssec/escape.go", "unsafe", true},
-		{"internal/wssec/escape.go", "C", true},
-		{"internal/newlayer/x.go", "fmt", true},
-		{"newlayer/x.go", "fmt", true},
-		{"soap.go", "github.com/stanimirivanov/xk6-soap/internal/archtest", true},
+		{"soap.go", module + "/internal/adapter", ""},
+		{"soap.go", module + "/internal/message", "ARCH_DEPENDENCY"},
+		{"soap.go", "net/url", "ARCH_DEPENDENCY"},
+		{"soap.go", "net/http", "ARCH_IO"},
+		{"soap.go", "go.k6.io/k6/v2/js/modules", "ARCH_VU"},
+		{"soap.go", "go.k6.io/k6", "ARCH_VU"},
+		{"soap.go", "github.com/grafana/sobek", "ARCH_VU"},
+		{"soap.go", "github.com/grafana/sobek/parser", "ARCH_VU"},
+		{"soap.go", "github.com/knroy/go-xmlsec/v2/dsig", "ARCH_PROVIDER"},
+		{"soap.go", module + "/internal/archtest", "ARCH_DEPENDENCY"},
+		{"internal/adapter/soap.go", "go.k6.io/k6/v2/js/modules", ""},
+		{"internal/adapter/soap.go", "github.com/grafana/sobek", ""},
+		{"internal/adapter/client.go", "net/url", ""},
+		{"internal/adapter/client.go", module + "/internal/message", ""},
+		{"internal/adapter/keys.go", module + "/internal/keys", ""},
+		{"internal/adapter/client.go", module + "/internal/clock", ""},
+		{"internal/adapter/security.go", module + "/internal/wssec", ""},
+		{"internal/adapter/escape.go", "os", "ARCH_IO"},
+		{"internal/adapter/escape.go", "net", "ARCH_IO"},
+		{"internal/adapter/escape.go", "unsafe", "ARCH_IO"},
+		{"internal/adapter/keys.go", "software.sslmate.com/src/go-pkcs12", "ARCH_KEYS"},
+		{"internal/message/envelope.go", "github.com/grafana/sobek", "ARCH_VU"},
+		{"internal/message/envelope.go", module + "/internal/wssec", "ARCH_DEPENDENCY"},
+		{"internal/message/envelope.go", module + "/internal/adapter", "ARCH_DEPENDENCY"},
+		{"internal/keys/load.go", module + "/internal/adapter", "ARCH_DEPENDENCY"},
+		{"internal/clock/source.go", module + "/internal/adapter", "ARCH_DEPENDENCY"},
+		{"internal/wssec/provider.go", module + "/internal/adapter", "ARCH_DEPENDENCY"},
+		{"internal/wssec/provider.go", module + "/internal/message", ""},
+		{"internal/wssec/provider.go", "github.com/knroy/go-xmlsec/v2/dsig", ""},
+		{"internal/keys/load.go", "go.k6.io/k6/v2/js/modules", "ARCH_VU"},
+		{"internal/keys/load.go", "os", "ARCH_IO"},
+		{"internal/wssec/escape.go", "unsafe", "ARCH_IO"},
+		{"internal/wssec/escape.go", "C", "ARCH_IO"},
+		{"internal/newlayer/x.go", "fmt", "ARCH_LAYER"},
+		{"newlayer/x.go", "fmt", "ARCH_LAYER"},
 	} {
 		t.Run(tc.path+"/"+tc.dependency, func(t *testing.T) {
 			source := "//go:build future\n\npackage example\nimport alias " + `"` + tc.dependency + `"` + "\n"
-			errors := checkSource(tc.path, []byte(source))
-			if (len(errors) > 0) != tc.want {
-				t.Fatalf("got %v, want violation=%v", errors, tc.want)
+			violations := checkSource(tc.path, []byte(source))
+			if tc.want == "" {
+				if len(violations) != 0 {
+					t.Fatalf("unexpected violations: %v", violations)
+				}
+				return
+			}
+			prefix := tc.path + ": " + tc.want + ": "
+			if !slices.ContainsFunc(violations, func(violation string) bool { return strings.HasPrefix(violation, prefix) }) {
+				t.Fatalf("got %v, want %s", violations, tc.want)
 			}
 		})
 	}

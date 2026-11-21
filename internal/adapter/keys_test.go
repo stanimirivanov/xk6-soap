@@ -1,4 +1,4 @@
-package soap
+package adapter
 
 import (
 	"crypto/rand"
@@ -20,7 +20,7 @@ import (
 func keyRuntime(t *testing.T, root *RootModule) *modulestest.Runtime {
 	t.Helper()
 	rt := modulestest.NewRuntime(t)
-	for name, path := range map[string]string{"cert": "internal/wssec/testdata/signing-cert.pem", "key": "internal/wssec/testdata/signing-key.pem", "pfx": "internal/keys/testdata/openssl3.p12"} {
+	for name, path := range map[string]string{"cert": "../wssec/testdata/signing-cert.pem", "key": "../wssec/testdata/signing-key.pem", "pfx": "../keys/testdata/openssl3.p12"} {
 		b, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatal(err)
@@ -66,7 +66,7 @@ func TestCrossVUKeyCache(t *testing.T) {
 
 func TestRevalidateKeysAtBuildAndParse(t *testing.T) {
 	rt := keyRuntime(t, New())
-	keyPEM, err := os.ReadFile("internal/wssec/testdata/signing-key.pem")
+	keyPEM, err := os.ReadFile("../wssec/testdata/signing-key.pem")
 	if err != nil {
 		t.Fatal(err)
 	}

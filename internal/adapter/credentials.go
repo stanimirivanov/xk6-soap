@@ -1,4 +1,4 @@
-package soap
+package adapter
 
 import (
 	"github.com/grafana/sobek"

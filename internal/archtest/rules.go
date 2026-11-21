@@ -14,7 +14,8 @@ const module = "github.com/stanimirivanov/xk6-soap"
 
 // A new production package requires an explicit boundary decision here.
 var layers = map[string][]string{
-	".":                {"internal/message", "internal/wssec", "internal/keys", "internal/clock"},
+	".":                {"internal/adapter"},
+	"internal/adapter": {"internal/message", "internal/wssec", "internal/keys", "internal/clock"},
 	"internal/message": {},
 	"internal/keys":    {},
 	"internal/clock":   {},
@@ -52,8 +53,10 @@ func checkSource(name string, source []byte) []string {
 		if dependency == "C" || dependency == "unsafe" || dependency == "plugin" || dependency == "syscall" || strings.HasPrefix(dependency, "golang.org/x/sys/") || dependency == "os" || strings.HasPrefix(dependency, "os/") || (dependency == "net" || strings.HasPrefix(dependency, "net/")) && dependency != "net/url" {
 			report("ARCH_IO", "keep transport/filesystem/process access in k6 or test fixtures; forbidden import "+dependency)
 		}
-		if layer != "." && (strings.HasPrefix(dependency, "go.k6.io/k6/") || dependency == "github.com/grafana/sobek") {
-			report("ARCH_VU", "keep k6/Sobek and VU state in the root JS adapter")
+		k6 := dependency == "go.k6.io/k6" || strings.HasPrefix(dependency, "go.k6.io/k6/")
+		sobek := dependency == "github.com/grafana/sobek" || strings.HasPrefix(dependency, "github.com/grafana/sobek/")
+		if layer != "internal/adapter" && (k6 || sobek) {
+			report("ARCH_VU", "keep k6/Sobek and VU state in internal/adapter")
 		}
 		if strings.HasPrefix(dependency, "github.com/knroy/") && layer != "internal/wssec" {
 			report("ARCH_PROVIDER", "keep candidate XML/crypto implementation behind internal/wssec")
@@ -61,16 +64,15 @@ func checkSource(name string, source []byte) []string {
 		if dependency == "software.sslmate.com/src/go-pkcs12" && layer != "internal/keys" {
 			report("ARCH_KEYS", "decode key containers only in internal/keys")
 		}
-		if dependency == module || strings.HasPrefix(dependency, module+"/") {
-			target := strings.TrimPrefix(dependency, module+"/")
+		if layer == "." || dependency == module || strings.HasPrefix(dependency, module+"/") {
 			found := false
 			for _, candidate := range allowed {
-				if target == candidate {
+				if dependency == module+"/"+candidate {
 					found = true
 				}
 			}
 			if !found {
-				report("ARCH_DEPENDENCY", "forbidden first-party dependency "+dependency+"; keep dependencies directed toward lower layers")
+				report("ARCH_DEPENDENCY", "forbidden dependency "+dependency+"; keep dependencies directed toward lower layers")
 			}
 		}
 	}
