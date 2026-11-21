@@ -79,7 +79,7 @@ public final class Fixture {
                 password.setPassword("fixture-only");
             }
         };
-        for (String mode : new String[]{"sig", "sigissuer", "sigx509", "sigski", "sigthumb", "sigrsa384", "sigrsa512", "sigec256", "sigec384", "sigec521", "sigecwrongcurve", "sighdr", "sighdrweak", "sigut", "sigstale", "sigfuture", "ste128", "ste256", "stefault128", "stefault256", "stehdr", "etshdr", "ets128", "ets256", "etsfault128", "etsfault256"}) {
+        for (String mode : new String[]{"sig", "sigissuer", "sigx509", "sigski", "sigthumb", "sigrsa384", "sigrsa512", "sigec256", "sigec384", "sigec521", "sigecwrongcurve", "sighdr", "sighdrweak", "sigut", "sigstale", "sigfuture", "ste128", "ste256", "stefault128", "stefault256", "stehdr", "etshdr", "stehdr128", "etshdr128", "steelement128", "steelement256", "etselement128", "etselement256", "ets128", "ets256", "etsfault128", "etsfault256"}) {
             for (String version : new String[]{"11", "12"}) {
                 String ns = "11".equals(version) ? "http://schemas.xmlsoap.org/soap/envelope/" : "http://www.w3.org/2003/05/soap-envelope";
                 String binding = "11".equals(version) ? SOAPBinding.SOAP11HTTP_BINDING : SOAPBinding.SOAP12HTTP_BINDING;
@@ -125,9 +125,11 @@ public final class Fixture {
                     endpoint.getOutInterceptors().add(new SignedHeaders());
                     endpoint.getOutFaultInterceptors().add(new SignedHeaders());
                 }
-                boolean headerEncryption = mode.endsWith("hdr") && !mode.startsWith("sig");
+                boolean headerEncryption = mode.startsWith("stehdr") || mode.startsWith("etshdr");
+                boolean elementEncryption = mode.contains("element");
                 if (headerEncryption) {
                     endpoint.getOutInterceptors().add(new SignedHeaders(false));
+                    endpoint.getOutFaultInterceptors().add(new SignedHeaders(false));
                 }
                 endpoint.getInInterceptors().add(coverage);
                 Map<String, Object> out = new HashMap<>();
@@ -176,7 +178,9 @@ public final class Fixture {
                     out.put(ConfigurationConstants.ENC_KEY_TRANSPORT, "http://www.w3.org/2009/xmlenc11#rsa-oaep");
                     out.put(ConfigurationConstants.ENC_DIGEST_ALGO, "http://www.w3.org/2001/04/xmlenc#sha256");
                     out.put(ConfigurationConstants.ENC_MGF_ALGO, "http://www.w3.org/2009/xmlenc11#mgf1sha256");
-                    out.put(ConfigurationConstants.ENCRYPTION_PARTS, headerEncryption ? "{Header}{urn:trace}Trace" : "{Content}{" + ns + "}Body");
+                    String encryptedPart = headerEncryption ? "{Header}{urn:trace}Trace"
+                            : elementEncryption ? "{Element}{urn:xk6-soap:fixture}echoResponse" : "{Content}{" + ns + "}Body";
+                    out.put(ConfigurationConstants.ENCRYPTION_PARTS, encryptedPart);
                     if (headerEncryption) {
                         String signedHeader = mode.startsWith("ets")
                                 ? "{Element}{http://docs.oasis-open.org/wss/oasis-wss-wssecurity-secext-1.1.xsd}EncryptedHeader"
@@ -194,7 +198,11 @@ public final class Fixture {
                                     new OffsetTimestamp("sigstale".equals(mode) ? -600 : 120)));
                 }
                 endpoint.getOutInterceptors().add(new WSS4JOutInterceptor(out));
-                if (mode.startsWith("sig") || mode.startsWith("stefault") || mode.startsWith("etsfault")) {
+                if (elementEncryption) {
+                    Map<String, Object> fault = new HashMap<>(out);
+                    fault.put(ConfigurationConstants.ENCRYPTION_PARTS, "{Element}{" + ns + "}Fault");
+                    endpoint.getOutFaultInterceptors().add(new WSS4JOutInterceptor(fault));
+                } else if (headerEncryption || mode.startsWith("sig") || mode.startsWith("stefault") || mode.startsWith("etsfault")) {
                     endpoint.getOutFaultInterceptors().add(new WSS4JOutInterceptor(out));
                 }
                 endpoint.publish("http://0.0.0.0:8080/" + mode + version);

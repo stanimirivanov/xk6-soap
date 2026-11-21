@@ -8,14 +8,9 @@ const key = open('../../internal/wssec/testdata/signing-key.pem', 'b');
 const rsaTrust = __ENV.SOAP_INTEROP_SIGNATURE_TRUST;
 const rsaPin = open(rsaTrust, 'b');
 const fixtureDir = rsaTrust.slice(0, rsaTrust.lastIndexOf('/'));
-const rows = [
-  ['sigrsa384', 'rsa-sha384', 'sha512', 0, '1.1'],
-  ['sigrsa512', 'rsa-sha512', 'sha384', 0, '1.2'],
-  ['sigec256', 'ecdsa-sha256', 'sha256', 256, '1.1'],
-  ['sigec384', 'ecdsa-sha384', 'sha384', 384, '1.2'],
-  ['sigec521', 'ecdsa-sha512', 'sha512', 521, '1.2'],
-];
-const cases = rows.map(([mode, algorithm, digest, bits, soapVersion]) => {
+const matrix = JSON.parse(open('./matrix.json'));
+const rows = matrix.algorithms.flatMap(row => row.soapVersions.map(soapVersion => ({...row,soapVersion})));
+const cases = rows.map(({mode, algorithm, digest, bits, soapVersion}) => {
   const url = __ENV.SOAP_INTEROP_URL + '/' + mode + soapVersion.replace('.', '');
   const signing = bits
     ? {pkcs12: open(fixtureDir + '/client-ec' + bits + '.p12', 'b'), password: 'fixture-only'}
@@ -24,7 +19,7 @@ const cases = rows.map(([mode, algorithm, digest, bits, soapVersion]) => {
   const verify = {signature:true, signatureAlgorithms:[algorithm], digestAlgorithms:[digest]};
   const client = new Client({url, soapVersion, keys:{signing, trust}, security:{sign:{algorithm,digest}, verify}});
   const receive = overrides => new Client({url, soapVersion, keys:{trust:bits ? [...trust,rsaPin] : trust}, security:{verify:{...verify,...overrides}}});
-  const deniedAlgorithm = receive({signatureAlgorithms:['rsa-sha256']});
+  const deniedAlgorithm = receive({signatureAlgorithms:[algorithm === 'rsa-sha256' ? 'rsa-sha384' : 'rsa-sha256']});
   const deniedDigest = receive({digestAlgorithms:[digest === 'sha256' ? 'sha384' : 'sha256']});
   if (bits) {
     const wrong = algorithm === 'ecdsa-sha256' ? 'ecdsa-sha384' : 'ecdsa-sha256';

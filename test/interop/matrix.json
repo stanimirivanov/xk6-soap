@@ -1,0 +1,61 @@
+{
+  "core": [
+    {"soapVersion": "1.1", "order": "sign-then-encrypt", "bits": 128, "target": "content", "endpoint": "stefault12811", "outcomes": ["success", "fault"], "test": "TestK6InteropMatrix"},
+    {"soapVersion": "1.1", "order": "sign-then-encrypt", "bits": 128, "target": "body", "endpoint": "steelement12811", "outcomes": ["success", "fault"], "test": "TestK6InteropMatrix"},
+    {"soapVersion": "1.1", "order": "sign-then-encrypt", "bits": 128, "target": "headers", "endpoint": "stehdr12811", "outcomes": ["success", "fault"], "test": "TestK6InteropMatrix"},
+    {"soapVersion": "1.1", "order": "sign-then-encrypt", "bits": 256, "target": "content", "endpoint": "stefault25611", "outcomes": ["success", "fault"], "test": "TestK6InteropMatrix"},
+    {"soapVersion": "1.1", "order": "sign-then-encrypt", "bits": 256, "target": "body", "endpoint": "steelement25611", "outcomes": ["success", "fault"], "test": "TestK6InteropMatrix"},
+    {"soapVersion": "1.1", "order": "sign-then-encrypt", "bits": 256, "target": "headers", "endpoint": "stehdr11", "outcomes": ["success", "fault"], "test": "TestK6InteropMatrix"},
+    {"soapVersion": "1.1", "order": "encrypt-then-sign", "bits": 128, "target": "content", "endpoint": "etsfault12811", "outcomes": ["success", "fault"], "test": "TestK6InteropMatrix"},
+    {"soapVersion": "1.1", "order": "encrypt-then-sign", "bits": 128, "target": "body", "endpoint": "etselement12811", "outcomes": ["success", "fault"], "test": "TestK6InteropMatrix"},
+    {"soapVersion": "1.1", "order": "encrypt-then-sign", "bits": 128, "target": "headers", "endpoint": "etshdr12811", "outcomes": ["success", "fault"], "test": "TestK6InteropMatrix"},
+    {"soapVersion": "1.1", "order": "encrypt-then-sign", "bits": 256, "target": "content", "endpoint": "etsfault25611", "outcomes": ["success", "fault"], "test": "TestK6InteropMatrix"},
+    {"soapVersion": "1.1", "order": "encrypt-then-sign", "bits": 256, "target": "body", "endpoint": "etselement25611", "outcomes": ["success", "fault"], "test": "TestK6InteropMatrix"},
+    {"soapVersion": "1.1", "order": "encrypt-then-sign", "bits": 256, "target": "headers", "endpoint": "etshdr11", "outcomes": ["success", "fault"], "test": "TestK6InteropMatrix"},
+    {"soapVersion": "1.2", "order": "sign-then-encrypt", "bits": 128, "target": "content", "endpoint": "stefault12812", "outcomes": ["success", "fault"], "test": "TestK6InteropMatrix"},
+    {"soapVersion": "1.2", "order": "sign-then-encrypt", "bits": 128, "target": "body", "endpoint": "steelement12812", "outcomes": ["success", "fault"], "test": "TestK6InteropMatrix"},
+    {"soapVersion": "1.2", "order": "sign-then-encrypt", "bits": 128, "target": "headers", "endpoint": "stehdr12812", "outcomes": ["success", "fault"], "test": "TestK6InteropMatrix"},
+    {"soapVersion": "1.2", "order": "sign-then-encrypt", "bits": 256, "target": "content", "endpoint": "stefault25612", "outcomes": ["success", "fault"], "test": "TestK6InteropMatrix"},
+    {"soapVersion": "1.2", "order": "sign-then-encrypt", "bits": 256, "target": "body", "endpoint": "steelement25612", "outcomes": ["success", "fault"], "test": "TestK6InteropMatrix"},
+    {"soapVersion": "1.2", "order": "sign-then-encrypt", "bits": 256, "target": "headers", "endpoint": "stehdr12", "outcomes": ["success", "fault"], "test": "TestK6InteropMatrix"},
+    {"soapVersion": "1.2", "order": "encrypt-then-sign", "bits": 128, "target": "content", "endpoint": "etsfault12812", "outcomes": ["success", "fault"], "test": "TestK6InteropMatrix"},
+    {"soapVersion": "1.2", "order": "encrypt-then-sign", "bits": 128, "target": "body", "endpoint": "etselement12812", "outcomes": ["success", "fault"], "test": "TestK6InteropMatrix"},
+    {"soapVersion": "1.2", "order": "encrypt-then-sign", "bits": 128, "target": "headers", "endpoint": "etshdr12812", "outcomes": ["success", "fault"], "test": "TestK6InteropMatrix"},
+    {"soapVersion": "1.2", "order": "encrypt-then-sign", "bits": 256, "target": "content", "endpoint": "etsfault25612", "outcomes": ["success", "fault"], "test": "TestK6InteropMatrix"},
+    {"soapVersion": "1.2", "order": "encrypt-then-sign", "bits": 256, "target": "body", "endpoint": "etselement25612", "outcomes": ["success", "fault"], "test": "TestK6InteropMatrix"},
+    {"soapVersion": "1.2", "order": "encrypt-then-sign", "bits": 256, "target": "headers", "endpoint": "etshdr12", "outcomes": ["success", "fault"], "test": "TestK6InteropMatrix"}
+  ],
+  "algorithms": [
+    {"mode": "sig", "algorithm": "rsa-sha256", "digest": "sha256", "bits": 0, "soapVersions": ["1.1", "1.2"], "test": "TestK6SignatureAlgorithms"},
+    {"mode": "sigrsa384", "algorithm": "rsa-sha384", "digest": "sha512", "bits": 0, "soapVersions": ["1.1", "1.2"], "test": "TestK6SignatureAlgorithms"},
+    {"mode": "sigrsa512", "algorithm": "rsa-sha512", "digest": "sha384", "bits": 0, "soapVersions": ["1.1", "1.2"], "test": "TestK6SignatureAlgorithms"},
+    {"mode": "sigec256", "algorithm": "ecdsa-sha256", "digest": "sha256", "bits": 256, "soapVersions": ["1.1", "1.2"], "test": "TestK6SignatureAlgorithms"},
+    {"mode": "sigec384", "algorithm": "ecdsa-sha384", "digest": "sha384", "bits": 384, "soapVersions": ["1.1", "1.2"], "test": "TestK6SignatureAlgorithms"},
+    {"mode": "sigec521", "algorithm": "ecdsa-sha512", "digest": "sha512", "bits": 521, "soapVersions": ["1.1", "1.2"], "test": "TestK6SignatureAlgorithms"}
+  ],
+  "identifiers": [
+    {"mode": "sig", "keyId": "direct", "marker": "BinarySecurityToken", "soapVersions": ["1.1", "1.2"], "test": "TestK6SignatureKeyIdentifiers"},
+    {"mode": "sigissuer", "keyId": "issuer-serial", "marker": "X509IssuerSerial", "soapVersions": ["1.1", "1.2"], "test": "TestK6SignatureKeyIdentifiers"},
+    {"mode": "sigx509", "keyId": "x509keyidentifier", "marker": "#X509v3", "soapVersions": ["1.1", "1.2"], "test": "TestK6SignatureKeyIdentifiers"},
+    {"mode": "sigski", "keyId": "ski", "marker": "#X509SubjectKeyIdentifier", "soapVersions": ["1.1", "1.2"], "test": "TestK6SignatureKeyIdentifiers"},
+    {"mode": "sigthumb", "keyId": "ThumbprintSHA1", "marker": "#ThumbprintSHA1", "soapVersions": ["1.1", "1.2"], "test": "TestK6SignatureKeyIdentifiers"}
+  ],
+  "profiles": [
+    {"id": "username-token", "soapVersions": ["1.1", "1.2"], "coverage": ["PasswordDigest request", "PasswordText request", "wrong credentials", "Timestamp-only request"], "test": "TestK6UsernameTokenExchanges"},
+    {"id": "signed-token", "soapVersions": ["1.1", "1.2"], "coverage": ["RSA-SHA256 / SHA-256 request", "signed PasswordDigest", "signed PasswordText", "unsigned token and tampered signed parts rejected"], "test": "TestK6SignedExchanges"},
+    {"id": "signed-replies", "soapVersions": ["1.1", "1.2"], "coverage": ["RSA-SHA256 / SHA-256 response and fault", "wrong pin and tampered signature rejected"], "test": "TestK6VerifiedResponses"},
+    {"id": "signed-headers-addressing", "soapVersions": ["1.1", "1.2"], "coverage": ["custom header and WS-Addressing in both directions", "uncovered and tampered headers rejected"], "test": "TestK6SignedHeaderExchanges"},
+    {"id": "timestamp-freshness", "soapVersions": ["1.1", "1.2"], "coverage": ["fresh, stale and future signed responses and faults"], "test": "TestK6TimestampFreshness"},
+    {"id": "mixed-orders", "soapVersions": ["1.1", "1.2"], "coverage": ["both directions with opposite send/receive orders", "AES-128/256 Body content success and fault", "damaged wrapped key and signature rejected"], "test": "TestK6EncryptedResponsesAndFaults"}
+  ],
+  "unsupported": [
+    "legacy SHA-1 signatures and reference digests",
+    "RSA v1.5 wrapping and non-GCM modes",
+    "encryption without a signature, multi-recipient encryption and a combined outbound Body/header target"
+  ],
+  "unclaimedCrossProducts": [
+    "full combinations of all signature methods, independent digests and X.509 identifier forms",
+    "combinations of encryption with UsernameToken and WS-Addressing",
+    "combined inbound Body and header protection, multiple encrypted headers and optional encryption variants"
+  ]
+}
