@@ -18,7 +18,7 @@ full-repository rereads, transcript files or extra approval rituals.
 
 ## Boundaries
 
-- Root package owns Sobek/k6 bindings and per-VU state. Internal packages never import them.
+- The root package registers the extension through `internal/adapter`. Only the adapter owns Sobek/k6 bindings and per-VU state.
 - No production transport/filesystem/process access; key inputs will be bytes.
 - Keys may eventually be immutable shared data; XML trees and JS values are per VU/request.
 - Never implement XML canonicalization or crypto primitives locally; provider selection is gated.

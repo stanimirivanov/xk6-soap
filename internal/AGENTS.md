@@ -1,8 +1,9 @@
 # Internal layers
 
 Root AGENTS.md applies. `archtest` is repository tooling, never a runtime dependency.
-Future runtime packages are admitted by the rules in `archtest/rules.go`:
+Runtime package boundaries are defined by the rules in `archtest/rules.go`:
 
+- `adapter`: k6/Sobek bindings and per-VU state. May use message/keys/clock/wssec.
 - `message`: SOAP structure and payloads; no k6, keys or provider dependencies.
 - `keys`: byte-based key decoding and immutable material; no VU/runtime/transport.
 - `clock`: time/random injection boundary; no higher-layer imports.

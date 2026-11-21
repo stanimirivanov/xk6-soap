@@ -14,5 +14,5 @@ done <<'TARGETS'
 ./internal/message FuzzBodyXPath
 ./internal/wssec FuzzReceiveSecurity
 ./internal/wssec FuzzRecoveredXML
-. FuzzSecurityOptions
+./internal/adapter FuzzSecurityOptions
 TARGETS

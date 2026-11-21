@@ -7,21 +7,22 @@ The goal is deterministic checks for specified properties, with explicit limits.
 ## Map and ownership
 
 ```text
-AGENTS.md                    task loop and root adapter constraints
+AGENTS.md                    task loop and runtime boundaries
 internal/AGENTS.md           internal-layer and security constraints
 internal/archtest/           tested AST import/layer sensors, including tagged source
-soap.go, client.go           named module, lifecycle and Client bindings
-object_payload.go           ordered per-VU Sobek capture, no payload map export
+soap.go                      blank-import registration shim
+internal/adapter/            named module, lifecycle and Client bindings
+internal/adapter/object_payload.go           ordered per-VU Sobek capture, no payload map export
 internal/message/object.go  bounded XML encoding for ordered object payloads
-metrics.go                  registry-owned metrics and cancellation-aware sampling
+internal/adapter/metrics.go                  registry-owned metrics and cancellation-aware sampling
 test/e2e/metrics.js          exact summary counts and HTTP-200 SOAP failure threshold
 test/e2e/object.js           object envelopes through native k6 HTTP echo
 internal/message/           bounded SOAP validation, faults and isolated XPath
 internal/keys/              byte-based key validation, private material and bounded cache
-keys.go, test/keys.js        constructor key decoding and actual k6 key-input probe
-security.go, internal/wssec/policy.go  strict policy decoding and typed validation
-diagnostics.go, test/security.js      metadata-only diagnostics and capability gate
-credentials.go, internal/wssec/username.go  per-build overrides and outbound UT/Timestamp
+internal/adapter/keys.go, test/keys.js        constructor key decoding and actual k6 key-input probe
+internal/adapter/security.go, internal/wssec/policy.go  strict policy decoding and typed validation
+internal/adapter/diagnostics.go, test/security.js      metadata-only diagnostics and capability gate
+internal/adapter/credentials.go, internal/wssec/username.go  per-build overrides and outbound UT/Timestamp
 internal/wssec/signing.go            single-tree outbound core RSA signing
 internal/wssec/receive.go            exact-coverage receive acceptance and trust
 internal/wssec/timestamp.go          required signed Timestamp freshness
@@ -40,16 +41,16 @@ scripts/                    smoke runner and non-destructive hook installer
 .github/pull_request_template.md  concise evidence at handoff
 ```
 
-The root JS adapter may depend on message, keys, clock and wssec. wssec may depend on
-message/keys/clock. The other three are independent foundations. Missing runtime packages remain uncreated until a feature needs their boundary. `internal/archtest/rules.go` is the executable
+The root registration shim imports only `internal/adapter`. The adapter may depend on
+message, keys, clock and wssec. wssec may depend on message/keys/clock. The other three are independent foundations. Missing runtime packages remain uncreated until a feature needs their boundary. `internal/archtest/rules.go` is the executable
 source for allowed first-party edges; new packages fail closed until reviewed there.
 
 | State/resource | Owner | Constraint/evidence |
 | --- | --- | --- |
-| Sobek values and module bindings | Per-VU root instance | Runtime isolation/lifecycle tests; internal imports forbidden |
+| Sobek values and module bindings | Per-VU adapter instance | Runtime isolation/lifecycle tests; k6/Sobek imports confined to the adapter |
 | XML/message state | Per request/response | Never shared; exact covered-Body projection and hostile security tests |
-| Decoded key cache | RootModule-owned immutable material | 256 entries/32 MiB encoded input; concrete-key and cross-VU race tests |
-| Extension metrics | RootModule references per k6 registry; per-call samples | Once-per-registry registration; fixed tag enums; cancellation tests |
+| Decoded key cache | Adapter RootModule-owned immutable material | 256 entries/32 MiB encoded input; concrete-key and cross-VU race tests |
+| Extension metrics | Adapter RootModule references per k6 registry; per-call samples | Once-per-registry registration; fixed tag enums; cancellation tests |
 | HTTP, TLS, cookies, HTTP metrics | k6/http in script | Production direct transport imports forbidden |
 | Fixture servers/files | test directory | Exempt from production import rules, never imported into runtime |
 | Harness AST/filesystem operations | internal/archtest | Runtime imports of harness forbidden |

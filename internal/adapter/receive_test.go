@@ -1,4 +1,4 @@
-package soap
+package adapter
 
 import (
 	"crypto/rsa"
@@ -18,7 +18,7 @@ func signedResponse(t *testing.T, payload string) string {
 }
 func signedResponseAt(t *testing.T, payload string, now time.Time) string {
 	t.Helper()
-	b, e := os.ReadFile("internal/wssec/testdata/signing-key.pem")
+	b, e := os.ReadFile("../wssec/testdata/signing-key.pem")
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -49,7 +49,7 @@ func TestTimestampClockInjectionAndPolicyIndependence(t *testing.T) {
 	clockNow := created
 	inst.now = func() time.Time { return clockNow }
 	rt.VU.Runtime().Set("Client", inst.Exports().Named["Client"])
-	cert, e := os.ReadFile("internal/wssec/testdata/signing-cert.pem")
+	cert, e := os.ReadFile("../wssec/testdata/signing-cert.pem")
 	if e != nil {
 		t.Fatal(e)
 	}

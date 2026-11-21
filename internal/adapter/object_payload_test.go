@@ -1,4 +1,4 @@
-package soap
+package adapter
 
 import (
 	"github.com/stanimirivanov/xk6-soap/internal/wssec"

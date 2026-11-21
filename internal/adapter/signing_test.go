@@ -1,4 +1,4 @@
-package soap
+package adapter
 
 import (
 	"crypto/x509"
@@ -30,7 +30,7 @@ func TestSignedPublicBuild(t *testing.T) {
 
 func signingCertificate(t *testing.T) *x509.Certificate {
 	t.Helper()
-	b, e := os.ReadFile("internal/wssec/testdata/signing-cert.pem")
+	b, e := os.ReadFile("../wssec/testdata/signing-cert.pem")
 	if e != nil {
 		t.Fatal(e)
 	}

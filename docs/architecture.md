@@ -29,7 +29,8 @@ broader supported-version matrix is part of release preparation.
 
 | Component | Owns | Depends on |
 | --- | --- | --- |
-| Root package | Sobek decoding, Client lifecycle, per-VU state, diagnostics and error conversion | k6 runtime, message, key and WS-Security boundaries |
+| Root package | Registration shim for the extension | `internal/adapter` |
+| `internal/adapter` | Sobek decoding, Client lifecycle, per-VU state, diagnostics and error conversion | k6 runtime, message, key and WS-Security boundaries |
 | `internal/message` | SOAP structure, payloads, header selectors, operation names, faults and XPath | Bounded XML and XPath libraries |
 | `internal/keys` | Decode, validate and cache immutable cryptographic material | Go crypto and PKCS#12 decoder |
 | `internal/wssec` | Policy normalization, one-tree coverage, accepted security state and encryption order | Message, keys and pinned XML security provider |
@@ -41,7 +42,7 @@ The internal provider adapter binds verified nodes and recovered regions to the 
 
 ## 4. Lifecycle and JavaScript contract
 
-The module registers as `k6/x/soap` and exports the named `Client`. `NewModuleInstance(vu)` returns `modules.Instance`, without an error return. Each VU owns its JS values and message state. The RootModule owns the shared key cache and synchronized per-registry metric registration. Cached key entries are immutable.
+The module registers as `k6/x/soap` and exports the named `Client`. `NewModuleInstance(vu)` returns `modules.Instance`, without an error return. Each VU owns its JS values and message state. The adapter's RootModule owns the shared key cache and synchronized per-registry metric registration. Cached key entries are immutable.
 
 Construct clients in init context. Validate all nested option keys/types and load/validate key material there so invalid credentials fail before measured iterations. Reject construction in execution context. `build()` and `parse()` require execution context (including setup/teardown when a k6 state exists); reject init-context calls. The runtime tests cover these context rules and registration. The extension checks cancellation between bounded processing stages; a crypto or library call can run until it returns.
 

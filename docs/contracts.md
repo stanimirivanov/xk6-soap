@@ -9,14 +9,14 @@ mapping, metrics and XPath, which a WS-Security peer cannot validate.
 
 | Contract | Evidence |
 | --- | --- |
-| Init-only Client construction and execution-context build/parse. Strict options, stable errors and bounded text/ArrayBuffer XML. | [Plain API](plain-api.md) · [TestPlainClientBindings](../client_test.go) · [TestClientOptionValidation](../client_test.go) |
+| Init-only Client construction and execution-context build/parse. Strict options, stable errors and bounded text/ArrayBuffer XML. | [Plain API](plain-api.md) · [TestPlainClientBindings](../internal/adapter/client_test.go) · [TestClientOptionValidation](../internal/adapter/client_test.go) |
 | SOAP 1.1/1.2 raw envelopes, action headers, HTTP status, SOAP faults, and Body-only XPath. | [TestK6SOAPFixture](../test/e2e/http_test.go) · [TestXPathIsolationAndTypes](../internal/message/response_test.go) · [TestLimits](../internal/message/message_test.go) |
 | Ordered object payloads with explicit namespace, attributes, text and repeated array elements. | [Object mapping](object-payloads.md) · [TestK6ObjectPayloadEcho](../test/e2e/object_test.go) |
-| Custom SOAP headers, mandatory-header validation and structured WS-Addressing 2005/08. | [Headers](headers.md) · [TestHeaderBindings](../headers_test.go) · [TestMandatoryHeaderVersionMetadata](../internal/message/response_test.go) · [TestK6SignedHeaderExchanges](../test/interop/headers_test.go) |
-| PEM and single-identity PKCS#12; separate signing, recipient, decryption and trust roles; bounded cache. | [Key material](keys.md) · [TestFormatsRolesAndCurves](../internal/keys/keys_test.go) · [TestPKCS12PasswordIsolation](../internal/keys/keys_test.go) · [TestCrossVUKeyCache](../keys_test.go) |
-| SOAP outcomes and build/parse Trends. SOAP failure includes HTTP 200 Faults. Debug logs use fixed metadata. | [Metrics](metrics.md) · [TestK6SOAPMetricSummary](../test/e2e/metrics_test.go) · [TestMetadataDiagnosticsNeverReflectInputs](../security_test.go) |
+| Custom SOAP headers, mandatory-header validation and structured WS-Addressing 2005/08. | [Headers](headers.md) · [TestHeaderBindings](../internal/adapter/headers_test.go) · [TestMandatoryHeaderVersionMetadata](../internal/message/response_test.go) · [TestK6SignedHeaderExchanges](../test/interop/headers_test.go) |
+| PEM and single-identity PKCS#12; separate signing, recipient, decryption and trust roles; bounded cache. | [Key material](keys.md) · [TestFormatsRolesAndCurves](../internal/keys/keys_test.go) · [TestPKCS12PasswordIsolation](../internal/keys/keys_test.go) · [TestCrossVUKeyCache](../internal/adapter/keys_test.go) |
+| SOAP outcomes and build/parse Trends. SOAP failure includes HTTP 200 Faults. Debug logs use fixed metadata. | [Metrics](metrics.md) · [TestK6SOAPMetricSummary](../test/e2e/metrics_test.go) · [TestMetadataDiagnosticsNeverReflectInputs](../internal/adapter/security_test.go) |
 | Runnable raw, object and signed examples with SOAP thresholds. | [TestDocumentedSOAPExamples](../test/e2e/examples_test.go) · [TestDocumentedSignedExample](../test/interop/examples_test.go) |
-| Constructor policy, invalid combinations and bounded recovery of accepted content. | [Policy schema](security-policy.md) · [TestSecurityOptionMatrix](../security_test.go) · [TestInvalidPolicyMatrix](../internal/wssec/policy_test.go) · [TestRecoveredSnapshotResourceLimits](../internal/wssec/security_fuzz_test.go) |
+| Constructor policy, invalid combinations and bounded recovery of accepted content. | [Policy schema](security-policy.md) · [TestSecurityOptionMatrix](../internal/adapter/security_test.go) · [TestInvalidPolicyMatrix](../internal/wssec/policy_test.go) · [TestRecoveredSnapshotResourceLimits](../internal/wssec/security_fuzz_test.go) |
 
 ## Independent WS-Security profiles
 
