@@ -7,10 +7,13 @@ STATICCHECK_VERSION := v0.8.2
 GOVULNCHECK_VERSION := v1.10.0
 XK6_VERSION := v1.5.1
 ACTIONLINT_VERSION := v1.7.12
+COMPAT_GO ?= $(shell cat .go-version)
+COMPAT_K6 ?= $(shell go list -m -f '{{.Version}}' go.k6.io/k6/v2)
+RELEASE_OUTPUT ?= bin/release-dry-run
 
 .PHONY: help tools fmt lint arch test build verify smoke vuln hooks test-hooks deps e2e
 help:
-	@printf '%s\n' 'make tools   Install pinned verification tools' 'make fmt     Format Go source' 'make verify  Format, architecture, vet, staticcheck, race tests, build' 'make e2e     Run local SOAP HTTP fixtures with real k6' 'make smoke   Build custom k6 and run positive/negative smoke tests' 'make vuln    Scan source and custom k6 binary (online advisory DB)' 'make fuzz-smoke  Run bounded SOAP and policy fuzz targets' 'make bench     Compare fixed performance and retention budgets on the pinned runner' 'make interop Run the independent Apache fixture (requires Docker)' 'make hooks   Install opt-in pre-commit hook without replacing existing hooks'
+	@printf '%s\n' 'make tools   Install pinned verification tools' 'make fmt     Format Go source' 'make verify  Format, architecture, vet, staticcheck, race tests, build' 'make e2e     Run local SOAP HTTP fixtures with real k6' 'make smoke   Build custom k6 and run positive/negative smoke tests' 'make compatibility  Verify the exact pinned k6 build, smoke and E2E' 'make release-dry-run  Rehearse Linux release packaging and audits' 'make vuln    Scan source and custom k6 binary (online advisory DB)' 'make fuzz-smoke  Run bounded SOAP and policy fuzz targets' 'make bench     Compare fixed performance and retention budgets on the pinned runner' 'make interop Run the independent Apache fixture (requires Docker)' 'make hooks   Install opt-in pre-commit hook without replacing existing hooks'
 
 tools: $(TOOLS)/staticcheck $(TOOLS)/govulncheck $(TOOLS)/xk6 $(TOOLS)/actionlint
 $(TOOLS)/staticcheck: Makefile .go-version
@@ -47,7 +50,7 @@ test-hooks:
 deps:
 	go mod tidy -diff
 	go mod verify
-verify: lint arch test build test-hooks deps perf-budget-test
+verify: lint arch test build test-hooks deps perf-budget-test release-test
 
 # Always rebuild: changes in any source or pin must be reflected in smoke tests.
 .PHONY: build-k6
@@ -61,6 +64,18 @@ vuln: $(TOOLS)/govulncheck build-k6
 	$(TOOLS)/govulncheck -mode=binary bin/k6
 hooks:
 	sh scripts/install-hooks.sh
+
+.PHONY: compatibility release-test release-dry-run
+compatibility: build-k6
+	python3 scripts/release.py bin/k6 "go$(COMPAT_GO)" "$(COMPAT_K6)"
+	sh scripts/smoke.sh
+	go test -race -tags=e2e ./test/e2e -count=1 -timeout=60s
+
+release-test:
+	PYTHONPATH=scripts PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s test/release
+
+release-dry-run: $(TOOLS)/xk6 $(TOOLS)/govulncheck
+	sh scripts/release-dry-run.sh "$(TOOLS)" "$(RELEASE_OUTPUT)" "$(XK6_VERSION)"
 
 e2e: build-k6
 	go test -race -tags=e2e ./test/e2e -count=1 -timeout=60s

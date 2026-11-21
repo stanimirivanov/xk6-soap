@@ -24,18 +24,29 @@ jobs:
           cache: true
       - run: make verify
   runtime:
-    name: runtime
-    runs-on: ubuntu-24.04
+    name: runtime (${{ matrix.go }}, k6 ${{ matrix.k6 }}, ${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - go: '1.27.4'
+            k6: 'v2.4.0'
+            platform: linux-amd64
+            runner: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
-          go-version-file: .go-version
+          go-version: ${{ matrix.go }}
           cache: true
-      - run: make smoke e2e
+      - run: make compatibility
+        env:
+          COMPAT_GO: ${{ matrix.go }}
+          COMPAT_K6: ${{ matrix.k6 }}
   vulnerabilities:
     name: vulnerabilities
     runs-on: ubuntu-24.04
