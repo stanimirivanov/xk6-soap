@@ -10,7 +10,6 @@ function rejects(security, code, material=keys) {
   return false;
 }
 const constructorChecks = [
-  rejects({sign:{keyId:'issuer-serial'}}, 'SOAP_FEATURE_UNAVAILABLE'),
   rejects({encrypt:{}}, 'SOAP_FEATURE_UNAVAILABLE'),
   rejects({sign:{algorithm:'rsa-sha1'}}, 'SOAP_POLICY_INVALID'),
   rejects({sign:undefined}, 'SOAP_POLICY_INVALID'),

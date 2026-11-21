@@ -20,7 +20,7 @@ func TestSecurityOptionMatrix(t *testing.T) {
  }
  for (const security of [
   {encrypt:{}},
-  {sign:{},encrypt:{}},{sign:{keyId:'issuer-serial'}},
+  {sign:{},encrypt:{}},
  ])rejected(security,'SOAP_FEATURE_UNAVAILABLE');
  for (const security of [null,false,[],{type:'SECRET'},{sign:{signBody:false}},{sign:{algorithm:'rsa-sha1'}},
   {usernameToken:{user:'SECRET'}},{usernameToken:{user:'SECRET',password:'SECRET',extra:true}},
@@ -73,7 +73,7 @@ func TestMetadataDiagnosticsNeverReflectInputs(t *testing.T) {
 	if output.Len() != 0 {
 		t.Fatal("diagnostics enabled by default")
 	}
-	js(t, rt.VU.Runtime(), `try{new Client({url:'https://SECRET.invalid',debug:true,keys:{signing:{cert,key},trust:[cert]},security:{sign:{algorithm:'rsa-sha384',keyId:'issuer-serial'}}});throw new Error('unavailable accepted');}catch(e){if(e.code!=='SOAP_FEATURE_UNAVAILABLE')throw e;}
+	js(t, rt.VU.Runtime(), `try{new Client({url:'https://SECRET.invalid',debug:true,keys:{signing:{cert,key},recipient:{cert},trust:[cert]},security:{sign:{algorithm:'rsa-sha384'},encrypt:{}}});throw new Error('unavailable accepted');}catch(e){if(e.code!=='SOAP_FEATURE_UNAVAILABLE')throw e;}
  var signedClient=new Client({url:'https://SECRET.invalid',debug:true,keys:{signing:{cert,key}},security:{sign:{},verify:{signature:false},usernameToken:{user:'SECRET_USER',password:'SECRET_PASSWORD',passwordType:'PasswordText'}}});var tokenClient=new Client({url:'https://SECRET.invalid',debug:true,security:{usernameToken:{user:'SECRET_USER',password:'SECRET_PASSWORD',passwordType:'PasswordText'}}});var client=new Client({url:'https://SECRET.invalid',debug:true});`)
 	rt.MoveToVUContext(&lib.State{Logger: logger})
 	js(t, rt.VU.Runtime(), `signedClient.build('Echo','<Echo>SECRET_SIGNED_PAYLOAD</Echo>');tokenClient.build('Echo','<Echo/>');var request=client.build('Echo','<Echo>SECRET_PAYLOAD</Echo>');client.parse({status:200,body:request.body});client.parse({status:500,body:'SECRET_FAULT'});`)

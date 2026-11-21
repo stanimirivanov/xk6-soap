@@ -1,7 +1,7 @@
 # Verified responses
 
 Responses use the configured RSA or ECDSA SHA-2 policy, exclusive C14N
-(including validated inclusive prefix lists), and BST direct references with
+(including validated inclusive prefix lists), and [X.509 key identifiers](signing.md) with
 exact leaf DER pins. The receive defaults are RSA-SHA256 and SHA-256.
 [Configure expanded signature and digest allow-lists](signing.md) for peers
 using other supported algorithms.
@@ -33,8 +33,15 @@ rotation. A certificate carrying the same public key with different DER is not
 trusted. Embedded certificates never grant trust, and no network key resolution,
 chain building or system roots are used.
 
+Under required verification, BST and inline X509v3 KeyIdentifier forms must
+carry the exact DER of a trusted leaf. Issuer/serial, SKI and thumbprint forms
+must match exactly one distinct, currently valid pin. If two leaf certificates
+match an identifier, verification fails even if they share a public key.
+The selected pin must also match the signature algorithm. No key is retrieved
+from a network or from system trust.
+
 The acceptance path checks configured SOAP version, input/structure limits, unique
-IDs, one targeted Security header, one direct BST and one signature, and at most
+IDs, one targeted Security header, one signature, one supported KeyInfo, and at most
 one Timestamp. Unsupported algorithms, transforms, key representations, encryption
 and ambiguous security structure fail closed. [Required custom headers and WS-Addressing](headers.md) are subject to the same exact coverage checks.
 
@@ -83,7 +90,7 @@ clock offset/TTL; neither silently widens receive tolerance.
 Freshness is distinct from replay detection. Repeated parsing of the same valid
 response is permitted while it remains fresh; no receive replay cache is introduced.
 [Required signed custom headers and WS-Addressing coverage](headers.md) are available.
-Encryption, decryption and alternate key IDs remain gated. No broader signed-response checkpoint is claimed by this task alone.
+Encryption and decryption remain gated.
 
 Evidence includes hostile exact-coverage/duplicate-ID fixtures, a different DER
 certificate with the same public key, overlapping pins, namespace-preserving
