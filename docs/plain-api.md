@@ -1,30 +1,9 @@
 # Plain SOAP Client API
 
-PR-4 enables raw-XML `build()` and plain-response `parse()` on the named `Client`
-export. [PR-8 key loading](keys.md) is available during construction.
-[PR-9 policy validation](security-policy.md) rejects enabled unavailable security
-features explicitly. [PR-10 UsernameToken/Timestamp](username-token.md) is now
-available for outbound requests. [Object payloads](object-payloads.md), [custom headers/WS-Addressing](headers.md) and
-[SOAP metrics](metrics.md) are available. Payload diagnostics remain unavailable. Plain results make no authenticity claim.
-
-```js
-import { Client } from 'k6/x/soap';
-import http from 'k6/http';
-import { check } from 'k6';
-
-export const options = { thresholds: { checks: ['rate==1'] } };
-const client = new Client({url:'https://example.test/service',soapVersion:'1.1'});
-export default function () {
-  const request = client.build('Echo',
-    '<m:Echo xmlns:m="urn:example">hello</m:Echo>', {soapAction:'urn:echo'});
-  const response = http.post(request.url, request.body, {
-    headers:request.headers, responseType:'text', redirects:0,
-  });
-  const parsed = client.parse(response);
-  check(parsed, {'SOAP accepted':p=>p.ok});
-  const matches = parsed.xpath('//m:Result',{m:'urn:example'});
-}
-```
+The named `Client` export builds SOAP and parses responses.
+The [runnable examples](../README.md#run-an-example) include raw XML, object
+payloads and a signed exchange. See [supported contracts](contracts.md) for the
+available security profiles. Plain results carry null verification flags.
 
 Construct clients in init. `url` is required and must be an absolute HTTP(S) URL
 with a host and no credentials or fragment. `soapVersion` is `1.1` (default) or

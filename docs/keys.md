@@ -1,8 +1,8 @@
 # Key material and cache
 
-PR-8 adds init-constructor key loading. Security policy and public message crypto
-remain separate tasks: supplying keys alone does not sign/encrypt a request or
-verify/decrypt a response. Plain results retain null verification flags.
+The Client loads keys at construction. [Security policy](security-policy.md)
+selects signing, encryption, verification and decryption. A plain policy leaves
+verification flags null.
 
 ```js
 const client = new Client({url:'https://example.test/service', keys:{
@@ -18,8 +18,7 @@ exactly `{cert,key}` or `{pkcs12,password}` (password must be an explicit string
 including for an empty password). Recipient accepts only `{cert}`. Trust is an
 array of at most eight certificate ArrayBuffers. Missing key roles are permitted;
 [Executable policy](security-policy.md) now enforces role requirements. A public
-decryption key requires explicit receive order, and the requested decryption path
-remains unavailable until its feature task. Supplying a signing/recipient/trust
+decryption key requires explicit receive order, for the accepted encrypted profile. Supplying a signing/recipient/trust
 key alone still enables no message protection. For PKCS#12 signing input, replace
 `signing` above with `{pkcs12:open('./signer.p12','b'), password:__ENV.P12_PASSWORD}`.
 
@@ -38,7 +37,7 @@ Signing/trust require digitalSignature when KeyUsage is present; recipient and
 decryption require keyEncipherment. An absent KeyUsage imposes no usage
 restriction; an explicitly empty extension permits no role. No system roots,
 chain-building, AIA/OCSP/CRL retrieval or trust in embedded certificates is added.
-Trust inputs are exact certificate DER pins for future policy consumers.
+Trust inputs are exact certificate DER pins for signature verification.
 
 Failures expose only stable `SOAP_KEY_INVALID`, `SOAP_KEY_ROLE`,
 `SOAP_KEY_VALIDITY`, `SOAP_KEY_LIMIT` codes and stage `keys`. Structural/type

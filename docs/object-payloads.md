@@ -61,8 +61,7 @@ cancellation retains `CANCELLED`. No partial request is returned.
 Raw primitive XML strings retain their existing lexical path, including CDATA and
 multiple namespaces, regardless of a Client's object namespace. They are inserted
 as the sole operation element, without another object wrapper. Use raw XML when
-children/attributes need different namespaces or prefixed names. Object input does
-not provide header/WS-Addressing inputs; those remain separate tasks.
+children/attributes need different namespaces or prefixed names. Pass [custom headers and WS-Addressing](headers.md) through the separate per-build options.
 
 Tests cover exact envelope/order fixtures, shared references, mutations/getters,
 namespace inheritance, attributes/text, escaping, Unicode, invalid inputs and output

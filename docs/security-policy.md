@@ -1,13 +1,8 @@
 # Executable security policy
 
-PR-9 implements typed policy normalization and constructor validation.
-[PR-10](username-token.md) activates outbound UsernameToken and Timestamp.
-[PR-11](signing.md) activates RSA-SHA256/SHA256/exclusive-C14N/BST signing.
-[PR-12](receive.md) activates core pinned response verification; PR-13 enforces
-configured signed Timestamp freshness. PR-16 enables [custom/header addressing
-selectors and required receive coverage](headers.md). PR-17 activates the [RSA and ECDSA SHA-2 signature and reference digest profiles](signing.md). PR-18 activates the [X.509 key identifiers](signing.md). PR-19 activates [outbound sign-then-encrypt](request-encryption.md) for the Body content or operation element. PR-20 activates [sign-then-encrypt responses and faults](receive.md#encrypted-responses-and-faults). PR-21 adds encrypt-then-sign in both directions. PR-22 adds [selected header encryption](headers.md#encrypting-selected-headers) in both orders. The internal kernel probes remain
-independent gate evidence. Valid requests for unavailable features
-throw `SOAP_FEATURE_UNAVAILABLE` at construction, before measured iterations.
+The constructor normalizes typed options, validates key roles and checks
+availability before measured iterations. See the [supported contract report](contracts.md)
+for the profiles and independently tested combinations.
 
 Omitting `security`, supplying `{}`, or an explicitly unsigned receive policy
 keeps plain SOAP behavior. Both verification result flags remain null. For example:
@@ -18,10 +13,8 @@ const client = new Client({url:'https://example.test/service', security:{
 }});
 ```
 
-Policy definitions intentionally precede their implementations. A configuration
-can be structurally valid and still unavailable. Future feature tasks must
-activate their implemented paths deliberately and preserve rejection tests for
-all remaining capabilities. No JavaScript capability override exists.
+A structurally valid configuration can still request an unavailable operation.
+The constructor rejects it with `SOAP_FEATURE_UNAVAILABLE`.
 
 ## Schema and defaults
 
@@ -55,16 +48,14 @@ identifies the certificate. Signature and reference digest algorithms remain SHA
 
 Encryption definitions allow AES-128/256-GCM, RSA-OAEP-SHA256, and targets `body`,
 `content`, `headers`. Both orders are defined. Legacy algorithms, old `security.type`
-and unsafe `signBody:false` are rejected. Defining an algorithm here does not
-claim independent interop coverage beyond the existing kernel ADRs.
+and unsafe `signBody:false` are rejected. The [independent matrix](../test/interop/matrix.json) records tested combinations.
 
 Outbound header selectors are unique NCNames, at most 16 entries and 4096 UTF-8
 bytes each. Receive `signedHeaders` and `encryptedHeaders` are unique expanded
 names `{namespace,localName}` with nonempty XML-safe namespace, NCName local name,
 the same entry bound and 4096-byte field bounds. Signing and encrypting the same
-header is permitted. Presence/uniqueness of actual header blocks is checked by
-the later header-building/receive tasks; currently enabled header-signing/encryption paths are rejected
-before build. Credentials are bounded by the 4 MiB message input ceiling; username
+header is permitted. Build resolves outbound selectors and requires unique header blocks. Receive
+checks each configured expanded name against the accepted content and coverage. Credentials are bounded by the 4 MiB message input ceiling; username
 and PasswordText must be XML-safe, and all strings must be valid UTF-8. An explicit
 empty password is permitted; omission is not.
 
@@ -108,5 +99,4 @@ matrices, including undefined-field downgrade and secret-accessor regressions.
 A temporary mutation bypassing constructor availability made the silent-no-op
 regression fail; exact source restored. `make smoke` exercises actual k6 option
 handling and rejects the synthetic private sentinel if it appears in its policy
-probe output. Unit tests independently capture VU logger output. PR-13 activation retains these rejection controls for the remaining unavailable
-capabilities.
+probe output. Unit tests independently capture VU logger output.

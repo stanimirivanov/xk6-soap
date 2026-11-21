@@ -1,9 +1,10 @@
 # Independent Apache fixture
 
 `make interop` builds and starts a real Apache CXF/WSS4J service, then runs the
-Go self-tests over HTTP. Docker, GNU `timeout`, Make and the pinned Go toolchain
-are required. The Go tests use the internal security adapter as the client; Apache independently
+Go kernel probes and native custom k6 exchanges over HTTP. Docker, GNU
+`timeout`, Make and the pinned Go toolchain are required. Apache independently
 owns token authentication, timestamp validation, BSP enforcement and replay checks.
+The [contract report](../../docs/contracts.md) indexes the public API evidence.
 
 ## Pins
 
@@ -100,8 +101,9 @@ an RSA-2048/SHA256withRSA PKCS#12 identity and public PEM certificate:
 
 `identity.txt` records that build's certificate fingerprint; the exact random key,
 serial and certificate bytes are intentionally not source-controlled or fixed.
-The server key is used by the signature endpoints. It is not used by UsernameToken
-endpoints. Encryption remains a future fixture task. Never use them as production trust.
+The signature and encryption endpoints use the generated server identity. The
+UsernameToken endpoints authenticate with their synthetic credentials. Use these
+keys only for fixture trust.
 The generator refuses an existing destination and does not overwrite key material.
 
 The runner publishes port 8080 on an ephemeral host **loopback** port. It runs as
@@ -118,9 +120,7 @@ does not prune other work. Runtime state and test keys are never copied into the
 repository. `make interop` fails if Docker or the fixture is unavailable; it does
 not skip or silently fall back to the Go mock.
 
-CI runs the same target in the `interop` job on PRs and main pushes. Administrators
-can add that check to the main ruleset after this PR lands. No branch setting is
-changed by the fixture bootstrap.
+CI runs the same target in the `interop` job on PRs and main pushes. The same command is the repository's pre-push gate.
 
 Sources: [CXF WS-Security interceptors](https://cxf.apache.org/docs/ws-security.html),
 [WSS4J configuration](https://ws.apache.org/wss4j/config.html),
