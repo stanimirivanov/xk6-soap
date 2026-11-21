@@ -1,7 +1,7 @@
 # xk6-soap
 
 Go extension for k6; k6 owns HTTP transport. Start with [README](README.md).
-Read [HARNESS](HARNESS.md) for the repository map and check selection; read only the
+Read [HARNESS](harness/HARNESS.md) for the repository map and check selection; read only the
 relevant spec section and source/tests for the current issue. The full architecture is in docs/architecture.md; use the implemented source and
 tests to distinguish shipped behavior from planned APIs.
 

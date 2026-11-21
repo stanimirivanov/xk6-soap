@@ -30,7 +30,7 @@ func checkSource(name string, source []byte) []string {
 	layer := path.Dir(name)
 	allowed, known := layers[layer]
 	if !known {
-		report("ARCH_LAYER", "declare the package boundary in internal/archtest/rules.go before adding production code")
+		report("ARCH_LAYER", "declare the package boundary in harness/archtest/rules.go before adding production code")
 	}
 	file, err := parser.ParseFile(token.NewFileSet(), name, source, parser.ParseComments)
 	if err != nil {

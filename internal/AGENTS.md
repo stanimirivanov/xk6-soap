@@ -1,7 +1,8 @@
 # Internal layers
 
-Root AGENTS.md applies. `archtest` is repository tooling, never a runtime dependency.
-Runtime package boundaries are defined by the rules in `archtest/rules.go`:
+Root AGENTS.md applies. The harness is repository tooling and cannot be a runtime
+dependency. See the [harness guide](../harness/HARNESS.md) and
+[architecture rules](../harness/archtest/rules.go).
 
 - `adapter`: k6/Sobek bindings and per-VU state. May use message/keys/clock/wssec.
 - `message`: SOAP structure and payloads; no k6, keys or provider dependencies.

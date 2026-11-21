@@ -24,7 +24,7 @@ func TestImportRules(t *testing.T) {
 		{"soap.go", "github.com/grafana/sobek", "ARCH_VU"},
 		{"soap.go", "github.com/grafana/sobek/parser", "ARCH_VU"},
 		{"soap.go", "github.com/knroy/go-xmlsec/v2/dsig", "ARCH_PROVIDER"},
-		{"soap.go", module + "/internal/archtest", "ARCH_DEPENDENCY"},
+		{"soap.go", module + "/harness/archtest", "ARCH_DEPENDENCY"},
 		{"internal/adapter/soap.go", "go.k6.io/k6/v2/js/modules", ""},
 		{"internal/adapter/soap.go", "github.com/grafana/sobek", ""},
 		{"internal/adapter/client.go", "net/url", ""},
@@ -89,7 +89,7 @@ func TestRepositoryArchitecture(t *testing.T) {
 		rel = filepath.ToSlash(rel)
 		if entry.IsDir() {
 			switch rel {
-			case ".git", ".tools", "bin", "test", "internal/archtest":
+			case ".git", ".tools", "bin", "test", "harness":
 				return filepath.SkipDir
 			}
 			return nil
