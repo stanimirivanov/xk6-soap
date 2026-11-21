@@ -13,8 +13,10 @@ import (
 	"crypto/x509/pkix"
 	"encoding/asn1"
 	"encoding/pem"
+	"errors"
 	"math/big"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -340,5 +342,19 @@ func TestExplicitEmptyKeyUsageIsNotUnrestricted(t *testing.T) {
 	input.Cert = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
 	if m, err := NewCache().Load(input, Signing, testTime); err == nil || m != nil {
 		t.Fatal("present empty KeyUsage treated as unrestricted")
+	}
+}
+
+func TestInvalidKeyInputsDoNotConsumeCacheBudget(t *testing.T) {
+	cache := NewCache()
+	for n := range MaxEntries + 1 {
+		input := Input{Cert: []byte(strconv.Itoa(n) + " private invalid certificate")}
+		_, err := cache.Load(input, Trust, testTime)
+		if !errors.Is(err, ErrInvalid) {
+			t.Fatal("unexpected malformed key result", err)
+		}
+	}
+	if len(cache.entries) != 0 || cache.encodedBytes != 0 {
+		t.Fatal("malformed keys consumed cache budget")
 	}
 }

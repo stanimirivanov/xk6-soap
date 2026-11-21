@@ -21,14 +21,11 @@ func policyField(obj *sobek.Object, name string) sobek.Value {
 	return nil
 }
 func (i *instance) policyText(value sobek.Value, empty bool) string {
-	if absent(value) {
+	text, ok := value.(sobek.String)
+	if !ok || !empty && text.Length() == 0 {
 		i.invalidPolicy()
 	}
-	text, ok := value.Export().(string)
-	if !ok || !empty && text == "" {
-		i.invalidPolicy()
-	}
-	return text
+	return text.String()
 }
 func (i *instance) policyString(obj *sobek.Object, name string) string {
 	value := policyField(obj, name)
@@ -41,6 +38,9 @@ func (i *instance) policyInt(obj *sobek.Object, name string) *int {
 	value := policyField(obj, name)
 	if value == nil {
 		return nil
+	}
+	if _, object := value.(*sobek.Object); object {
+		i.invalidPolicy()
 	}
 	var number float64
 	switch n := value.Export().(type) {
@@ -61,6 +61,9 @@ func (i *instance) policyBool(obj *sobek.Object, name string) *bool {
 	value := policyField(obj, name)
 	if value == nil {
 		return nil
+	}
+	if _, object := value.(*sobek.Object); object {
+		i.invalidPolicy()
 	}
 	flag, ok := value.Export().(bool)
 	if !ok {
