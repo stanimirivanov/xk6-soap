@@ -33,14 +33,14 @@ $(TOOLS)/actionlint: Makefile .go-version
 fmt:
 	gofmt -w $$(git ls-files --cached --others --exclude-standard '*.go')
 lint: $(TOOLS)/staticcheck $(TOOLS)/actionlint
-	go test ./internal/archtest -run 'TestDeclarationStyle|TestRepositoryDeclarationStyle' -count=1
+	go test ./harness/archtest -run 'TestDeclarationStyle|TestRepositoryDeclarationStyle' -count=1
 	@files=$$(gofmt -l $$(git ls-files --cached --others --exclude-standard '*.go')); if [ -n "$$files" ]; then printf 'Run make fmt:\n%s\n' "$$files"; exit 1; fi
 	go vet ./...
 	$(TOOLS)/staticcheck ./...
 	$(TOOLS)/actionlint -shellcheck= -pyflakes=
 	@for script in scripts/*.sh test/interop/wss4j/*.sh .githooks/pre-commit; do sh -n "$$script"; done
 arch:
-	go test ./internal/archtest -count=1
+	go test ./harness/archtest -count=1
 test:
 	go test -race ./...
 build:

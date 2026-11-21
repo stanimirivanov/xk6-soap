@@ -70,5 +70,5 @@ make hooks
 ```
 
 Hooks are opt-in. Once installed they run verification before commit and the
-uncached Apache fixture before push. [Harness](HARNESS.md) · [Go pin](.go-version) ·
+uncached Apache fixture before push. [Harness](harness/HARNESS.md) · [Go pin](.go-version) ·
 [k6 and dependency pins](go.mod) · [Tool pins](Makefile) · [Apache-2.0 license](LICENSE)

@@ -6,10 +6,13 @@ The goal is deterministic checks for specified properties, with explicit limits.
 
 ## Map and ownership
 
+Paths in the map are relative to the repository root.
+
 ```text
 AGENTS.md                    task loop and runtime boundaries
 internal/AGENTS.md           internal-layer and security constraints
-internal/archtest/           tested AST import/layer sensors, including tagged source
+harness/HARNESS.md           repository map and verification guidance
+harness/archtest/            tested AST import/layer sensors, including tagged source
 soap.go                      blank-import registration shim
 internal/adapter/            named module, lifecycle and Client bindings
 internal/adapter/object_payload.go           ordered per-VU Sobek capture, no payload map export
@@ -42,8 +45,10 @@ scripts/                    smoke runner and non-destructive hook installer
 ```
 
 The root registration shim imports only `internal/adapter`. The adapter may depend on
-message, keys, clock and wssec. wssec may depend on message/keys/clock. The other three are independent foundations. Missing runtime packages remain uncreated until a feature needs their boundary. `internal/archtest/rules.go` is the executable
-source for allowed first-party edges; new packages fail closed until reviewed there.
+message, keys, clock and wssec. wssec may depend on message/keys/clock. The other three
+are independent foundations. Missing runtime packages remain uncreated until a feature
+needs their boundary. New production packages fail closed until reviewed in the
+[architecture checker](archtest/rules.go).
 
 | State/resource | Owner | Constraint/evidence |
 | --- | --- | --- |
@@ -53,7 +58,7 @@ source for allowed first-party edges; new packages fail closed until reviewed th
 | Extension metrics | Adapter RootModule references per k6 registry; per-call samples | Once-per-registry registration; fixed tag enums; cancellation tests |
 | HTTP, TLS, cookies, HTTP metrics | k6/http in script | Production direct transport imports forbidden |
 | Fixture servers/files | test directory | Exempt from production import rules, never imported into runtime |
-| Harness AST/filesystem operations | internal/archtest | Runtime imports of harness forbidden |
+| Harness AST/filesystem operations | harness/archtest | Runtime imports of harness forbidden |
 
 ## Guides and sensors
 
@@ -63,11 +68,13 @@ mandatory multi-agent loops, or custom agent supervisor. These add no demonstrat
 control here. Add a guide after a real failure; prefer an executable regression when
 possible. Remove guidance that duplicates an effective check.
 
+Run the commands in this table from the repository root.
+
 | Command | Sensor and failure meaning | Where |
 | --- | --- | --- |
 | `make fmt` | Explicit formatting mutation | Developer command only |
 | `make lint` | Declaration style, gofmt, go vet, Staticcheck, Actionlint, shell syntax | Local/CI |
-| `make arch` | First-party AST architecture and sensor negative tests | Local/CI |
+| `make arch` | Architecture rules, diagnostic tests and documentation references in `harness/archtest` | Local/CI |
 | `make test` | Go race tests; Go compilation is the type checker | Local/CI |
 | `make deps` | Non-mutating module tidy diff and downloaded-module checksum verification | Local/CI |
 | `make test-hooks` | Existing-hook preservation, snapshot refusal, check-failure propagation | Local/CI |
@@ -95,9 +102,10 @@ vulnerability scanning and independent interop address different risks.
 The architecture sensor parses build-tagged Go files regardless of the host OS. It rejects
 unknown production directories, reverse/lateral imports, runtime access from lower layers,
 provider leakage, direct transport/filesystem/process/unsafe imports, linkname and implicit
-generation. It excludes tests and test fixtures intentionally. Its unit tests inject
-violations; the repository test runs the same checker over real files. Format/compiler
-errors and sensor diagnostics identify a file/rule and corrective direction.
+generation. The production scan excludes test files, test fixtures and harness tooling.
+Declaration-style checks also cover the Go files in the harness. Unit tests inject
+violations and the repository test runs the same architecture checker over real files.
+Format/compiler errors and sensor diagnostics identify a file/rule and corrective direction.
 
 ## Plan, execute, verify
 
@@ -198,7 +206,8 @@ hook preservation. Hooks remain opt-in/bypassable; CI remains required.
 The local gate verifies the local network at push time. It cannot guarantee future
 availability from GitHub's different network. The fixture's bounded resolution
 recovery uses a Google-hosted Central mirror after a primary import-BOM not-found
-response; see test/interop/README.md for its trust/availability limits.
+response. Its trust and availability limits are recorded in the
+[interop fixture guide](../test/interop/README.md).
 
 
 Run `make fuzz-smoke` for two seconds per target with two workers. The weekly

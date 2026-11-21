@@ -38,7 +38,7 @@ broader supported-version matrix is part of release preparation.
 
 The internal provider adapter binds verified nodes and recovered regions to the content the caller will consume. It owns order-sensitive security processing and withholds plaintext on rejection. Build returns the provider's signed wire bytes. XPath evaluates the accepted Body projection after security acceptance. The adapter is internal to the module.
 
-[HARNESS.md](../HARNESS.md) maps source files, ownership and the tested dependency rules.
+[HARNESS.md](../harness/HARNESS.md) maps source files, ownership and the tested dependency rules.
 
 ## 4. Lifecycle and JavaScript contract
 
