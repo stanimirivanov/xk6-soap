@@ -10,6 +10,7 @@ import java.util.concurrent.CountDownLatch;
 import javax.security.auth.callback.CallbackHandler;
 import org.apache.cxf.Bus;
 import org.apache.cxf.BusFactory;
+import org.apache.cxf.binding.soap.SoapMessage;
 import org.apache.cxf.jaxws.EndpointImpl;
 import org.apache.wss4j.common.ConfigurationConstants;
 import org.apache.wss4j.common.ext.WSPasswordCallback;
@@ -103,8 +104,8 @@ public final class Fixture {
                     in.put(ConfigurationConstants.SIG_DIGEST_ALGO, "http://www.w3.org/2001/04/xmlenc#sha512");
                     endpoint.getInInterceptors().add(new WSS4JInInterceptor(in) {
                         @Override
-                        protected void decodeAlgorithmSuite(RequestData data) throws WSSecurityException {
-                            super.decodeAlgorithmSuite(data);
+                        protected void setAlgorithmSuites(SoapMessage message, RequestData data) throws WSSecurityException {
+                            super.setAlgorithmSuites(message, data);
                             // WSS4J's default maximum is below the standard P-521 curve.
                             data.getAlgorithmSuite().setMaximumEllipticCurveKeyLength(521);
                         }
