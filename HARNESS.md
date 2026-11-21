@@ -72,6 +72,7 @@ possible. Remove guidance that duplicates an effective check.
 | `make build` | All module packages compile | Local/CI |
 | `make verify` | All of the preceding non-mutating checks | Pre-commit/CI quality |
 | `make smoke` | Pinned xk6 builds a binary; valid runtime succeeds and forced failed check exits 99 | CI runtime |
+| `make fuzz-smoke` | Bounded Go fuzz runs for SOAP, security receive and JavaScript policy boundaries | Local and scheduled CI |
 | `make interop` | Independent Docker CXF/WSS4J credentials, signature and encryption/order fixture | CI interop |
 | `make e2e` | Real k6 HTTP fixture scenarios and exact exit-99 negative control | CI runtime |
 | `make vuln` | govulncheck source and the actual custom k6 binary | CI vulnerabilities; online database |
@@ -194,3 +195,16 @@ The local gate verifies the local network at push time. It cannot guarantee futu
 availability from GitHub's different network. The fixture's bounded resolution
 recovery uses a Google-hosted Central mirror after a primary import-BOM not-found
 response; see test/interop/README.md for its trust/availability limits.
+
+
+Run `make fuzz-smoke` for two seconds per target with two workers. The weekly
+workflow runs the same targets for 15 seconds each under a ten-minute job
+limit. Seed cases replay in the regular Go test suite. For a new finding,
+replay the reported command and keep a minimal synthetic regression:
+
+```sh
+go test ./internal/wssec -run 'FuzzReceiveSecurity/<reported-id>'
+```
+
+The fuzz inputs and generated certificates are synthetic. Keep production
+messages, credentials and keys out of the corpus.

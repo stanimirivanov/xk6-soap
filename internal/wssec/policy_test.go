@@ -17,7 +17,7 @@ import (
 
 func boolp(v bool) *bool { return &v }
 func intp(v int) *int    { return &v }
-func policyKeys(t *testing.T) KeyMaterial {
+func policyKeys(t testing.TB) KeyMaterial {
 	t.Helper()
 	cache := keys.NewCache()
 	in := keys.Input{Cert: readPolicyFixture(t, "signing-cert.pem"), Key: readPolicyFixture(t, "signing-key.pem")}
@@ -27,7 +27,7 @@ func policyKeys(t *testing.T) KeyMaterial {
 	}
 	return KeyMaterial{Signing: m, Decryption: m, Recipient: m, Trust: []*keys.Material{m}}
 }
-func readPolicyFixture(t *testing.T, name string) []byte {
+func readPolicyFixture(t testing.TB, name string) []byte {
 	t.Helper()
 	b, err := os.ReadFile("testdata/" + name)
 	if err != nil {

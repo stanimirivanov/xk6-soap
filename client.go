@@ -3,6 +3,7 @@ package soap
 import (
 	"math"
 	"net/url"
+	"reflect"
 	"time"
 
 	"github.com/grafana/sobek"
@@ -213,6 +214,7 @@ func (i *instance) build(cfg clientConfig, call sobek.FunctionCall) sobek.Value 
 	if len(call.Arguments) == 3 && !sobek.IsUndefined(call.Argument(2)) {
 		credentials = i.decodeCredentials(call.Argument(2).ToObject(i.vu.Runtime()), cfg.policy)
 	}
+	i.execution()
 	request, err := message.Build(operation, payload, message.Options{Version: cfg.version, Action: action, ActionSet: actionSet, Limits: cfg.limits, URL: cfg.url, Headers: headers, Addressing: addressing})
 	if err != nil {
 		failure := err.(*message.Error)
@@ -229,6 +231,7 @@ func (i *instance) build(cfg clientConfig, call sobek.FunctionCall) sobek.Value 
 		i.execution()
 		request.Body = string(wire)
 	}
+	i.execution()
 	i.diagnostic(cfg.debug, "build", start, cfg.policy, "OK")
 	return i.vu.Runtime().ToValue(map[string]any{"url": cfg.url, "body": request.Body, "headers": request.Headers, "buildDuration": float64(time.Since(start)) / float64(time.Millisecond)})
 }
@@ -245,18 +248,30 @@ func (i *instance) parse(cfg clientConfig, call sobek.FunctionCall) sobek.Value 
 	if !ok || obj.ClassName() != "Object" {
 		i.throw("INVALID_ARGUMENT", "response")
 	}
-	status := i.number(obj.Get("status"))
+	statusValue := i.responseProperty(obj, "status")
+	if _, isObject := statusValue.(*sobek.Object); isObject {
+		i.throw("INVALID_ARGUMENT", "status")
+	}
+	status := i.number(statusValue)
 	if status > 599 {
 		i.throw("INVALID_ARGUMENT", "status")
 	}
 	body := ""
 	if status != 0 {
-		value := obj.Get("body")
+		value := i.responseProperty(obj, "body")
 		if !absent(value) && !sobek.IsNull(value) {
-			switch data := value.Export().(type) {
-			case string:
-				body = data
-			case sobek.ArrayBuffer:
+			if data, ok := value.(sobek.String); ok {
+				if data.Length() > cfg.limits.Bytes {
+					outcome = &message.Parsed{Status: status, Error: &message.Error{Code: "LIMIT_EXCEEDED", Stage: "parse"}}
+					return i.parsedValue(outcome)
+				}
+				body = data.String()
+			} else {
+				object, ok := value.(*sobek.Object)
+				if !ok || object.ExportType() != reflect.TypeFor[sobek.ArrayBuffer]() {
+					i.throw("INVALID_ARGUMENT", "body")
+				}
+				data := object.Export().(sobek.ArrayBuffer)
 				if data.Detached() {
 					i.throw("INVALID_ARGUMENT", "body")
 				}
@@ -265,12 +280,12 @@ func (i *instance) parse(cfg clientConfig, call sobek.FunctionCall) sobek.Value 
 					return i.parsedValue(outcome)
 				}
 				body = string(data.Bytes())
-			default:
-				i.throw("INVALID_ARGUMENT", "body")
 			}
 		}
 	}
+	i.execution()
 	parsed := wssec.ReceiveWithKeys(status, body, cfg.version, cfg.limits, cfg.policy.Receive, cfg.keys.policyMaterial(), i.now())
+	i.execution()
 	code := "OK"
 	if parsed.Error != nil {
 		code = parsed.Error.Code
@@ -279,6 +294,18 @@ func (i *instance) parse(cfg clientConfig, call sobek.FunctionCall) sobek.Value 
 	outcome = parsed
 	return i.parsedValue(parsed)
 }
+
+// Read native response properties without reflecting accessor exceptions.
+func (i *instance) responseProperty(obj *sobek.Object, name string) sobek.Value {
+	var value sobek.Value
+	exception := i.vu.Runtime().Try(func() { value = obj.Get(name) })
+	i.execution()
+	if exception != nil {
+		i.throw("INVALID_ARGUMENT", name)
+	}
+	return value
+}
+
 func resultError(err *message.Error) any {
 	if err == nil {
 		return nil
@@ -303,28 +330,27 @@ func (i *instance) parsedValue(parsed *message.Parsed) sobek.Value {
 		if len(call.Arguments) < 1 || len(call.Arguments) > 2 {
 			return errorResult("XPATH_INVALID")
 		}
-		expression, ok := call.Argument(0).Export().(string)
+		expression, ok := call.Argument(0).(sobek.String)
 		if !ok {
 			return errorResult("XPATH_INVALID")
 		}
 		ns := map[string]string{}
-		if len(call.Arguments) == 2 && !sobek.IsUndefined(call.Argument(1)) {
-			obj, ok := call.Argument(1).(*sobek.Object)
-			if !ok || obj.ClassName() != "Object" {
-				return errorResult("XPATH_INVALID")
+		if expression.Length() > 4096 {
+			if parsed.Body == nil {
+				return errorResult("CONTENT_UNAVAILABLE")
 			}
-			if len(obj.Keys()) > 64 {
-				return errorResult("LIMIT_EXCEEDED")
-			}
-			for _, prefix := range obj.Keys() {
-				uri, ok := obj.Get(prefix).Export().(string)
-				if !ok {
-					return errorResult("XPATH_INVALID")
-				}
-				ns[prefix] = uri
-			}
+			return errorResult("LIMIT_EXCEEDED")
 		}
-		value, err := parsed.XPath(expression, ns)
+		if len(call.Arguments) == 2 && !sobek.IsUndefined(call.Argument(1)) {
+			bindings, code := i.xpathBindings(call.Argument(1))
+			if code != "" {
+				return errorResult(code)
+			}
+			ns = bindings
+		}
+		value, err := parsed.XPath(expression.String(), ns)
+		i.execution()
+
 		var failure any
 		if err != nil {
 			failure = resultError(err.(*message.Error))
@@ -332,6 +358,40 @@ func (i *instance) parsedValue(parsed *message.Parsed) sobek.Value {
 		return i.vu.Runtime().ToValue(map[string]any{"value": value, "error": failure})
 	})
 	return obj
+}
+
+// Inspect the namespace map without exporting arbitrary JavaScript objects.
+func (i *instance) xpathBindings(value sobek.Value) (map[string]string, string) {
+	obj, ok := value.(*sobek.Object)
+	if !ok {
+		return nil, "XPATH_INVALID"
+	}
+	ns := map[string]string{}
+	code := ""
+	exception := i.vu.Runtime().Try(func() {
+		if obj.ClassName() != "Object" {
+			code = "XPATH_INVALID"
+			return
+		}
+		keys := obj.Keys()
+		if len(keys) > 64 {
+			code = "LIMIT_EXCEEDED"
+			return
+		}
+		for _, prefix := range keys {
+			uri, ok := obj.Get(prefix).(sobek.String)
+			if !ok || uri.Length() > 4096 {
+				code = "XPATH_INVALID"
+				return
+			}
+			ns[prefix] = uri.String()
+		}
+	})
+	i.execution()
+	if exception != nil {
+		return nil, "XPATH_INVALID"
+	}
+	return ns, code
 }
 
 func optionalBool(v *bool) any {

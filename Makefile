@@ -10,7 +10,7 @@ ACTIONLINT_VERSION := v1.7.12
 
 .PHONY: help tools fmt lint arch test build verify smoke vuln hooks test-hooks deps e2e
 help:
-	@printf '%s\n' 'make tools   Install pinned verification tools' 'make fmt     Format Go source' 'make verify  Format, architecture, vet, staticcheck, race tests, build' 'make e2e     Run local SOAP HTTP fixtures with real k6' 'make smoke   Build custom k6 and run positive/negative smoke tests' 'make vuln    Scan source and custom k6 binary (online advisory DB)' 'make interop Run the independent Apache fixture (requires Docker)' 'make hooks   Install opt-in pre-commit hook without replacing existing hooks'
+	@printf '%s\n' 'make tools   Install pinned verification tools' 'make fmt     Format Go source' 'make verify  Format, architecture, vet, staticcheck, race tests, build' 'make e2e     Run local SOAP HTTP fixtures with real k6' 'make smoke   Build custom k6 and run positive/negative smoke tests' 'make vuln    Scan source and custom k6 binary (online advisory DB)' 'make fuzz-smoke  Run bounded SOAP and policy fuzz targets' 'make interop Run the independent Apache fixture (requires Docker)' 'make hooks   Install opt-in pre-commit hook without replacing existing hooks'
 
 tools: $(TOOLS)/staticcheck $(TOOLS)/govulncheck $(TOOLS)/xk6 $(TOOLS)/actionlint
 $(TOOLS)/staticcheck: Makefile .go-version
@@ -68,3 +68,7 @@ e2e: build-k6
 .PHONY: interop
 interop: build-k6
 	sh scripts/interop.sh
+
+.PHONY: fuzz-smoke
+fuzz-smoke:
+	sh scripts/fuzz-smoke.sh
