@@ -5,13 +5,9 @@ import { check } from 'k6';
 const cert = open('../../internal/wssec/testdata/signing-cert.pem', 'b');
 const key = open('../../internal/wssec/testdata/signing-key.pem', 'b');
 const server = open(__ENV.SOAP_INTEROP_SIGNATURE_TRUST, 'b');
-const cases = [
-  ['sig', 'direct', 'BinarySecurityToken', '1.1'],
-  ['sigissuer', 'issuer-serial', 'X509IssuerSerial', '1.1'],
-  ['sigx509', 'x509keyidentifier', '#X509v3', '1.2'],
-  ['sigski', 'ski', '#X509SubjectKeyIdentifier', '1.1'],
-  ['sigthumb', 'ThumbprintSHA1', '#ThumbprintSHA1', '1.2'],
-].map(([mode, keyId, marker, soapVersion]) => {
+const matrix = JSON.parse(open('./matrix.json'));
+const rows = matrix.identifiers.flatMap(row => row.soapVersions.map(soapVersion => ({...row,soapVersion})));
+const cases = rows.map(({mode, keyId, marker, soapVersion}) => {
   const url = __ENV.SOAP_INTEROP_URL + '/' + mode + soapVersion.replace('.', '');
   const client = new Client({url, soapVersion, debug:true, keys:{signing:{cert,key},trust:[server]}, security:{sign:{keyId}}});
   const untrusted = new Client({url, soapVersion, keys:{trust:[cert]}, security:{verify:{signature:true}}});

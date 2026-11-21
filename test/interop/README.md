@@ -305,3 +305,30 @@ both SOAP versions. The fixture independently encrypts and signs the Trace
 header or its wrapper according to the order. Each direction keeps the Body
 and an unselected header clear. The native test also requires that header-only
 encryption fails a required Body encryption policy.
+
+## Independent evidence matrix
+
+[matrix.json](matrix.json) records the CP-T3 cases. The core has 24 rows:
+two SOAP versions, two protection orders, two AES-GCM sizes, and three
+encryption targets. Each row runs a native k6 exchange for a successful reply
+and a service fault. WSS4J decrypts and verifies the request and independently
+signs and encrypts its reply. The test checks the target on both wires,
+checks the public result, and requires a changed signature to withhold
+Body, Fault, and XPath. A failed check causes the k6 process to fail.
+
+The algorithm and identifier tests consume the same manifest. They cover every
+listed method and identifier in both SOAP versions using a fixed key identifier
+for the algorithm tests and the default signature method for the identifier
+tests. The `direct` entry exercises the alias for the default BST wire form.
+The named profiles link to existing native tests for UsernameToken Digest/Text,
+Timestamp freshness, signed headers and WS-Addressing, plain signed faults, and
+mixed send/receive orders.
+
+The manifest separates unsupported configurations from combinations for which
+this matrix claims no independent evidence. It does not claim the full product
+of algorithms, digests, identifiers, tokens and encryption settings.
+
+`TestInteropMatrixManifest` runs in ordinary Go tests and checks the required
+dimensions and evidence names. The existing CI interop job runs all tagged
+native exchanges through `make interop`. The same command runs in the
+pre-push hook on an uncached fixture build.
