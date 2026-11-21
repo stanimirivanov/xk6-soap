@@ -19,7 +19,7 @@ func TestK6EncryptedResponsesAndFaults(t *testing.T) {
 	if base == "" {
 		t.Fatal("use make interop")
 	}
-	waitApache(t, &http.Client{Timeout: 5 * time.Second}, base, []string{"/stefault12811", "/stefault25611", "/stefault12812", "/stefault25612"})
+	waitApache(t, &http.Client{Timeout: 5 * time.Second}, base, []string{"/stefault12811", "/stefault25611", "/stefault12812", "/stefault25612", "/etsfault12811", "/etsfault25612"})
 	binary, err := filepath.Abs("../../bin/k6")
 	if err != nil {
 		t.Fatal(err)

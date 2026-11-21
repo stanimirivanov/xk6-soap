@@ -1,4 +1,4 @@
-# Sign then encrypt SOAP requests
+# Encrypt signed SOAP requests
 
 Configure a signing identity and an RSA recipient certificate at init. The
 recipient certificate must be valid for key encipherment when it declares
@@ -32,9 +32,10 @@ export default function () {
 `content` encrypts all child nodes of the SOAP Body. `body` encrypts the
 operation element and retains any surrounding whitespace and comments. Both
 leave the SOAP Body element and its signing ID in the envelope. Security
-headers remain visible, including any UsernameToken. The signature covers
-the plaintext Body and the configured signed headers. The receiver decrypts
-the Body region before checking that signature.
+headers remain visible, including any UsernameToken. The default order,
+`sign-then-encrypt`, signs the plaintext Body and configured signed headers.
+Select `encrypt-then-sign` to sign the ciphertext Body and the EncryptedKey
+along with the usual Timestamp and signed headers.
 
 The default profile uses AES-256-GCM and `content`. AES-128-GCM is also
 available. Each build generates a fresh session key and a fresh 96-bit GCM
@@ -42,9 +43,8 @@ IV. The key is wrapped with XML Encryption 1.1 RSA-OAEP using SHA-256 for
 the digest and MGF1. The EncryptedKey names the recipient by issuer and
 serial number. Send the generated body unchanged.
 
-The public API currently supports this order for outgoing requests with
-signing enabled. [Encrypted response parsing](receive.md#encrypted-responses-and-faults)
-uses a separate receive policy. Encrypt-then-sign and header encryption remain gated.
+Both orders require outbound signing. [Encrypted response parsing](receive.md#encrypted-responses-and-faults)
+uses a separate receive policy. Header encryption remains gated.
 
 The local and native interop tests cover both targets and AES sizes. The
 WSS4J exchange runs with SOAP 1.1 and 1.2. A local test unwraps two requests

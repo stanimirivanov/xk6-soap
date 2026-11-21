@@ -51,8 +51,8 @@ func TestPolicyDefaultsAndCapabilityGate(t *testing.T) {
 	if !p.Receive.Signature || !p.Receive.Timestamp || p.Receive.RequireEncryption || p.Receive.Order != string(EncryptThenSign) || p.Receive.ClockSkewSeconds != 60 || p.Receive.MaxAgeSeconds != 300 {
 		t.Fatal("receive defaults")
 	}
-	if p.RequireAvailable() != ErrUnavailable {
-		t.Fatal("unimplemented policy accepted")
+	if p.RequireAvailable() != nil {
+		t.Fatal("independent orders unavailable")
 	}
 	ut, err := CompilePolicy(SecurityOptions{UsernameToken: &UsernameTokenPolicy{User: "synthetic", Password: "synthetic"}}, KeyMaterial{}, fixedTime)
 	if err != nil || ut.Timestamp == nil || ut.UsernameToken.PasswordType != "PasswordDigest" {

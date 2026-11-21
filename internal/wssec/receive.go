@@ -24,7 +24,11 @@ func Receive(status int, raw, version string, limits message.Limits, policy Rece
 	return ReceiveWithKeys(status, raw, version, limits, policy, KeyMaterial{Trust: trust}, now)
 }
 
-func ReceiveWithKeys(status int, raw, version string, limits message.Limits, policy ReceivePolicy, material KeyMaterial, now time.Time) (result *message.Parsed) {
+func ReceiveWithKeys(status int, raw, version string, limits message.Limits, policy ReceivePolicy, material KeyMaterial, now time.Time) *message.Parsed {
+	return receiveWithDecryptor(status, raw, version, limits, policy, material, now, responseEncryption.decrypt)
+}
+
+func receiveWithDecryptor(status int, raw, version string, limits message.Limits, policy ReceivePolicy, material KeyMaterial, now time.Time, decrypt responseDecryptor) (result *message.Parsed) {
 	result = &message.Parsed{Status: status}
 	fail := func(code string) *message.Parsed {
 		result.Error = &message.Error{Code: code, Stage: "security"}
@@ -66,36 +70,26 @@ func ReceiveWithKeys(status int, raw, version string, limits message.Limits, pol
 		result.SigVerified = &no
 	}
 	var retainedKey *xdm.Node
+	var graph responseEncryption
+	var verifyCiphertext bool
 	if hasEncryptionOutside(doc.Root(), nil, nil) {
-		if !policy.Signature || policy.Order != string(SignThenEncrypt) {
+		if !policy.Signature || !validOrder(policy.Order) {
 			return fail("POLICY_VIOLATION")
 		}
-		recovered, code := decryptResponse(doc, ns, material.Decryption, now)
-		if code != "" {
-			return fail(code)
+		var ok bool
+		graph, ok = inspectResponseEncryption(doc, ns)
+		if !ok {
+			return fail("POLICY_VIOLATION")
 		}
-		defer clear(recovered)
-		if e := message.ValidateEnvelope(string(recovered), version, limits); e != nil {
-			if e.(*message.Error).Code == "LIMIT_EXCEEDED" {
-				return fail("LIMIT_EXCEEDED")
+		verifyCiphertext = policy.Order == string(EncryptThenSign)
+		if verifyCiphertext {
+			retainedKey = graph.key
+		} else {
+			var code string
+			doc, retainedKey, code = recoverEncryptedBody(decrypt, graph, doc, material.Decryption, now, version, limits)
+			if code != "" {
+				return fail(code)
 			}
-			return fail("DECRYPTION_FAILED")
-		}
-		doc, ns, e = parsed(recovered)
-		if e != nil {
-			return fail("DECRYPTION_FAILED")
-		}
-		child := element(doc.Root()).FirstElement(ns, "Header")
-		if child == nil {
-			return fail("DECRYPTION_FAILED")
-		}
-		secured := child.FirstElement(xmlsec.NSWSSE, "Security")
-		if secured == nil {
-			return fail("DECRYPTION_FAILED")
-		}
-		retainedKey = secured.FirstElement(xmlsec.NSXEnc, "EncryptedKey")
-		if retainedKey == nil || hasEncryptionOutside(doc.Root(), retainedKey, nil) {
-			return fail("POLICY_VIOLATION")
 		}
 	} else if policy.RequireEncryption {
 		return fail("POLICY_VIOLATION")
@@ -232,6 +226,10 @@ func ReceiveWithKeys(status int, raw, version string, limits message.Limits, pol
 	if !ok || identifier.embedded != nil && !compatiblePublicKey(identifier.embedded.PublicKey, algorithm) {
 		return fail("POLICY_VIOLATION")
 	}
+	if verifyCiphertext {
+		allowedHeaders = append(allowedHeaders, graph.key)
+		requiredHeaders = append(requiredHeaders, graph.key)
+	}
 	normalized, _ := limits.Normalized()
 	accepted, e := receiveBodyOctets(doc, info, body, stamp, normalized.Bytes, allowedHeaders...)
 	if e != nil {
@@ -268,6 +266,25 @@ func ReceiveWithKeys(status int, raw, version string, limits message.Limits, pol
 			yes := true
 			result.TimestampValid = &yes
 		}
+	}
+
+	if verifyCiphertext {
+		// The signature covered the original Body and the exact key used here.
+		// The validated graph has one replacement, inside that same Body.
+		restored, _, code := recoverEncryptedBody(decrypt, graph, doc, material.Decryption, now, version, limits)
+		if code != "" {
+			return fail(code)
+		}
+		recoveredBody := element(restored.Root()).FirstElement(ns, "Body")
+		output := limitedXML{max: normalized.Bytes}
+		if err := c14n.Write(&output, recoveredBody, c14n.Options{Algorithm: c14n.Inclusive10}); err != nil {
+			if output.exceeded {
+				return fail("LIMIT_EXCEEDED")
+			}
+			return fail("DECRYPTION_FAILED")
+		}
+		accepted = output.Bytes()
+		defer clear(accepted)
 	}
 
 	projection := message.ParseAcceptedBody(status, string(accepted), version, limits)

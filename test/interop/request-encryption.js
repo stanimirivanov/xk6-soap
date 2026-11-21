@@ -8,14 +8,16 @@ const server = open(__ENV.SOAP_INTEROP_SIGNATURE_TRUST, 'b');
 const cases = [];
 for (const soapVersion of ['1.1', '1.2']) {
   for (const bits of [128, 256]) {
-    const url = __ENV.SOAP_INTEROP_URL + '/ste' + bits + soapVersion.replace('.', '');
-    for (const target of ['content', 'body']) {
-      const client = new Client({
-        url, soapVersion, debug:true,
-        keys:{signing:{cert,key},recipient:{cert:server},trust:[server]},
-        security:{sign:{},encrypt:{algorithm:'aes-' + bits + '-gcm',target}},
-      });
-      cases.push({client, target});
+    for (const [mode, order] of [['ste','sign-then-encrypt'],['ets','encrypt-then-sign']]) {
+      const url = __ENV.SOAP_INTEROP_URL + '/' + mode + bits + soapVersion.replace('.', '');
+      for (const target of ['content', 'body']) {
+        const client = new Client({
+          url, soapVersion, debug:true,
+          keys:{signing:{cert,key},recipient:{cert:server},trust:[server]},
+          security:{sign:{},encrypt:{algorithm:'aes-' + bits + '-gcm',target},order},
+        });
+        cases.push({client, target, order});
+      }
     }
   }
 }
@@ -26,7 +28,7 @@ function post(req, body) {
 }
 
 export default function () {
-  for (const {client, target} of cases) {
+  for (const {client, target, order} of cases) {
     const payload = '<m:echo xmlns:m="urn:xk6-soap:fixture"><value>REQUEST_PRIVATE_SENTINEL</value></m:echo>';
     const req = client.build('echo', payload, {soapAction:'urn:echo'});
     const type = target === 'content' ? 'Content' : 'Element';
@@ -37,7 +39,7 @@ export default function () {
         !r.body.includes('REQUEST_PRIVATE_SENTINEL'),
     });
     check(post(req, req.body), {
-      [target + ' decrypted and verified by WSS4J']: r => r.status === 200,
+      [order + ' ' + target + ' accepted by WSS4J']: r => r.status === 200,
     });
 
     // Keep encryption unchanged and invalidate the signature on the recovered Body.

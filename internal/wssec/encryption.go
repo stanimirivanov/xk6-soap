@@ -247,17 +247,14 @@ func signatureBeforeKey(root *xdm.Node, ns string) *xdm.Node {
 			dst.AppendCopy(a)
 		}
 		if src.Is(sec) {
+			key := sec.FirstElement(xmlsec.NSXEnc, "EncryptedKey")
 			for child := range src.Children() {
-				if child.IsElement(xmlsec.NSWSU, "Timestamp") || child.IsElement(xmlsec.NSWSSE, "BinarySecurityToken") {
+				if !child.Is(sig) && !child.Is(key) {
 					dst.AppendCopy(child)
 				}
 			}
 			dst.AppendCopy(sig)
-			for child := range src.Children() {
-				if !child.Is(sig) && !child.IsElement(xmlsec.NSWSU, "Timestamp") && !child.IsElement(xmlsec.NSWSSE, "BinarySecurityToken") {
-					dst.AppendCopy(child)
-				}
-			}
+			dst.AppendCopy(key)
 			return
 		}
 		for child := range src.Children() {

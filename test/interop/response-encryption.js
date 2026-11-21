@@ -8,16 +8,21 @@ const server = open(__ENV.SOAP_INTEROP_SIGNATURE_TRUST, 'b');
 const cases = [];
 for (const soapVersion of ['1.1', '1.2']) {
   for (const bits of [128, 256]) {
-    const url = __ENV.SOAP_INTEROP_URL + '/stefault' + bits + soapVersion.replace('.', '');
-    const client = new Client({
-      url, soapVersion, debug:true,
-      keys:{signing:{cert,key},recipient:{cert:server},decryption:{cert,key},trust:[server]},
-      security:{
-        sign:{}, encrypt:{algorithm:'aes-' + bits + '-gcm'},
-        verify:{order:'sign-then-encrypt',requireEncryption:true},
-      },
-    });
-    cases.push({client,soapVersion,bits});
+    for (const [mode, receiveOrder, sendOrder] of [
+      ['stefault','sign-then-encrypt','encrypt-then-sign'],
+      ['etsfault','encrypt-then-sign','sign-then-encrypt'],
+    ]) {
+      const url = __ENV.SOAP_INTEROP_URL + '/' + mode + bits + soapVersion.replace('.', '');
+      const client = new Client({
+        url, soapVersion, debug:true,
+        keys:{signing:{cert,key},recipient:{cert:server},decryption:{cert,key},trust:[server]},
+        security:{
+          sign:{}, encrypt:{algorithm:'aes-' + bits + '-gcm'}, order:sendOrder,
+          verify:{order:receiveOrder,requireEncryption:true},
+        },
+      });
+      cases.push({client,soapVersion,bits,receiveOrder});
+    }
   }
 }
 export const options = {vus:1,iterations:1,thresholds:{checks:['rate==1']}};
@@ -29,12 +34,12 @@ function flip(xml, start) {
 }
 
 export default function () {
-  for (const {client,soapVersion,bits} of cases) {
+  for (const {client,soapVersion,bits,receiveOrder} of cases) {
     for (const value of [sentinel, 'fault']) {
       const req = client.build('echo', '<m:echo xmlns:m="urn:xk6-soap:fixture"><value>' + value + '</value></m:echo>', {soapAction:'urn:echo'});
       const res = http.post(req.url,req.body,{headers:req.headers,timeout:'5s',redirects:0,responseType:'text'});
       const isFault = value === 'fault';
-      const label = soapVersion + ' AES-' + bits + (isFault ? ' fault' : ' success');
+      const label = receiveOrder + ' ' + soapVersion + ' AES-' + bits + (isFault ? ' fault' : ' success');
       check(res,{
         [label + ' was encrypted by WSS4J']: r =>
           r.status === (isFault ? 500 : 200) && r.body.includes('EncryptedData') &&
@@ -56,7 +61,7 @@ export default function () {
           p.error.code === code && p.xpath('string(.)').error.code === 'CONTENT_UNAVAILABLE';
       };
       check(result,{
-        'mutated wrapped key withholds output': () => hidden(badCipher,'DECRYPTION_FAILED'),
+        'mutated wrapped key withholds output': () => hidden(badCipher,receiveOrder === 'encrypt-then-sign' ? 'SIGNATURE_INVALID' : 'DECRYPTION_FAILED'),
         'decryption alone does not expose the result': () => hidden(badSignature,'SIGNATURE_INVALID'),
       });
     }

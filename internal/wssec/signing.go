@@ -15,7 +15,7 @@ import (
 
 var ErrSignatureBuild = errors.New("SOAP_SIGNATURE_BUILD_FAILED")
 
-func appendSignature(doc *xmlsec.Document, ns string, header *wss.Header, signing *keys.Material, token bool, policy *SigningPolicy, selectors []message.HeaderSelector) error {
+func appendSignature(doc *xmlsec.Document, ns string, signing *keys.Material, token bool, policy *SigningPolicy, keyInfo *xdm.Node, ciphertext bool, selectors []message.HeaderSelector) error {
 	body := element(doc.Root()).FirstElement(ns, "Body")
 	// AssignIDWith preserves an existing ID. Never let a payload decoy take
 	// the fixed reference while the actual Body retains a different ID.
@@ -26,21 +26,19 @@ func appendSignature(doc *xmlsec.Document, ns string, header *wss.Header, signin
 	if e != nil {
 		return e
 	}
-	keyInfo, err := signingTokenReference(policy.KeyID, signing.Certificate())
-	if err != nil {
-		return ErrSignatureBuild
-	}
-	if keyInfo == nil {
-		if _, err := header.AddBinarySecurityTokenWithID(signing.Certificate(), nil, xmlsec.BSTValueTypeX509v3, "bst-1"); err != nil {
-			return ErrSignatureBuild
-		}
-	}
 	// Provider edits publish immutable snapshots: select the final nodes after edits.
 	security, err := wss.FindHeader(doc.Root(), ns, "")
 	if err != nil || security == nil || security.FirstElement(xmlsec.NSWSU, "Timestamp") == nil {
 		return ErrSignatureBuild
 	}
 	ids := []string{"body-1", "ts-1"}
+	if ciphertext {
+		key := security.FirstElement(xmlsec.NSXEnc, "EncryptedKey")
+		if key == nil || key.AttrValue("Id") != "ek-1" {
+			return ErrSignatureBuild
+		}
+		ids = append(ids, "ek-1")
+	}
 	if token {
 		if security.FirstElement(xmlsec.NSWSSE, "UsernameToken") == nil {
 			return ErrSignatureBuild
@@ -57,7 +55,7 @@ func appendSignature(doc *xmlsec.Document, ns string, header *wss.Header, signin
 	}
 	_, err = dsig.Sign(doc, xmlsec.KeyProvider{Signer: signing, Certificate: signing.Certificate()}, dsig.SignOptions{
 		SignatureAlgorithm: signatureURIs[policy.Algorithm], CanonicalizationAlgorithm: string(c14n.Exclusive10), References: refs,
-		KeyInfo: dsig.KeyInfoSecurityTokenReference, SecurityTokenID: "bst-1", KeyInfoElement: keyInfo, SignatureID: "sig-1", Parent: security,
+		IDAttributes: []xdm.QName{dsig.IDAttrDSig}, KeyInfo: dsig.KeyInfoSecurityTokenReference, SecurityTokenID: "bst-1", KeyInfoElement: keyInfo, SignatureID: "sig-1", Parent: security,
 	})
 	if err != nil {
 		return ErrSignatureBuild
