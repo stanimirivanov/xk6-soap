@@ -24,8 +24,8 @@ Make installs the pinned xk6 and uses [.go-version](../.go-version) and
 [go.mod](../go.mod). The resulting binary contains `k6/x/soap`. The runtime job
 checks the linked k6 module and actual Go version before running examples.
 Pin the source commit, toolchain and k6 version for repeat builds. xk6 records
-the local replacement's absolute path in Go build information. For matching
-rehearsal hashes use the same absolute checkout path and target platform.
+the local replacement's absolute path in Go build information. The release rehearsal converts that replacement to a relative path in its
+packaged build recipe so it can compare rebuilds from different directories.
 
 ## Dry run
 
@@ -37,14 +37,31 @@ make release-dry-run
 ```
 
 Choose an unused path with `RELEASE_OUTPUT=bin/release-dry-run-again` to keep a
-previous run. The rehearsal makes two builds with trimmed paths, CGO disabled
-and a fixed amd64 target. It checks build information and exact binary bytes,
-runs source and binary govulncheck, and validates the archive member list,
-contents, permissions and SHA-256. The archive contains the executable,
-candidate notes, source commit, build metadata and linked dependency notices.
-The GitHub workflow has read-only repository permissions and stores JSON and
-checksums as short-lived run artifacts. The binary archive stays in the build
-workspace. [Release dry-run workflow](../.github/workflows/release-dry-run.yml)
+previous run. The rehearsal captures xk6's generated entry point and exact Go
+module graph. It builds the distributed executable from the corresponding
+source archive twice, using separate extraction directories and empty module
+caches. It compares binary bytes and checks the linked modules and build
+settings against the initial xk6 build. It also runs source and binary
+govulncheck and validates the archive contents, permissions and checksums.
+
+The binary archive contains the executable, notes, notices, and metadata.
+The source archive contains the exact extension Git snapshot, generated build
+recipe and verified Go module sources in a file-based proxy. From a clean
+extraction and with the pinned Go toolchain on `PATH`, run:
+
+```sh
+mkdir source
+tar -xzf xk6-soap-v0.1.0.source.dry-run.tar.gz -C source
+sh source/rebuild.sh ./k6-rebuilt
+sha256sum ./k6-rebuilt
+```
+
+Compare the rebuilt SHA-256 with `binary_sha256` in `metadata.json`. The recipe
+uses the bundled file proxy with the recorded module checksums. It needs no
+network module fetches. When distributing the binary, make the matching source
+archive available alongside it using the verified manifest and checksums.
+The read-only rehearsal workflow retains only JSON and checksums as short-lived
+run artifacts. [Release dry-run workflow](../.github/workflows/release-dry-run.yml)
 
 ## Release checklist
 

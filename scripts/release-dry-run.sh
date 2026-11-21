@@ -26,14 +26,16 @@ scratch=$(mktemp -d)
 trap 'rm -rf "$scratch"' EXIT
 trap 'exit 1' HUP INT TERM
 
-for binary in first second; do
-    GOFLAGS= "$tools/xk6" build "$version" --with github.com/stanimirivanov/xk6-soap=. \
-        --os linux --arch amd64 --cgo=0 --race-detector=0 \
-        --build-flags=-trimpath --build-flags=-buildvcs=false '--build-flags=-ldflags=-s -w' \
-        --output "$scratch/$binary"
-done
+TMPDIR="$scratch" GOFLAGS= "$tools/xk6" build "$version" --with github.com/stanimirivanov/xk6-soap=. \
+    --os linux --arch amd64 --cgo=0 --race-detector=0 --skip-cleanup \
+    --build-flags=-trimpath --build-flags=-buildvcs=false '--build-flags=-ldflags=-s -w' \
+    --output "$scratch/k6"
+set -- "$scratch"/k6foundry*
+if [ "$#" -ne 1 ] || [ ! -f "$1/go.mod" ]; then
+    printf 'Expected one xk6 build recipe.\n' >&2
+    exit 1
+fi
 "$tools/govulncheck" ./...
-"$tools/govulncheck" -mode=binary "$scratch/first"
-python3 scripts/release.py "$scratch/first" "$toolchain" "$version" \
-    --repeat "$scratch/second" --output "$output" --xk6 "$xk6_version"
+python3 scripts/release.py "$scratch/k6" "$toolchain" "$version" \
+    --driver "$1" --output "$output" --xk6 "$xk6_version" --govulncheck "$tools/govulncheck"
 (cd "$output" && sha256sum --check SHA256SUMS)
