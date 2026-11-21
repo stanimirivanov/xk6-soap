@@ -99,6 +99,7 @@ type Policy struct {
 	Receive       ReceivePolicy
 }
 
+var signatureKeyIDs = []string{directKeyID, "issuer-serial", "x509keyidentifier", "ski", "ThumbprintSHA1"}
 var signatureAlgorithms = []string{"rsa-sha256", "rsa-sha384", "rsa-sha512", "ecdsa-sha256", "ecdsa-sha384", "ecdsa-sha512"}
 var digestAlgorithms = []string{"sha256", "sha384", "sha512"}
 
@@ -137,11 +138,11 @@ func CompilePolicy(in SecurityOptions, material KeyMaterial, now time.Time) (Pol
 		sign.Algorithm = defaultString(sign.Algorithm, "rsa-sha256")
 		sign.Digest = defaultString(sign.Digest, "sha256")
 		sign.Canonicalization = defaultString(sign.Canonicalization, "exclusive-c14n")
-		sign.KeyID = defaultString(sign.KeyID, "binary-security-token")
+		sign.KeyID = defaultString(sign.KeyID, directKeyID)
 		if sign.KeyID == "direct" {
-			sign.KeyID = "binary-security-token"
+			sign.KeyID = directKeyID
 		}
-		if !slices.Contains(signatureAlgorithms, sign.Algorithm) || !slices.Contains(digestAlgorithms, sign.Digest) || sign.Canonicalization != "exclusive-c14n" || !slices.Contains([]string{"binary-security-token", "issuer-serial", "x509keyidentifier", "ski", "ThumbprintSHA1"}, sign.KeyID) || !selectors(sign.Headers) {
+		if !slices.Contains(signatureAlgorithms, sign.Algorithm) || !slices.Contains(digestAlgorithms, sign.Digest) || sign.Canonicalization != "exclusive-c14n" || !slices.Contains(signatureKeyIDs, sign.KeyID) || !selectors(sign.Headers) {
 			return Policy{}, ErrPolicy
 		}
 		p.Sign = &sign
@@ -249,7 +250,7 @@ func CompilePolicy(in SecurityOptions, material KeyMaterial, now time.Time) (Pol
 // RequireAvailable activates outbound credentials and the accepted core signature
 // profile plus core pinned receive verification. Additional profiles stay gated.
 func (p Policy) RequireAvailable() error {
-	if s := p.Sign; s != nil && (signatureURIs[s.Algorithm] == "" || digestURIs[s.Digest] == "" || s.Canonicalization != "exclusive-c14n" || s.KeyID != "binary-security-token") {
+	if s := p.Sign; s != nil && (signatureURIs[s.Algorithm] == "" || digestURIs[s.Digest] == "" || s.Canonicalization != "exclusive-c14n" || !slices.Contains(signatureKeyIDs, s.KeyID)) {
 		return ErrUnavailable
 	}
 

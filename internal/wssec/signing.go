@@ -26,8 +26,14 @@ func appendSignature(doc *xmlsec.Document, ns string, header *wss.Header, signin
 	if e != nil {
 		return e
 	}
-	if _, err := header.AddBinarySecurityTokenWithID(signing.Certificate(), nil, xmlsec.BSTValueTypeX509v3, "bst-1"); err != nil {
+	keyInfo, err := signingTokenReference(policy.KeyID, signing.Certificate())
+	if err != nil {
 		return ErrSignatureBuild
+	}
+	if keyInfo == nil {
+		if _, err := header.AddBinarySecurityTokenWithID(signing.Certificate(), nil, xmlsec.BSTValueTypeX509v3, "bst-1"); err != nil {
+			return ErrSignatureBuild
+		}
 	}
 	// Provider edits publish immutable snapshots: select the final nodes after edits.
 	security, err := wss.FindHeader(doc.Root(), ns, "")
@@ -51,7 +57,7 @@ func appendSignature(doc *xmlsec.Document, ns string, header *wss.Header, signin
 	}
 	_, err = dsig.Sign(doc, xmlsec.KeyProvider{Signer: signing, Certificate: signing.Certificate()}, dsig.SignOptions{
 		SignatureAlgorithm: signatureURIs[policy.Algorithm], CanonicalizationAlgorithm: string(c14n.Exclusive10), References: refs,
-		KeyInfo: dsig.KeyInfoSecurityTokenReference, SecurityTokenID: "bst-1", SignatureID: "sig-1", Parent: security,
+		KeyInfo: dsig.KeyInfoSecurityTokenReference, SecurityTokenID: "bst-1", KeyInfoElement: keyInfo, SignatureID: "sig-1", Parent: security,
 	})
 	if err != nil {
 		return ErrSignatureBuild

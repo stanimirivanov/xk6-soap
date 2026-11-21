@@ -1,7 +1,6 @@
 package wssec
 
 import (
-	"bytes"
 	"encoding/xml"
 	"errors"
 	"slices"
@@ -90,7 +89,7 @@ func Receive(status int, raw, version string, limits message.Limits, policy Rece
 		}
 	}
 	walk(doc.Root())
-	if bad || counts["Security"] != 1 || counts["Signature"] != 1 || counts["BinarySecurityToken"] != 1 || counts["Timestamp"] > 1 {
+	if bad || counts["Security"] != 1 || counts["Signature"] != 1 || counts["BinarySecurityToken"] > 1 || counts["Timestamp"] > 1 {
 		return fail("POLICY_VIOLATION")
 	}
 	attrName := "actor"
@@ -167,7 +166,7 @@ func Receive(status int, raw, version string, limits message.Limits, policy Rece
 		return fail("POLICY_VIOLATION")
 	}
 	method := info.FirstElement(xmlsec.NSDSig, "SignatureMethod")
-	if method == nil {
+	if method == nil || elementCount(method) != 0 {
 		return fail("POLICY_VIOLATION")
 	}
 	signatureURI := method.AttrValue("Algorithm")
@@ -190,11 +189,8 @@ func Receive(status int, raw, version string, limits message.Limits, policy Rece
 		}
 	}
 	bst := security.FirstElement(xmlsec.NSWSSE, "BinarySecurityToken")
-	embedded, e := wss.ParseBinarySecurityToken(bst)
-	if e != nil {
-		return fail("POLICY_VIOLATION")
-	}
-	if !compatiblePublicKey(embedded.PublicKey, algorithm) || !coreKeyInfo(signature, bst) {
+	identifier, ok := readSignatureKey(doc.Root(), signature, bst, counts["BinarySecurityToken"])
+	if !ok || identifier.embedded != nil && !compatiblePublicKey(identifier.embedded.PublicKey, algorithm) {
 		return fail("POLICY_VIOLATION")
 	}
 	normalized, _ := limits.Normalized()
@@ -203,17 +199,13 @@ func Receive(status int, raw, version string, limits message.Limits, policy Rece
 		return fail(e.Error())
 	}
 	if policy.Signature {
-		var pin *keys.Material
-		for _, candidate := range trust {
-			if candidate != nil && candidate.Validate(keys.Trust, now) == nil && bytes.Equal(candidate.Certificate().Raw, embedded.Raw) {
-				pin = candidate
-				break
-			}
-		}
-		if pin == nil {
+		pin := identifier.pinnedCertificate(trust, now)
+		if pin == nil || !compatiblePublicKey(pin.PublicKey, algorithm) {
 			return fail("SIGNATURE_INVALID")
 		}
-		coverage, e := dsig.Verify(doc.Root(), signature, dsig.VerifyOptions{Certificate: pin.Certificate(), AllowedSignatureAlgorithms: []string{signatureURI}, AllowedDigestAlgorithms: allowedDigests, AllowedCanonicalizationAlgorithms: []string{string(c14n.Exclusive10)}, MaxReferences: 16, StrictBSP: true, RequireExplicitCanonicalization: true, IDAttributes: []xdm.QName{dsig.IDAttrDSig}})
+		// The provider's BSP checker excludes inline X509v3 KeyIdentifier. This
+		// form has already passed the exact local shape, DER and pin checks above.
+		coverage, e := dsig.Verify(doc.Root(), signature, dsig.VerifyOptions{Certificate: pin, AllowedSignatureAlgorithms: []string{signatureURI}, AllowedDigestAlgorithms: allowedDigests, AllowedCanonicalizationAlgorithms: []string{string(c14n.Exclusive10)}, MaxReferences: 16, StrictBSP: !identifier.inlineX509, RequireExplicitCanonicalization: true, IDAttributes: []xdm.QName{dsig.IDAttrDSig}})
 		if e != nil || !coverage.CoversNodes(body) || stamp != nil && !coverage.CoversNodes(stamp) {
 			return fail("SIGNATURE_INVALID")
 		}
@@ -245,21 +237,6 @@ func Receive(status int, raw, version string, limits message.Limits, policy Rece
 	return projection
 }
 
-// The core receive profile supports only a local direct BST reference, including
-// when verification is skipped. No resolver or alternate key representation runs.
-func coreKeyInfo(signature, bst *xdm.Node) bool {
-	info := signature.FirstElement(xmlsec.NSDSig, "KeyInfo")
-	if info == nil || elementCount(info) != 1 {
-		return false
-	}
-	str := info.FirstElement(xmlsec.NSWSSE, "SecurityTokenReference")
-	if str == nil || elementCount(str) != 1 {
-		return false
-	}
-	ref := str.FirstElement(xmlsec.NSWSSE, "Reference")
-	id := bst.Attr(xmlsec.NSWSU, "Id")
-	return ref != nil && id != nil && xdm.IsNCName(id.StringValue()) && ref.AttrValue("URI") == "#"+id.StringValue() && ref.AttrValue("ValueType") == xmlsec.BSTValueTypeX509v3 && elementCount(ref) == 0
-}
 func elementCount(node *xdm.Node) int {
 	n := 0
 	for c := range node.Children() {

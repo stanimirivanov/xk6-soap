@@ -43,12 +43,24 @@ with envelope limits checked on the result. Per-build credential overrides are
 applied before signing and never mutate constructor defaults.
 
 [Custom signed headers and WS-Addressing](headers.md) are available in PR-16.
-Other key IDs, encryption and
-additional receive profiles remain unavailable. Unknown options, invalid keys and unsupported
+Encryption and decryption remain unavailable. Unknown options, invalid keys and unsupported
 profiles fail before transport. Raw XML payload namespace semantics, including
 QName-valued text, retain the limitations documented in the
 [signature kernel decision](adr/0002-signature-kernel.md); no inclusive-prefix
 configuration is exposed by this core profile.
+
+Set `security.sign.keyId` to choose the wire identifier:
+
+| Value | Wire representation |
+| --- | --- |
+| `binary-security-token` (default), `direct` | Local reference to an X509v3 BinarySecurityToken |
+| `issuer-serial` | X.509 issuer distinguished name and decimal serial number |
+| `x509keyidentifier` | X509v3 KeyIdentifier carrying certificate DER |
+| `ski` | KeyIdentifier carrying the certificate's Subject Key Identifier extension |
+| `ThumbprintSHA1` | KeyIdentifier carrying the certificate's SHA-1 thumbprint |
+
+SKI requires the extension on the signing certificate. ThumbprintSHA1 names
+the certificate only. Signature and reference digest algorithms remain SHA-2.
 
 Set `security.sign.algorithm` to `rsa-sha256`, `rsa-sha384`, `rsa-sha512`,
 `ecdsa-sha256`, `ecdsa-sha384` or `ecdsa-sha512`. RSA requires at least 2048

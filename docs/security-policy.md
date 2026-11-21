@@ -5,7 +5,7 @@ PR-9 implements typed policy normalization and constructor validation.
 [PR-11](signing.md) activates RSA-SHA256/SHA256/exclusive-C14N/BST signing.
 [PR-12](receive.md) activates core pinned response verification; PR-13 enforces
 configured signed Timestamp freshness. PR-16 enables [custom/header addressing
-selectors and required receive coverage](headers.md). PR-17 activates the [RSA and ECDSA SHA-2 signature and reference digest profiles](signing.md). Encryption, alternate key IDs and decryption remain unavailable in the public Client. The internal kernel probes remain
+selectors and required receive coverage](headers.md). PR-17 activates the [RSA and ECDSA SHA-2 signature and reference digest profiles](signing.md). PR-18 activates the [X.509 key identifiers](signing.md). Encryption and decryption remain unavailable in the public Client. The internal kernel probes remain
 independent gate evidence. Valid requests for unavailable features
 throw `SOAP_FEATURE_UNAVAILABLE` at construction, before measured iterations.
 
@@ -51,7 +51,7 @@ ECDSA requires the corresponding P-256/P-384/P-521 signing key. Reference digest
 choices are independently `sha256/384/512`. Key IDs are `binary-security-token`,
 `issuer-serial`, `x509keyidentifier`, `ski`, and `ThumbprintSHA1`; `direct` normalizes
 to `binary-security-token`. SKI requires the certificate extension. ThumbprintSHA1
-is a key identifier, not permission for SHA-1 signature/digest algorithms.
+identifies the certificate. Signature and reference digest algorithms remain SHA-2.
 
 Encryption definitions allow AES-128/256-GCM, RSA-OAEP-SHA256, and targets `body`,
 `content`, `headers`. Both orders are defined. Legacy algorithms, old `security.type`

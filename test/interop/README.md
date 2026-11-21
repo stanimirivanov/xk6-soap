@@ -282,3 +282,9 @@ The EC keys are generated for the fixture at build time. Each client has its
 own PKCS#12 identity, and k6 pins the corresponding server certificate.
 The checks cover the fixed-width EC values on both sides, denied algorithm
 and digest policies, and a pinned certificate on the wrong curve.
+
+`TestK6SignatureKeyIdentifiers` exchanges BST direct references, issuer/serial,
+X509v3 KeyIdentifier, SKI and thumbprint signatures with WSS4J. Each response
+also runs through a client with an unrelated pin. The direct-reference case
+substitutes the certificate carried by the BST to check that matching a pin
+still requires verification of the signature with that key.
