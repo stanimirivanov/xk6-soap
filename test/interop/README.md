@@ -274,3 +274,11 @@ Action/To/MessageID/ReplyTo on requests. Native `headers.js` verifies final sign
 responses, rejects uncovered/tampered headers and requires Apache rejection of
 request-header and MessageID tampering. These endpoints use the same synthetic
 identities, offline inputs, cold Maven/Docker gate and pinned dependencies.
+
+`TestK6SignatureAlgorithms` exercises RSA-SHA384/512 and ECDSA P-256/SHA-256,
+P-384/SHA-384 and P-521/SHA-512 in both directions between native k6 and WSS4J.
+The RSA rows deliberately use different signature and reference hashes.
+The EC keys are generated for the fixture at build time. Each client has its
+own PKCS#12 identity, and k6 pins the corresponding server certificate.
+The checks cover the fixed-width EC values on both sides, denied algorithm
+and digest policies, and a pinned certificate on the wrong curve.

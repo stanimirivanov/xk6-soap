@@ -249,11 +249,11 @@ func CompilePolicy(in SecurityOptions, material KeyMaterial, now time.Time) (Pol
 // RequireAvailable activates outbound credentials and the accepted core signature
 // profile plus core pinned receive verification. Additional profiles stay gated.
 func (p Policy) RequireAvailable() error {
-	if s := p.Sign; s != nil && (s.Algorithm != "rsa-sha256" || s.Digest != "sha256" || s.Canonicalization != "exclusive-c14n" || s.KeyID != "binary-security-token") {
+	if s := p.Sign; s != nil && (signatureURIs[s.Algorithm] == "" || digestURIs[s.Digest] == "" || s.Canonicalization != "exclusive-c14n" || s.KeyID != "binary-security-token") {
 		return ErrUnavailable
 	}
 
-	if r := p.Receive; r.Signature && (len(r.SignatureAlgorithms) != 1 || r.SignatureAlgorithms[0] != "rsa-sha256" || len(r.DigestAlgorithms) != 1 || r.DigestAlgorithms[0] != "sha256" || len(r.EncryptedHeaders) != 0) {
+	if r := p.Receive; r.Signature && (!algorithmList(r.SignatureAlgorithms, signatureAlgorithms) || !algorithmList(r.DigestAlgorithms, digestAlgorithms) || len(r.EncryptedHeaders) != 0) {
 		return ErrUnavailable
 	}
 
@@ -292,9 +292,13 @@ func compatible(m *keys.Material, algorithm string) bool {
 	if m == nil {
 		return false
 	}
-	switch pub := m.Public().(type) {
+	return compatiblePublicKey(m.Public(), algorithm)
+}
+
+func compatiblePublicKey(key any, algorithm string) bool {
+	switch pub := key.(type) {
 	case *rsa.PublicKey:
-		return slices.Contains([]string{"rsa-sha256", "rsa-sha384", "rsa-sha512"}, algorithm)
+		return pub.N.BitLen() >= 2048 && (algorithm == "rsa-sha256" || algorithm == "rsa-sha384" || algorithm == "rsa-sha512")
 	case *ecdsa.PublicKey:
 		return algorithm == "ecdsa-sha256" && pub.Curve == elliptic.P256() || algorithm == "ecdsa-sha384" && pub.Curve == elliptic.P384() || algorithm == "ecdsa-sha512" && pub.Curve == elliptic.P521()
 	}

@@ -44,5 +44,5 @@ func signingCertificate(t *testing.T) *x509.Certificate {
 
 func TestPublicSigningRejectsUnsupportedProfiles(t *testing.T) {
 	rt := keyRuntime(t, New())
-	js(t, rt.VU.Runtime(), `for(const sign of [{algorithm:'rsa-sha384'},{digest:'sha384'},{keyId:'issuer-serial'},{keyId:'ski'}]){let caught=false;try{new Client({url:'https://example.test',keys:{signing:{cert,key}},security:{sign,verify:{signature:false}}});}catch(e){caught=true;if(e.code!=='SOAP_FEATURE_UNAVAILABLE')throw e;}if(!caught)throw new Error('unsupported signing profile activated');}`)
+	js(t, rt.VU.Runtime(), `for(const sign of [{keyId:'issuer-serial'},{keyId:'ski'}]){let caught=false;try{new Client({url:'https://example.test',keys:{signing:{cert,key}},security:{sign,verify:{signature:false}}});}catch(e){caught=true;if(e.code!=='SOAP_FEATURE_UNAVAILABLE')throw e;}if(!caught)throw new Error('unsupported signing profile activated');}`)
 }

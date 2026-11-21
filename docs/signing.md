@@ -1,7 +1,7 @@
-# Core signed SOAP requests
+# Signed SOAP requests
 
-PR-11 enables outbound RSA-SHA256 signatures with SHA256 reference digests,
-exclusive C14N and a BinarySecurityToken direct reference (`keyId:'direct'` is
+Signing defaults to RSA-SHA256 with SHA-256 reference digests, exclusive C14N
+and a BinarySecurityToken direct reference (`keyId:'direct'` is
 an alias for `binary-security-token`). Body and Timestamp are always signed;
 a configured UsernameToken is also signed. SOAP 1.1 and 1.2 use the same profile.
 
@@ -43,12 +43,25 @@ with envelope limits checked on the result. Per-build credential overrides are
 applied before signing and never mutate constructor defaults.
 
 [Custom signed headers and WS-Addressing](headers.md) are available in PR-16.
-Other signing algorithms/digests/key IDs, encryption and
+Other key IDs, encryption and
 additional receive profiles remain unavailable. Unknown options, invalid keys and unsupported
 profiles fail before transport. Raw XML payload namespace semantics, including
 QName-valued text, retain the limitations documented in the
 [signature kernel decision](adr/0002-signature-kernel.md); no inclusive-prefix
 configuration is exposed by this core profile.
+
+Set `security.sign.algorithm` to `rsa-sha256`, `rsa-sha384`, `rsa-sha512`,
+`ecdsa-sha256`, `ecdsa-sha384` or `ecdsa-sha512`. RSA requires at least 2048
+bits. The ECDSA choices require P-256, P-384 and P-521 respectively and use
+64-, 96- and 132-byte XMLDSig signature values before Base64 encoding.
+`security.sign.digest` independently selects `sha256`, `sha384` or `sha512`
+for the reference digests.
+
+To accept a peer's non-default response algorithms, set
+`security.verify.signatureAlgorithms` and `security.verify.digestAlgorithms`
+explicitly. For example, `{signatureAlgorithms:['ecdsa-sha384'],
+digestAlgorithms:['sha384']}` accepts that combination with a pinned P-384
+certificate. Outbound settings do not expand the receive defaults.
 
 Tests verify deterministic compatibility with the accepted RSA/canonical fixtures,
 exact node coverage and digests after final wire parsing, tamper and size failures,

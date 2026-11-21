@@ -1,8 +1,10 @@
-# Core verified responses
+# Verified responses
 
-PR-12 enables RSA-SHA256/SHA256, exclusive C14N (including validated inclusive
-prefix lists), BST direct-reference response verification with exact leaf DER
-pins. HTTP stays in k6/http. Plain SOAP behavior remains available.
+Responses use the configured RSA or ECDSA SHA-2 policy, exclusive C14N
+(including validated inclusive prefix lists), and BST direct references with
+exact leaf DER pins. The receive defaults are RSA-SHA256 and SHA-256.
+[Configure expanded signature and digest allow-lists](signing.md) for peers
+using other supported algorithms.
 
 ```js
 import {Client} from 'k6/x/soap';
@@ -34,9 +36,7 @@ chain building or system roots are used.
 The acceptance path checks configured SOAP version, input/structure limits, unique
 IDs, one targeted Security header, one direct BST and one signature, and at most
 one Timestamp. Unsupported algorithms, transforms, key representations, encryption
-and ambiguous security structure fail closed. Current required custom headers and
-WS-Addressing receive paths remain gated until their implementation tasks; present
-WS-Addressing headers are rejected by verified core receive.
+and ambiguous security structure fail closed. [Required custom headers and WS-Addressing](headers.md) are subject to the same exact coverage checks.
 
 References must cover the actual direct Body and any present Timestamp. The
 provider verifies the exact nodes in one request-local tree. Canonicalization of
@@ -83,7 +83,7 @@ clock offset/TTL; neither silently widens receive tolerance.
 Freshness is distinct from replay detection. Repeated parsing of the same valid
 response is permitted while it remains fresh; no receive replay cache is introduced.
 [Required signed custom headers and WS-Addressing coverage](headers.md) are available.
-Encryption/order/decryption, broader algorithms and key IDs remain gated. No broader signed-response checkpoint is claimed by this task alone.
+Encryption, decryption and alternate key IDs remain gated. No broader signed-response checkpoint is claimed by this task alone.
 
 Evidence includes hostile exact-coverage/duplicate-ID fixtures, a different DER
 certificate with the same public key, overlapping pins, namespace-preserving

@@ -15,14 +15,14 @@ import (
 
 var ErrSignatureBuild = errors.New("SOAP_SIGNATURE_BUILD_FAILED")
 
-func appendSignature(doc *xmlsec.Document, ns string, header *wss.Header, signing *keys.Material, token bool, selected []string, selectors []message.HeaderSelector) error {
+func appendSignature(doc *xmlsec.Document, ns string, header *wss.Header, signing *keys.Material, token bool, policy *SigningPolicy, selectors []message.HeaderSelector) error {
 	body := element(doc.Root()).FirstElement(ns, "Body")
 	// AssignIDWith preserves an existing ID. Never let a payload decoy take
 	// the fixed reference while the actual Body retains a different ID.
 	if id, err := wss.AssignIDWith(doc, body, "body-1"); err != nil || id != "body-1" {
 		return ErrSignatureBuild
 	}
-	headerIDs, e := assignHeaderIDs(doc, ns, selected, selectors)
+	headerIDs, e := assignHeaderIDs(doc, ns, policy.Headers, selectors)
 	if e != nil {
 		return e
 	}
@@ -47,10 +47,10 @@ func appendSignature(doc *xmlsec.Document, ns string, header *wss.Header, signin
 	}
 	refs := make([]dsig.Reference, 0, len(ids))
 	for _, id := range ids {
-		refs = append(refs, dsig.Reference{URI: "#" + id, DigestAlgorithm: xmlsec.DigestSHA256, Transforms: []dsig.TransformSpec{{Algorithm: string(c14n.Exclusive10)}}})
+		refs = append(refs, dsig.Reference{URI: "#" + id, DigestAlgorithm: digestURIs[policy.Digest], Transforms: []dsig.TransformSpec{{Algorithm: string(c14n.Exclusive10)}}})
 	}
 	_, err = dsig.Sign(doc, xmlsec.KeyProvider{Signer: signing, Certificate: signing.Certificate()}, dsig.SignOptions{
-		SignatureAlgorithm: xmlsec.SigRSASHA256, CanonicalizationAlgorithm: string(c14n.Exclusive10), References: refs,
+		SignatureAlgorithm: signatureURIs[policy.Algorithm], CanonicalizationAlgorithm: string(c14n.Exclusive10), References: refs,
 		KeyInfo: dsig.KeyInfoSecurityTokenReference, SecurityTokenID: "bst-1", SignatureID: "sig-1", Parent: security,
 	})
 	if err != nil {

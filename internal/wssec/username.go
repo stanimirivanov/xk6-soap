@@ -49,7 +49,7 @@ func BuildSecurity(raw []byte, p Policy, signing *keys.Material, now time.Time, 
 		return nil, err
 	}
 	if p.Sign != nil {
-		if signing == nil || signing.Validate(keys.Signing, now) != nil || !certificateOK(signing.Certificate(), now) {
+		if signing == nil || signing.Validate(keys.Signing, now) != nil || !compatible(signing, p.Sign.Algorithm) {
 			return nil, ErrPolicyKey
 		}
 		if p.Timestamp == nil {
@@ -125,7 +125,7 @@ func BuildSecurity(raw []byte, p Policy, signing *keys.Material, now time.Time, 
 		}
 	}
 	if p.Sign != nil {
-		if e = appendSignature(doc, ns, header, signing, p.UsernameToken != nil, p.Sign.Headers, selectors); e != nil {
+		if e = appendSignature(doc, ns, header, signing, p.UsernameToken != nil, p.Sign, selectors); e != nil {
 			return nil, e
 		}
 	}
