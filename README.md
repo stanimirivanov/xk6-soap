@@ -48,6 +48,13 @@ service. [Client API](docs/plain-api.md) · [Key formats](docs/keys.md) ·
 - [JMeter migration mapping](docs/jmeter-map.md) maps protocol settings. JMeter parity is unverified.
 - [Architecture](docs/architecture.md), [decision index](docs/adr/README.md) and [M01 plan](tasks/plan.md) describe ownership, architectural proof and remaining work.
 
+## Compatibility and release
+
+The supported row is Go 1.27.4 and k6 v2.4.0 on Linux amd64, built with xk6
+v1.5.1. Build locally with `make build-k6` or run `make compatibility` to verify
+the binary and run the runtime tests. The [release checklist](docs/release.md)
+covers reproducibility, notices, registry submission and hosted execution limits.
+
 ## Development
 
 Requires Git, Make, the pinned Go toolchain and a C compiler for the race

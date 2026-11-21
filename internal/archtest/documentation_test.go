@@ -21,6 +21,7 @@ func TestContractDocumentationReferences(t *testing.T) {
 		"README.md", "docs/architecture.md", "docs/contracts.md", "docs/jmeter-map.md",
 		"docs/adr/README.md", "docs/keys.md", "docs/object-payloads.md", "docs/plain-api.md",
 		"docs/security-policy.md", "test/interop/README.md", "tasks/plan.md",
+		"docs/release.md", "RELEASE_NOTES.md", "THIRD_PARTY_NOTICES.md",
 	} {
 		t.Run(doc, func(t *testing.T) {
 			root := filepath.Join("..", "..")

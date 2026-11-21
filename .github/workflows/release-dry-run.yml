@@ -1,0 +1,39 @@
+name: Release dry run
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/release-dry-run.yml'
+      - '.go-version'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Makefile'
+      - 'LICENSE'
+      - 'THIRD_PARTY_NOTICES.md'
+      - 'RELEASE_NOTES.md'
+      - 'docs/release.md'
+      - 'scripts/release*'
+      - 'test/release/**'
+permissions:
+  contents: read
+jobs:
+  rehearse:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: .go-version
+          cache: true
+      - run: make release-dry-run
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: release-dry-run-report
+          path: |
+            bin/release-dry-run/metadata.json
+            bin/release-dry-run/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 7
