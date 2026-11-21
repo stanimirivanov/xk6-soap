@@ -1,68 +1,51 @@
-# xk6-soap — Research and Architecture Specification, Revision 4
+# xk6-soap architecture
 
-Status: proposed replacement for Rev 3; 18 November 2026. Companion: [review](review.md) and [M01 plan](../tasks/plan.md). All defaults below are proposed contracts, not implemented behavior. Approval of the documentation does not establish library suitability or authorize a release.
+This document describes the implemented M01 architecture. [Supported contracts and evidence](contracts.md) ties behavior to tests. The [decision index](adr/README.md) records the architectural gates, and the [M01 plan](../tasks/plan.md) tracks release preparation.
 
 ## 1. Objective and scope
 
-Enable k6 scripts to build and consume SOAP messages with WS-Security while retaining k6 HTTP transport, TLS configuration and native HTTP metrics. Success means independently verified interoperability, predictable failure behavior and bounded load-generator overhead.
+The extension builds and consumes SOAP messages with WS-Security. k6 owns HTTP transport, TLS configuration and native HTTP metrics. SOAP interpretation remains a separate boundary.
 
-M01 retains SOAP 1.1/1.2, raw and object payloads, faults/XPath, UsernameToken Digest/Text, Timestamp, RSA/ECDSA SHA-2 signatures, the specified X.509 key identifiers, WS-Addressing signing, AES-GCM/RSA-OAEP, both protection orders, body/content/header targets, PEM/PKCS#12, metrics, safe diagnostics, WSS4J/CXF interop and release preparation.
+M01 implements SOAP 1.1/1.2, raw and object payloads, faults/XPath, UsernameToken Digest/Text, Timestamp, RSA/ECDSA SHA-2 signatures, the specified X.509 key identifiers, WS-Addressing signing, AES-GCM/RSA-OAEP, both protection orders, body/content/header targets, PEM/PKCS#12, metrics and metadata-only diagnostics. A pinned WSS4J/CXF fixture supplies independent interoperability evidence.
 
 M02 remains a separately approved legacy profile: RSA-SHA1, SHA-1 XML reference digests, CBC/3DES, RSA v1.5 and OAEP-MGF1P. No automatic algorithm fallback. SAML, secure conversation, Kerberos, MTOM, JKS, WSDL/code generation, WS-SecurityPolicy negotiation, full PKI/revocation infrastructure and other server families are excluded. No pre-signed message cache or Go-side HTTP transport.
 
 ## 2. Evidence and dependency decisions
 
-| Component | Proposed decision | Evidence and remaining proof |
+| Component | Current implementation | Evidence |
 | --- | --- | --- |
-| Module | `github.com/stanimirivanov/xk6-soap`; Apache-2.0 | Existing remote and LICENSE inspected |
-| k6 | Candidate pin `v2.3.0`, module `go.k6.io/k6/v2` | [Pinned go.mod](https://github.com/grafana/k6/blob/v2.3.0/go.mod) declares Go 1.26.0; [module API](https://github.com/grafana/k6/blob/v2.3.0/js/modules/modules.go) inspected; constructor/metrics/build remain to be tested |
-| Crypto/XML | Candidate `github.com/knroy/go-xmlsec/v2 v2.0.2` | [go.mod](https://github.com/knroy/go-xmlsec/blob/v2.0.2/go.mod), [receive helpers](https://github.com/knroy/go-xmlsec/blob/v2.0.2/wss/receive.go), [timestamp helpers](https://github.com/knroy/go-xmlsec/blob/v2.0.2/wss/timestamp.go) inspected; compile, coverage API and independent interop are gates |
-| PKCS#12 | `software.sslmate.com/src/go-pkcs12`, decoding use only | [API](https://pkg.go.dev/software.sslmate.com/src/go-pkcs12); exact version selected and tested in key task |
-| XPath | `antchfx/xmlquery` and its XPath engine | Candidate only; exact versions, limits and namespace/result behavior verified before adoption |
-| Fixture | Apache CXF with WSS4J | [WSS4J guide](https://ws.apache.org/wss4j/user_guide.html); compatible exact CXF/WSS4J/JDK versions and container digest selected by fixture task |
+| Module | `github.com/stanimirivanov/xk6-soap`; Apache-2.0 | [License](../LICENSE) |
+| Go and k6 | Go 1.27.4, k6 v2.4.0 and the selected Sobek version | [.go-version](../.go-version) · [go.mod](../go.mod) · [Runtime ADR](adr/0001-k6-runtime-contract.md) |
+| Crypto and XML | `go-xmlsec/v2` v2.0.2 and `go-xml/v2` v2.2.0 behind `internal/wssec` | [Signature gate](adr/0002-signature-kernel.md) · [Encryption gate](adr/0003-encryption-kernel.md) |
+| PKCS#12 | `software.sslmate.com/src/go-pkcs12` v0.7.4 for decoding | [Key formats and validation](keys.md) |
+| XPath | `xmlquery` v1.5.2 and `xpath` v1.3.9 on an accepted Body projection | [XPath boundary](plain-api.md#xpath-boundary) |
+| Apache fixture | CXF 4.2.4 and aligned WSS4J 4.0.3 runtime modules | [Fixture pins and evidence](../test/interop/README.md) |
 
-Do not infer acceptance from README claims of audit, coverage or interoperability. Record tag/commit, checksum, license, dependency graph and proof results in the kernel ADR. Use a pinned Go patch version meeting all dependency floors; `GOTOOLCHAIN=auto` alone is not reproducibility. No compiled compatibility matrix currently exists.
+The module and build files own current pins. ADRs preserve the versions tested at
+the time of each decision. The runtime contract is tested at the current pin. A
+broader supported-version matrix is part of release preparation.
 
 ## 3. Capability boundaries
 
 | Component | Owns | Depends on |
 | --- | --- | --- |
-| JS adapter | Sobek decoding, per-VU objects, error conversion | Request/response services |
-| Message model | SOAP structure, payloads, header selectors, operation names | Bounded XML model |
-| Security policy | Permitted algorithms, trust, expected coverage and order | Key material and provider |
-| Provider adapter | One document tree, C14N, sign/verify/encrypt/decrypt | Candidate XML/crypto libraries |
-| Response service | Security acceptance, faults and safe XPath view | Message model and policy |
+| Root package | Sobek decoding, Client lifecycle, per-VU state, diagnostics and error conversion | k6 runtime, message, key and WS-Security boundaries |
+| `internal/message` | SOAP structure, payloads, header selectors, operation names, faults and XPath | Bounded XML and XPath libraries |
+| `internal/keys` | Decode, validate and cache immutable cryptographic material | Go crypto and PKCS#12 decoder |
+| `internal/wssec` | Policy normalization, one-tree coverage, accepted security state and encryption order | Message, keys and pinned XML security provider |
 | Observability | Fixed metadata, timings, result rates | VU metric APIs |
 
-Implement a small internal provider adapter rather than a public plugin framework. Provider results must identify verified nodes and recovered encrypted regions, not just a boolean. Its receive operation owns the order-sensitive processing and never returns unaccepted plaintext. Do not pass a signed document through a second XML serializer. XPath may use a read-only projection of accepted content; it must never participate in signature verification.
+The internal provider adapter binds verified nodes and recovered regions to the content the caller will consume. It owns order-sensitive security processing and withholds plaintext on rejection. Build returns the provider's signed wire bytes. XPath evaluates the accepted Body projection after security acceptance. The adapter is internal to the module.
 
-Suggested files: `soap.go`, `client.go`, `options.go`, `errors.go`, `request.go`, `marshal.go`, `headers.go`, `parse.go`, `keys.go`, `metrics.go`; `internal/wssec/`, `test/e2e/`, `test/interop/`, `docs/`, `tasks/`. Split by cohesive responsibility as code develops, not by a mandatory file count. Use gofmt, explicit typed options and errors, table tests and the pinned k6 runtime harness.
+[HARNESS.md](../HARNESS.md) maps source files, ownership and the tested dependency rules.
 
 ## 4. Lifecycle and JavaScript contract
 
-Register `k6/x/soap`; export named `Client`. `NewModuleInstance(vu)` returns `modules.Instance`, without an error return. Each VU owns its JS values and message state. The RootModule owns only concurrency-safe immutable key entries and metric descriptors.
+The module registers as `k6/x/soap` and exports the named `Client`. `NewModuleInstance(vu)` returns `modules.Instance`, without an error return. Each VU owns its JS values and message state. The RootModule owns the shared key cache and synchronized per-registry metric registration. Cached key entries are immutable.
 
-Construct clients in init context. Validate all nested option keys/types and load/validate key material there so invalid credentials fail before measured iterations. Reject construction in execution context. `build()` and `parse()` require execution context (including setup/teardown when a k6 state exists); reject init-context calls. Probe these context rules and registration once in the scaffold. Check cancellation between bounded processing stages; do not promise hard interruption of crypto/library calls.
+Construct clients in init context. Validate all nested option keys/types and load/validate key material there so invalid credentials fail before measured iterations. Reject construction in execution context. `build()` and `parse()` require execution context (including setup/teardown when a k6 state exists); reject init-context calls. The runtime tests cover these context rules and registration. The extension checks cancellation between bounded processing stages; a crypto or library call can run until it returns.
 
-```js
-import { Client } from 'k6/x/soap';
-import http from 'k6/http';
-import { check } from 'k6';
-
-const client = new Client({ url: 'https://example.test/service', soapVersion: '1.2' });
-export default function () {
-  const request = client.build('GetHolidays',
-    '<m:GetHolidays xmlns:m="urn:holidays"><m:country>US</m:country></m:GetHolidays>',
-    { soapAction: 'urn:holidays:GetHolidays' });
-  const response = http.post(request.url, request.body, {
-    headers: request.headers, responseType: 'text', redirects: 0,
-  });
-  const parsed = client.parse(response);
-  check(parsed, { 'SOAP succeeded': (p) => p.ok });
-}
-```
-
-The example is plain SOAP; secure examples must configure keys and receive policy explicitly. k6 `check` needs a failure threshold in automated tests to fail the process.
+The [runnable examples](../README.md#run-an-example) exercise HTTP transport and SOAP thresholds with the real custom k6 binary.
 
 `build(operation, payload, opts)` returns `{url, body, headers, buildDuration}`; duration is milliseconds. URL is fixed at construction, absolute HTTP(S), without embedded credentials. `opts` permits only `soapAction`, `credentials`, `headers`, `addressing` as defined below. Operation is a validated NCName, also used as the object wrapper. Key roles and security policy cannot be overridden per request. Invalid local arguments, key errors, cancellation or RNG/build failures throw a sanitized error with stable `code` and `stage`.
 
@@ -82,7 +65,7 @@ The example is plain SOAP; secure examples must configure keys and receive polic
 
 ## 6. Security configuration
 
-Separate independent features instead of the old ambiguous `security.type` union. Absence of `security` means plain SOAP. Each present feature block is enabled; absence disables it. Unknown or unavailable options fail explicitly.
+Security uses independent typed blocks. The former `security.type` shape is rejected. Absence of `security` means plain SOAP. Each present feature block is enabled; absence disables it. Unknown or unavailable options fail explicitly.
 
 | Block | Fields and defaults |
 | --- | --- |
@@ -97,7 +80,7 @@ Signing always covers the actual SOAP Body. Signing also creates and signs a Tim
 
 UsernameToken alone adds a Timestamp by default. Overrides in `opts.credentials` require both user and password and never mutate defaults. Nonce is 16 CSPRNG bytes, regenerated with Created on each build. Digest is Base64(SHA-1(nonce bytes + UTF-8(serialized Created) + UTF-8(password))). PasswordText is explicit. This protocol SHA-1 use is distinct from legacy XML signature/digest algorithms. See [UsernameToken profile §3](https://docs.oasis-open.org/wss-m/wss/v1.1.1/os/wss-UsernameTokenProfile-v1.1.1-os.html). HTTPS is recommended; neither password form substitutes for transport security.
 
-Signature algorithms: RSA PKCS#1 v1.5 SHA-256/384/512; ECDSA P-256/SHA-256, P-384/SHA-384, P-521/SHA-512 only. Reference digests SHA-256/384/512. ECDSA wire signatures use the fixed-width r||s representation defined in [XML Signature 1.1](https://www.w3.org/TR/xmldsig-core1/). RSA keys must be at least 2048 bits. Exclusive C14N without comments is the only signature transform; explicitly support a validated InclusiveNamespaces prefix list on receive, with independent fixture coverage. External references, XSLT, XPath signature transforms and algorithm fallback are rejected. Application XPath queries are unrelated.
+Signature algorithms: RSA PKCS#1 v1.5 SHA-256/384/512; ECDSA P-256/SHA-256, P-384/SHA-384, P-521/SHA-512 only. Reference digests SHA-256/384/512. ECDSA wire signatures use the fixed-width r||s representation defined in [XML Signature 1.1](https://www.w3.org/TR/xmldsig-core1/). RSA keys must be at least 2048 bits. Exclusive C14N without comments is the only signature transform; receive supports a validated InclusiveNamespaces prefix list exercised by the independent fixture. External references, XSLT, XPath signature transforms and algorithm fallback are rejected. Application XPath queries are unrelated.
 
 `binary-security-token` is an embedded X509v3 BST with direct reference; `direct` is an alias normalized to it, not another wire format. Other key identifiers are issuer-serial, x509keyidentifier, ski (certificate extension required), and ThumbprintSHA1. Key identifiers locate candidates among pinned trust; they never authorize an untrusted embedded key. ThumbprintSHA1 does not enable SHA-1 signatures.
 
@@ -121,7 +104,7 @@ Receive `signedHeaders` and `encryptedHeaders` are lists of `{namespace, localNa
 
 Inbound signature/digest allow-lists default to RSA-SHA256 and SHA-256, independent of outbound selections; expand explicitly for ECDSA/breadth fixtures. Disabled signature verification yields `sigVerified: null`, even if an unverified signature is present. An explicitly unsigned policy does not confer authenticity. Out-of-profile algorithms and unsupported security structures are still rejected rather than executed.
 
-1. Validate status/body availability and bounded XML syntax/structure; require the configured SOAP version, unique IDs across all recognized ID forms, one targeted Security header, and at most one signature, Timestamp and EncryptedKey. No external URI resolution.
+1. Validate status/body availability and bounded XML syntax/structure; require the configured SOAP version and unique IDs across recognized ID forms. Secured profiles permit one targeted Security header with at most one signature, Timestamp and EncryptedKey. No external URI resolution.
 2. Enforce required security presence, algorithms, key selection and encryption targets before expensive work. `requireEncryption` means all SOAP Body application content was encrypted; a header-only encrypted message does not satisfy it.
 3. For encrypt-then-sign, verify the untouched ciphertext tree and coverage of the Body, required Timestamp, all selected encrypted header wrappers and EncryptedKey before decryption. Then decrypt accepted regions in private state and retain provenance. For sign-then-encrypt, decrypt authenticated GCM regions in private state, then verify recovered Body/Timestamp/selected headers. Never expose partial plaintext on failure. GCM authentication does not establish a trusted sender.
 4. After each decryption, reapply byte/structure/ID limits. Enforce coverage by exact node identity and location, not a matching name or ID string. Faults and XPath consume only the accepted Body. If signature verification is enabled, an encrypted response requires a valid signature even when encryption itself was optional. A parse/projection disagreement fails closed.
@@ -136,7 +119,7 @@ Error precedence: transport/body availability, XML/limits, security policy/crypt
 
 ## 9. Limits, diagnostics and metrics
 
-Default limits: 4 MiB input/output envelope, 4 MiB total recovered plaintext, XML depth 64, 50,000 nodes, 64 attributes per element, 16 signature references/encrypted parts, 16 custom headers, 8 trust pins, 1 MiB per key input, XPath expression 4096 bytes and 1000 result items. Positive configurable limits may increase to documented hard ceilings established in the limits task; until those ceilings are measured, increases are rejected. No unbounded global XPath compilation cache. Apply limits to output generation too. Fail before allocating full oversized decoded/ciphertext structures where possible.
+Default limits: 4 MiB input/output envelope, 4 MiB total recovered plaintext, XML depth 64, 50,000 nodes, 64 attributes per element, 16 signature references/encrypted parts, 16 custom headers, 8 trust pins, 1 MiB per key input, XPath expression 4096 bytes and 1000 result items. Positive client XML limits can only reduce defaults. Output generation and recovered plaintext have separate bounds. XPath has no global compilation cache. Structural checks bound decoded and recovered data before projection.
 
 `debug: true` emits stage, duration, selected algorithm and stable failure code only through the VU logger. Never emit payloads, canonical octets, credentials, UsernameToken digests, keys, certificates, URIs from hostile input or fault details. Canonical-octet artifacts are test-only synthetic data. Native `--http-debug` is outside extension redaction and may disclose wire contents.
 
@@ -151,20 +134,33 @@ Register once in init through the pinned k6 registry; no collision-based redefin
 
 ## 10. Verification, performance and delivery
 
-Use unit tables, runtime integration, race tests, fuzz seeds, k6-to-mock E2E and independently generated WSS4J requests/responses. The kernel gate must demonstrate both directions of signing and encryption for the core profile, both orders and tamper rejection before integration. Breadth has separate gates; passing core is not proof of ECDSA, key-ID or header support. Test encrypted faults, missing/unsigned required parts, duplicate IDs, decoy Body, bad GCM tag, incorrect trust/password, unsupported algorithms and allocation limits.
+The [contract report](contracts.md) links unit, runtime, E2E and independent
+Apache tests. The [matrix manifest](../test/interop/matrix.json) records actual
+cross-peer combinations. Core kernel evidence covers both protection orders;
+separate native exchanges exercise the signature algorithms, key identifiers,
+header coverage, encrypted faults and rejected messages. Golden bytes cover
+deterministic wire and C14N artifacts. Randomized crypto uses semantic and
+independent verification. Bounded fuzz targets exercise SOAP, complete receive
+processing and the JavaScript argument boundary.
 
-Golden bytes apply to deterministic envelopes/C14N and fixed RSA-PKCS1v1.5 signing fixtures. ECDSA/OAEP/GCM use semantic and independent verification; never weaken production randomness to stabilize tests. Fuzz initial XML, decrypted XML, policy extraction and Fault parsing. Audit new direct/transitive dependencies and enforce `govulncheck` on the pinned graph.
+The [performance and retention report](../test/perf/README.md) records the pinned
+runner and fixtures, cold key init, warmed build/parse timings and allocations,
+native k6 throughput and CPU, and post-GC retention. `make bench` compares
+against frozen regression limits. The nightly workflow requires the dedicated
+runner. The baseline makes no absolute latency claim.
 
-Performance reports include build AND parse, allocations, retained heap, goroutines, throughput and generator CPU. Record cold key initialization separately from warmed message processing. Baseline on a named fixed runner with explicit Go/k6/crypto pins, RSA-2048, 2 KiB body, 500 VUs × 100 iterations, plus an arrival-rate scenario detecting dropped iterations. Freeze numeric limits before making them gates; do not derive a fresh passing threshold from every run. Proposed regression budget is 20% above a reviewed stable baseline; it is a regression guard, not an absolute latency SLA.
+`make verify` runs lint, architecture and documentation reference checks, race
+tests, build and dependency verification. `make e2e` and `make interop` run the
+public examples with real k6. The other gates include `make smoke`,
+`make fuzz-smoke` and `make vuln`.
 
-Implementation commands, created by the scaffold: `make lint`, `make test` (`go test -race ./...`), `make vuln`, `make build-k6`, `make e2e`, `make interop`, and `make fuzz-smoke`. The separate [performance gate](../test/perf/README.md) is `make bench`. Always validate affected behavior; never replace failed independent interop with provider self-round-trip. A failed candidate gate triggers an ADR and revised proposal, not silent fallback.
+## 11. Remaining evidence
 
-Use the adopted GitHub workflow per implementation issue: clean baseline, fast-forward main, milestone-linked issue, issue branch, focused verification, final review, prefixed commit, push and PR, then stop. Release preparation supplies a dry-run and compatibility matrix; publishing a tag/release and merging require explicit instructions.
-
-## 11. Decisions still requiring evidence or user preference
-
-- Candidate dependency and exact toolchain/fixture pins, constructor/metric behavior and the one-tree coverage API: resolved by feasibility tasks, not assumed from this document.
-- Actual JMeter plugin identity/version and sanitized captures: required for migration claims. Spec vectors establish protocol tests only.
-- Production response security/order, expected header policy and acceptable limits: proposed defaults above must be compared to target services.
-- Performance runner and absolute latency budget: baseline/report task supplies evidence; no absolute SLA invented here.
-- Legacy receive support and any cgo alternative: separate M02 security design; no automatic escape hatch in M01.
+- [JMeter migration](jmeter-map.md) remains unverified until the plugin and
+  reference captures are identified.
+- A dedicated nightly benchmark comparison remains outstanding. The frozen
+  baseline and shared-host replay outcome are documented separately.
+- Target services need their own peer policy and compatibility checks.
+  [Scope and limitations](contracts.md#limits-and-deferred-features)
+- PR-27 tracks the supported-version matrix, reproducible build instructions and
+  release dry-run. [M01 plan](../tasks/plan.md)

@@ -24,9 +24,11 @@ New commands supplied by PR-1: `make lint`, `make test` (race-enabled), `make vu
 | CP-P: release evidence | 14, 15, 25, 26 | Public API/metrics exercised; frozen benchmark and completed interop documentation |
 | CP-R: release ready | 27 | Supported-version matrix and release dry-run; no publication |
 
-CP-K passed for the bounded core profile in [ADR-0003](../docs/adr/0003-encryption-kernel.md); this does not enable the planned public crypto paths.
+CP-K passed for the bounded core profile in [ADR-0003](../docs/adr/0003-encryption-kernel.md). The subsequent public-path evidence is indexed in [supported contracts](../docs/contracts.md).
 
 CP-T1 passes for the selected Apache UsernameToken/Timestamp profile; [evidence and the unverified JMeter comparison](../docs/username-token.md) record its limits.
+
+The [CP-P evidence report](../docs/contracts.md#cp-p-performance-and-release-evidence) links PR-14 metrics, PR-15 object payload mapping, the independent interop matrix and the frozen performance baseline. It records pending dedicated-runner verification and JMeter migration evidence.
 
 PR-11 through PR-24 crypto paths transitively require CP-K via explicit dependencies. Plain SOAP/object work may proceed independently. Serialize commits touching shared options, provider and module lockfiles. Parallel scheduling is optional; this plan does not require additional agents. Core kernel failure blocks dependent work and requires an evidence-based ADR/replan; changing the fixture to weaken required security is not a valid fix.
 
