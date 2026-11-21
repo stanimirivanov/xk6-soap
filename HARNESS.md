@@ -30,6 +30,7 @@ test/AGENTS.md              runtime/interop fixture rules
 test/smoke.js               actual custom-k6 positive and negative runtime probe
 test/fixture/              bounded synthetic SOAP HTTP server and capture
 test/e2e/                  bounded subprocess runner and raw SOAP k6 script
+test/perf/                 fixed workloads, frozen baseline and comparison runner
 Makefile, .go-version        canonical commands and exact tool versions
 scripts/                    smoke runner and non-destructive hook installer
 .githooks/pre-commit         local quality checks (opt-in)
@@ -70,8 +71,10 @@ possible. Remove guidance that duplicates an effective check.
 | `make deps` | Non-mutating module tidy diff and downloaded-module checksum verification | Local/CI |
 | `make test-hooks` | Existing-hook preservation, snapshot refusal, check-failure propagation | Local/CI |
 | `make build` | All module packages compile | Local/CI |
+| `make perf-budget-test` | Budget comparison and committed baseline integrity | Local/CI |
 | `make verify` | All of the preceding non-mutating checks | Pre-commit/CI quality |
 | `make smoke` | Pinned xk6 builds a binary; valid runtime succeeds and forced failed check exits 99 | CI runtime |
+| `make bench` | Frozen Go, native k6 and post-GC budgets on the pinned host | Dedicated nightly runner |
 | `make fuzz-smoke` | Bounded Go fuzz runs for SOAP, security receive and JavaScript policy boundaries | Local and scheduled CI |
 | `make interop` | Independent Docker CXF/WSS4J credentials, signature and encryption/order fixture | CI interop |
 | `make e2e` | Real k6 HTTP fixture scenarios and exact exit-99 negative control | CI runtime |

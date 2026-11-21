@@ -1,0 +1,26 @@
+{
+  "payload_bytes": 2048,
+  "signing_key": "RSA-2048 PEM",
+  "modes": ["plain", "signed", "ste", "ets"],
+  "repeats": 3,
+  "go_benchmark_window_ms": 300,
+  "fixed": {
+    "vus": 500,
+    "warmup_iterations_per_vu": 5,
+    "measured_iterations_per_vu": 100,
+    "max_duration_seconds": 240
+  },
+  "arrival": {
+    "iterations_per_second": 250,
+    "vus": 100,
+    "warmup_seconds": 2,
+    "measured_seconds": 10,
+    "graceful_stop_seconds": 5
+  },
+  "retention": {
+    "warmup_iterations": 250,
+    "iterations_per_window": 500,
+    "windows": 5,
+    "gc_cycles_per_sample": 2
+  }
+}
