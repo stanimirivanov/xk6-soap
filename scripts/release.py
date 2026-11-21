@@ -185,7 +185,9 @@ def assemble(output, driver, info, expected_go, expected_k6, xk6, govulncheck):
 
     with tempfile.TemporaryDirectory() as scratch:
         work = Path(scratch)
-        source_archive = work / f"xk6-soap-{VERSION}.source.dry-run.tar.gz"
+        artifacts = work / "artifacts"
+        artifacts.mkdir()
+        source_archive = artifacts / f"xk6-soap-{VERSION}.source.dry-run.tar.gz"
         source = source_members(commit, driver, downloads)
         write_archive(source_archive, source)
         verify_archive(source_archive, source)
@@ -203,42 +205,40 @@ def assemble(output, driver, info, expected_go, expected_k6, xk6, govulncheck):
         if data != repeated.read_bytes():
             raise ValueError("source archive rebuild did not produce identical bytes")
         subprocess.run([str(govulncheck), "-mode=binary", str(binary)], cwd=ROOT, check=True)
-        output.mkdir()
         source_digest = file_sha256(source_archive)
-        shutil.copyfile(source_archive, output / source_archive.name)
 
-    members["k6"] = (data, 0o755)
-    members["LICENSE"] = members[f"licenses/{K6}/LICENSE.md"]
-    members["LICENSE.xk6-soap"] = ((ROOT / "LICENSE").read_bytes(), 0o644)
-    for name in ("THIRD_PARTY_NOTICES.md", "RELEASE_NOTES.md"):
-        members[name] = ((ROOT / name).read_bytes(), 0o644)
-    metadata = {
-        "release": VERSION,
-        "dry_run": True,
-        "source_commit": commit,
-        "source_dirty": False,
-        "source_archive": source_archive.name,
-        "source_sha256": source_digest,
-        "offline_source_verified": True,
-        "go": expected_go,
-        "k6": expected_k6,
-        "xk6": xk6,
-        "platform": PLATFORM,
-        "binary_sha256": hashlib.sha256(data).hexdigest(),
-        "repeated_binary_match": True,
-        "modules": modules,
-    }
-    manifest = (json.dumps(metadata, indent=2, sort_keys=True) + "\n").encode()
-    members["metadata.json"] = (manifest, 0o644)
-    output.mkdir()
-    archive = output / f"xk6-soap-{VERSION}-linux-amd64.dry-run.tar.gz"
-    write_archive(archive, members)
-    verify_archive(archive, members)
-    (output / "metadata.json").write_bytes(manifest)
-    (output / "SHA256SUMS").write_text(
-        f"{file_sha256(archive)}  {archive.name}\n{source_digest}  {source_archive.name}\n"
-    )
-    print(f"Verified dry-run archive: {archive}")
+        members["k6"] = (data, 0o755)
+        members["LICENSE"] = members[f"licenses/{K6}/LICENSE.md"]
+        members["LICENSE.xk6-soap"] = ((ROOT / "LICENSE").read_bytes(), 0o644)
+        for name in ("THIRD_PARTY_NOTICES.md", "RELEASE_NOTES.md"):
+            members[name] = ((ROOT / name).read_bytes(), 0o644)
+        metadata = {
+            "release": VERSION,
+            "dry_run": True,
+            "source_commit": commit,
+            "source_dirty": False,
+            "source_archive": source_archive.name,
+            "source_sha256": source_digest,
+            "offline_source_verified": True,
+            "go": expected_go,
+            "k6": expected_k6,
+            "xk6": xk6,
+            "platform": PLATFORM,
+            "binary_sha256": hashlib.sha256(data).hexdigest(),
+            "repeated_binary_match": True,
+            "modules": modules,
+        }
+        manifest = (json.dumps(metadata, indent=2, sort_keys=True) + "\n").encode()
+        members["metadata.json"] = (manifest, 0o644)
+        archive = artifacts / f"xk6-soap-{VERSION}-linux-amd64.dry-run.tar.gz"
+        write_archive(archive, members)
+        verify_archive(archive, members)
+        (artifacts / "metadata.json").write_bytes(manifest)
+        (artifacts / "SHA256SUMS").write_text(
+            f"{file_sha256(archive)}  {archive.name}\n{source_digest}  {source_archive.name}\n"
+        )
+        shutil.copytree(artifacts, output)
+    print(f"Verified dry-run archives in {output}")
 
 
 def main():
