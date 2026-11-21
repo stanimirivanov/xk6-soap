@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from release import check_build, write_archive, verify_archive
+from release import check_build, portable_go_mod, write_archive, verify_archive
 
 
 class BuildTest(unittest.TestCase):
@@ -58,3 +58,14 @@ class ArchiveTest(unittest.TestCase):
             members["k6"] = (b"wrong binary", 0o755)
             with self.assertRaises(ValueError):
                 verify_archive(first, members)
+
+
+class SourceRecipeTest(unittest.TestCase):
+    def test_only_extension_replacement_becomes_portable(self):
+        module = 'github.com/stanimirivanov/xk6-soap'
+        original = f'module k6\n\nreplace {module} => /private/build/checkout\n'
+        self.assertEqual(portable_go_mod(original), f'module k6\n\nreplace {module} => ../extension\n')
+        with self.assertRaises(ValueError):
+            portable_go_mod('module k6\n')
+        with self.assertRaises(ValueError):
+            portable_go_mod(original + 'replace example.invalid/dep => /private/dependency\n')
