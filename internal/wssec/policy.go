@@ -254,14 +254,14 @@ func (p Policy) RequireAvailable() error {
 		return ErrUnavailable
 	}
 
-	if r := p.Receive; r.Signature && (!algorithmList(r.SignatureAlgorithms, signatureAlgorithms) || !algorithmList(r.DigestAlgorithms, digestAlgorithms) || len(r.EncryptedHeaders) != 0) {
+	if r := p.Receive; r.Signature && (!algorithmList(r.SignatureAlgorithms, signatureAlgorithms) || !algorithmList(r.DigestAlgorithms, digestAlgorithms)) {
 		return ErrUnavailable
 	}
 
-	if e := p.Encrypt; e != nil && (p.Sign == nil || !validOrder(p.Order) || (e.Target != "content" && e.Target != "body") || len(e.Headers) != 0 || e.KeyTransport != "rsa-oaep-sha256" || (e.Algorithm != "aes-128-gcm" && e.Algorithm != "aes-256-gcm")) {
+	if e := p.Encrypt; e != nil && (p.Sign == nil || !validOrder(p.Order) || (e.Target != "content" && e.Target != "body" && e.Target != "headers") || (e.Target == "headers") != (len(e.Headers) != 0) || e.KeyTransport != "rsa-oaep-sha256" || (e.Algorithm != "aes-128-gcm" && e.Algorithm != "aes-256-gcm")) {
 		return ErrUnavailable
 	}
-	if r := p.Receive; (r.RequireEncryption || r.Order != "") && (!r.Signature || !validOrder(r.Order)) {
+	if r := p.Receive; (r.RequireEncryption || len(r.EncryptedHeaders) != 0 || r.Order != "") && (!r.Signature || !validOrder(r.Order)) {
 		return ErrUnavailable
 	}
 	return nil

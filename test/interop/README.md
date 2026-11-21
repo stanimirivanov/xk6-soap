@@ -299,3 +299,9 @@ requests using the opposite order.
 WSS4J signs and encrypts successful replies and SOAP service faults for both
 SOAP versions and AES key sizes. Native k6 verifies then projects the replies
 and faults, and withholds output for an altered wrapped key or signature.
+
+`TestK6EncryptedHeaders` runs against `stehdr` and `etshdr` endpoints for
+both SOAP versions. The fixture independently encrypts and signs the Trace
+header or its wrapper according to the order. Each direction keeps the Body
+and an unselected header clear. The native test also requires that header-only
+encryption fails a required Body encryption policy.

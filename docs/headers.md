@@ -61,3 +61,31 @@ request blocks. Tests cover both SOAP versions, header/addressing tampering and
 mathematically signed responses with uncovered headers. See the
 [Apache coverage checker source](https://github.com/apache/cxf/blob/main/rt/ws/security/src/main/java/org/apache/cxf/ws/security/wss4j/CryptoCoverageChecker.java)
 and the [independent fixture](../test/interop/README.md).
+
+## Encrypting selected headers
+
+Set `security.encrypt` to `{target:'headers', headers:['trace']}` on a signing
+client with a recipient certificate. Each selector must name one direct
+header supplied by that build. The client encrypts the complete selected
+block and leaves the Body and all other headers visible. The original
+SOAP metadata is inside the encrypted block. The EncryptedHeader wrapper
+takes its SOAP routing metadata from the Security header.
+
+To require encrypted headers on receive, use expanded names and an explicit
+receive order, with a configured decryption identity and signature trust.
+
+```js
+verify: {
+  signature: true,
+  order: 'encrypt-then-sign',
+  encryptedHeaders: [{namespace: 'urn:trace', localName: 'Trace'}],
+  signedHeaders: [{namespace: 'urn:trace', localName: 'Trace'}],
+}
+```
+
+The client verifies the restored headers for sign-then-encrypt. For
+encrypt-then-sign it verifies each exact wrapper and the EncryptedKey before
+decryption, then checks that each recovered name is unique and came from
+the expected protected position. Header protection alone cannot meet
+`requireEncryption:true`, which requires complete Body encryption. Accepted
+Body, Fault and XPath output remains scoped to the Body.

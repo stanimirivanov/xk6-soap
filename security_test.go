@@ -20,7 +20,6 @@ func TestSecurityOptionMatrix(t *testing.T) {
  }
  for (const security of [
   {encrypt:{}},
-  {sign:{},encrypt:{target:'headers',headers:['trace']},order:'encrypt-then-sign'},
  ])rejected(security,'SOAP_FEATURE_UNAVAILABLE');
  for (const security of [null,false,[],{type:'SECRET'},{sign:{signBody:false}},{sign:{algorithm:'rsa-sha1'}},
   {usernameToken:{user:'SECRET'}},{usernameToken:{user:'SECRET',password:'SECRET',extra:true}},
@@ -43,7 +42,7 @@ func TestSecurityOptionMatrix(t *testing.T) {
  rejected({encrypt:{}},'SOAP_POLICY_KEY',{});
  rejected({verify:{signature:true}},'SOAP_POLICY_KEY',{});
  rejected(undefined,'SOAP_POLICY_INVALID',{decryption:{cert,key}});
- rejected({verify:{signature:true,encryptedHeaders:[{namespace:'urn:test',localName:'trace'}],order:'encrypt-then-sign'}},'SOAP_FEATURE_UNAVAILABLE',{decryption:{cert,key},trust:[cert]});
+ rejected({verify:{signature:false,order:'encrypt-then-sign'}},'SOAP_FEATURE_UNAVAILABLE',{decryption:{cert,key}});
 
  for(const block of ['usernameToken','timestamp','sign','encrypt','verify']) {
   rejected({[block]:{SECRET_UNKNOWN:true}},'SOAP_POLICY_INVALID');
@@ -73,7 +72,7 @@ func TestMetadataDiagnosticsNeverReflectInputs(t *testing.T) {
 	if output.Len() != 0 {
 		t.Fatal("diagnostics enabled by default")
 	}
-	js(t, rt.VU.Runtime(), `try{new Client({url:'https://SECRET.invalid',debug:true,keys:{signing:{cert,key},recipient:{cert},trust:[cert]},security:{sign:{algorithm:'rsa-sha384'},encrypt:{target:'headers',headers:['trace']},order:'encrypt-then-sign'}});throw new Error('unavailable accepted');}catch(e){if(e.code!=='SOAP_FEATURE_UNAVAILABLE')throw e;}
+	js(t, rt.VU.Runtime(), `try{new Client({url:'https://SECRET.invalid',debug:true,keys:{signing:{cert,key},recipient:{cert},trust:[cert]},security:{encrypt:{target:'headers',headers:['trace']}}});throw new Error('unavailable accepted');}catch(e){if(e.code!=='SOAP_FEATURE_UNAVAILABLE')throw e;}
  var signedClient=new Client({url:'https://SECRET.invalid',debug:true,keys:{signing:{cert,key}},security:{sign:{},verify:{signature:false},usernameToken:{user:'SECRET_USER',password:'SECRET_PASSWORD',passwordType:'PasswordText'}}});var tokenClient=new Client({url:'https://SECRET.invalid',debug:true,security:{usernameToken:{user:'SECRET_USER',password:'SECRET_PASSWORD',passwordType:'PasswordText'}}});var client=new Client({url:'https://SECRET.invalid',debug:true});`)
 	rt.MoveToVUContext(&lib.State{Logger: logger})
 	js(t, rt.VU.Runtime(), `signedClient.build('Echo','<Echo>SECRET_SIGNED_PAYLOAD</Echo>');tokenClient.build('Echo','<Echo/>');var request=client.build('Echo','<Echo>SECRET_PAYLOAD</Echo>');client.parse({status:200,body:request.body});client.parse({status:500,body:'SECRET_FAULT'});`)
@@ -137,7 +136,7 @@ func TestSecurityDecodingNonDefaultValues(t *testing.T) {
 	if !p.Receive.Signature || p.Receive.Timestamp || !p.Receive.RequireEncryption || p.Receive.Order != "sign-then-encrypt" || p.Receive.SignatureAlgorithms[0] != "rsa-sha384" || p.Receive.DigestAlgorithms[0] != "sha512" || p.Receive.ClockSkewSeconds != 0 || p.Receive.MaxAgeSeconds != 900 || p.Receive.SignedHeaders[0].Namespace != "urn:custom" || p.Receive.EncryptedHeaders[0].LocalName != "Header" {
 		t.Fatal("receive options were not decoded faithfully")
 	}
-	if p.RequireAvailable() != wssec.ErrUnavailable {
+	if p.RequireAvailable() != nil {
 		t.Fatal("internal definition unexpectedly activated public security")
 	}
 }

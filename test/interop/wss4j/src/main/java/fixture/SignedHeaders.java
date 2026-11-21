@@ -19,9 +19,16 @@ import org.w3c.dom.Element;
 public final class SignedHeaders extends AbstractSoapInterceptor {
     private static final String WSA = "http://www.w3.org/2005/08/addressing";
 
+    private final boolean addressing;
+
     public SignedHeaders() {
+        this(true);
+    }
+
+    public SignedHeaders(boolean addressing) {
         super(Phase.PRE_PROTOCOL);
         addBefore(WSS4JOutInterceptor.class.getName());
+        this.addressing = addressing;
     }
 
     public static void requireCoverage(DefaultCryptoCoverageChecker coverage) {
@@ -45,6 +52,10 @@ public final class SignedHeaders extends AbstractSoapInterceptor {
             factory.setNamespaceAware(true);
             Document doc = factory.newDocumentBuilder().newDocument();
             add(message, doc, "urn:trace", "Trace", "response-original");
+            if (!addressing) {
+                add(message, doc, "urn:trace", "Other", "response-clear-header");
+                return;
+            }
             add(message, doc, WSA, "Action", "urn:echoResponse");
             add(message, doc, WSA, "To", WSA + "/anonymous");
             add(message, doc, WSA, "MessageID", "urn:uuid:synthetic-response");

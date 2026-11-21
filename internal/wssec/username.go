@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"io"
+	"slices"
 	"time"
 
 	"github.com/knroy/go-xml/v2/c14n"
@@ -129,6 +130,29 @@ func BuildSecurity(raw []byte, p Policy, material KeyMaterial, now time.Time, ra
 		}
 	}
 	encryptFirst := p.Encrypt != nil && p.Order == string(EncryptThenSign)
+	var encryptedSlots []int
+	signingPolicy := p.Sign
+	signingSelectors := selectors
+	if p.Encrypt != nil && p.Encrypt.Target == "headers" {
+		encryptedSlots, e = selectEncryptedHeaders(doc, ns, p.Encrypt.Headers, selectors)
+		if e != nil {
+			return nil, e
+		}
+		sig := *p.Sign
+		sig.Headers = slices.Clone(sig.Headers)
+		if encryptFirst {
+			sig.Headers = slices.DeleteFunc(sig.Headers, func(name string) bool { return slices.Contains(p.Encrypt.Headers, name) })
+			signingSelectors = slices.DeleteFunc(slices.Clone(selectors), func(sel message.HeaderSelector) bool { return slices.Contains(p.Encrypt.Headers, sel.Name) })
+		} else {
+			for _, name := range p.Encrypt.Headers {
+				if !slices.Contains(sig.Headers, name) {
+					sig.Headers = append(sig.Headers, name)
+				}
+			}
+		}
+		signingPolicy = &sig
+	}
+
 	var keyInfo *xdm.Node
 	if p.Sign != nil {
 		keyInfo, e = signingTokenReference(p.Sign.KeyID, signing.Certificate())
@@ -142,7 +166,7 @@ func BuildSecurity(raw []byte, p Policy, material KeyMaterial, now time.Time, ra
 		}
 	}
 	if encryptFirst {
-		encrypted, err := encryptRequest(doc, ns, header, p.Encrypt, material.Recipient.Certificate(), random)
+		encrypted, err := encryptRequest(doc, ns, header, p.Encrypt, material.Recipient.Certificate(), random, limits, encryptedSlots)
 		if err != nil {
 			return nil, err
 		}
@@ -155,7 +179,7 @@ func BuildSecurity(raw []byte, p Policy, material KeyMaterial, now time.Time, ra
 		}
 	}
 	if p.Sign != nil {
-		if e = appendSignature(doc, ns, signing, p.UsernameToken != nil, p.Sign, keyInfo, encryptFirst, selectors); e != nil {
+		if e = appendSignature(doc, ns, signing, p.UsernameToken != nil, signingPolicy, keyInfo, encryptFirst, signingSelectors); e != nil {
 			return nil, e
 		}
 	}
@@ -163,7 +187,7 @@ func BuildSecurity(raw []byte, p Policy, material KeyMaterial, now time.Time, ra
 		return nil, ErrCredentialBuild
 	}
 	if p.Encrypt != nil && !encryptFirst {
-		wire, e = encryptRequest(doc, ns, header, p.Encrypt, material.Recipient.Certificate(), random)
+		wire, e = encryptRequest(doc, ns, header, p.Encrypt, material.Recipient.Certificate(), random, limits, encryptedSlots)
 		if e != nil {
 			return nil, e
 		}

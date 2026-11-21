@@ -10,13 +10,14 @@ import (
 	"github.com/knroy/go-xmlsec/v2/dsig"
 	"github.com/knroy/go-xmlsec/v2/wss"
 	"github.com/knroy/go-xmlsec/v2/xenc"
+	"github.com/stanimirivanov/xk6-soap/internal/message"
 )
 
 var ErrEncryptionBuild = errors.New("SOAP_ENCRYPTION_BUILD_FAILED")
 
-// encryptRequest replaces the configured region on the already signed tree.
+// encryptRequest replaces the configured region on the current request tree.
 // The provider owns the GCM IV and OAEP randomness and emits the final wire.
-func encryptRequest(doc *xmlsec.Document, ns string, header *wss.Header, policy *EncryptionPolicy, recipient *x509.Certificate, random io.Reader) ([]byte, error) {
+func encryptRequest(doc *xmlsec.Document, ns string, header *wss.Header, policy *EncryptionPolicy, recipient *x509.Certificate, random io.Reader, limits message.Limits, headerSlots []int) ([]byte, error) {
 	var size int
 	var algorithm string
 	switch policy.Algorithm {
@@ -34,7 +35,15 @@ func encryptRequest(doc *xmlsec.Document, ns string, header *wss.Header, policy 
 			return nil, ErrEncryptionBuild
 		}
 	}
-	for _, id := range []string{"ek-1", "ed-1"} {
+	count := 1
+	if policy.Target == "headers" {
+		count = len(headerSlots)
+	}
+	ids := []string{"ek-1"}
+	for idx := 0; idx < count; idx++ {
+		ids = append(ids, encryptionDataID(idx))
+	}
+	for _, id := range ids {
 		if _, err := wss.FindByID(doc.Root(), id, dsig.IDAttrDSig); !errors.Is(err, xmlsec.ErrIDNotFound) {
 			return nil, ErrEncryptionBuild
 		}
@@ -55,8 +64,13 @@ func encryptRequest(doc *xmlsec.Document, ns string, header *wss.Header, policy 
 		return nil, ErrEncryptionBuild
 	}
 	ref, err := wss.NewIssuerSerialReference(recipient)
-	if err != nil || ek.SetKeyInfo(ref) != nil || ek.AddDataReference("ed-1") != nil {
+	if err != nil || ek.SetKeyInfo(ref) != nil {
 		return nil, ErrEncryptionBuild
+	}
+	for _, id := range ids[1:] {
+		if ek.AddDataReference(id) != nil {
+			return nil, ErrEncryptionBuild
+		}
 	}
 	encryptedKey, _, err := wss.WithID(ek.Element, "ek-1")
 	if err != nil || header.Prepend(encryptedKey) != nil {
@@ -75,6 +89,32 @@ func encryptRequest(doc *xmlsec.Document, ns string, header *wss.Header, policy 
 			return nil, ErrEncryptionBuild
 		}
 		wire, err = xenc.EncryptElement(doc.Root(), children[0], key, opts)
+	case "headers":
+		version := "1.1"
+		if ns == xmlsec.NSSOAP12 {
+			version = "1.2"
+		}
+		for i, slot := range headerSlots {
+			security, e := wss.FindHeader(doc.Root(), ns, "")
+			blocks := headerBlocks(doc, ns)
+			if e != nil || security == nil || slot >= len(blocks) {
+				return nil, ErrEncryptionBuild
+			}
+			opts.DataID = encryptionDataID(i)
+			wire, e = xenc.EncryptHeader(doc.Root(), blocks[slot], security, key, opts)
+			if e != nil {
+				return nil, ErrEncryptionBuild
+			}
+			if e = message.ValidateEnvelope(string(wire), version, limits); e != nil {
+				return nil, e
+			}
+			if i+1 < len(headerSlots) {
+				doc, _, e = parsed(wire)
+				if e != nil {
+					return nil, ErrEncryptionBuild
+				}
+			}
+		}
 	default:
 		return nil, ErrUnavailable
 	}

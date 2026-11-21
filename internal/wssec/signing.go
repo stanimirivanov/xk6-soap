@@ -38,6 +38,19 @@ func appendSignature(doc *xmlsec.Document, ns string, signing *keys.Material, to
 			return ErrSignatureBuild
 		}
 		ids = append(ids, "ek-1")
+		for i, block := range headerBlocks(doc, ns) {
+			if !block.IsElement(xmlsec.NSWSSE11, "EncryptedHeader") {
+				continue
+			}
+			id := "eh-" + strconv.Itoa(i+1)
+			if actual, err := wss.AssignIDWith(doc, block, id); err != nil || actual != id {
+				return ErrSignatureBuild
+			}
+			ids = append(ids, id)
+		}
+		// AssignIDWith rebuilt the tree. Use the current Security node when signing.
+		security = doc.Node(security)
+
 	}
 	if token {
 		if security.FirstElement(xmlsec.NSWSSE, "UsernameToken") == nil {
