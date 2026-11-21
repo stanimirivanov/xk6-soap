@@ -2,9 +2,9 @@ package wssec
 
 import (
 	"bytes"
-	"crypto/rsa"
 	"encoding/xml"
 	"errors"
+	"slices"
 	"strings"
 	"time"
 
@@ -166,13 +166,25 @@ func Receive(status int, raw, version string, limits message.Limits, policy Rece
 	if info.FirstElement(xmlsec.NSDSig, "CanonicalizationMethod").AttrValue("Algorithm") != string(c14n.Exclusive10) {
 		return fail("POLICY_VIOLATION")
 	}
-	if info.FirstElement(xmlsec.NSDSig, "SignatureMethod") == nil || info.FirstElement(xmlsec.NSDSig, "SignatureMethod").AttrValue("Algorithm") != xmlsec.SigRSASHA256 {
+	method := info.FirstElement(xmlsec.NSDSig, "SignatureMethod")
+	if method == nil {
 		return fail("POLICY_VIOLATION")
+	}
+	signatureURI := method.AttrValue("Algorithm")
+	algorithm := allowedSignatureAlgorithm(signatureURI, policy.SignatureAlgorithms)
+	if algorithm == "" {
+		return fail("POLICY_VIOLATION")
+	}
+	var allowedDigests []string
+	for _, name := range policy.DigestAlgorithms {
+		if uri := digestURIs[name]; uri != "" {
+			allowedDigests = append(allowedDigests, uri)
+		}
 	}
 	for r := range info.Children() {
 		if r.IsElement(xmlsec.NSDSig, "Reference") {
 			m := r.FirstElement(xmlsec.NSDSig, "DigestMethod")
-			if m == nil || m.AttrValue("Algorithm") != xmlsec.DigestSHA256 {
+			if m == nil || !slices.Contains(allowedDigests, m.AttrValue("Algorithm")) {
 				return fail("POLICY_VIOLATION")
 			}
 		}
@@ -182,8 +194,7 @@ func Receive(status int, raw, version string, limits message.Limits, policy Rece
 	if e != nil {
 		return fail("POLICY_VIOLATION")
 	}
-	pub, ok := embedded.PublicKey.(*rsa.PublicKey)
-	if !ok || pub.N.BitLen() < 2048 || !coreKeyInfo(signature, bst) {
+	if !compatiblePublicKey(embedded.PublicKey, algorithm) || !coreKeyInfo(signature, bst) {
 		return fail("POLICY_VIOLATION")
 	}
 	normalized, _ := limits.Normalized()
@@ -199,10 +210,10 @@ func Receive(status int, raw, version string, limits message.Limits, policy Rece
 				break
 			}
 		}
-		if pin == nil || !certificateOK(pin.Certificate(), now) {
+		if pin == nil {
 			return fail("SIGNATURE_INVALID")
 		}
-		coverage, e := dsig.Verify(doc.Root(), signature, dsig.VerifyOptions{Certificate: pin.Certificate(), AllowedSignatureAlgorithms: []string{xmlsec.SigRSASHA256}, AllowedDigestAlgorithms: []string{xmlsec.DigestSHA256}, AllowedCanonicalizationAlgorithms: []string{string(c14n.Exclusive10)}, MaxReferences: 16, StrictBSP: true, RequireExplicitCanonicalization: true, IDAttributes: []xdm.QName{dsig.IDAttrDSig}})
+		coverage, e := dsig.Verify(doc.Root(), signature, dsig.VerifyOptions{Certificate: pin.Certificate(), AllowedSignatureAlgorithms: []string{signatureURI}, AllowedDigestAlgorithms: allowedDigests, AllowedCanonicalizationAlgorithms: []string{string(c14n.Exclusive10)}, MaxReferences: 16, StrictBSP: true, RequireExplicitCanonicalization: true, IDAttributes: []xdm.QName{dsig.IDAttrDSig}})
 		if e != nil || !coverage.CoversNodes(body) || stamp != nil && !coverage.CoversNodes(stamp) {
 			return fail("SIGNATURE_INVALID")
 		}

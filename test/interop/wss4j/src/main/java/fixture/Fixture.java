@@ -10,9 +10,12 @@ import java.util.concurrent.CountDownLatch;
 import javax.security.auth.callback.CallbackHandler;
 import org.apache.cxf.Bus;
 import org.apache.cxf.BusFactory;
+import org.apache.cxf.binding.soap.SoapMessage;
 import org.apache.cxf.jaxws.EndpointImpl;
 import org.apache.wss4j.common.ConfigurationConstants;
 import org.apache.wss4j.common.ext.WSPasswordCallback;
+import org.apache.wss4j.common.ext.WSSecurityException;
+import org.apache.wss4j.dom.handler.RequestData;
 import org.apache.cxf.ws.security.wss4j.WSS4JInInterceptor;
 import org.apache.cxf.ws.security.wss4j.WSS4JOutInterceptor;
 import org.apache.cxf.ws.security.wss4j.DefaultCryptoCoverageChecker;
@@ -70,13 +73,13 @@ public final class Fixture {
         CallbackHandler signingPassword = callbacks -> {
             for (var callback : callbacks) {
                 if (!(callback instanceof WSPasswordCallback password)
-                        || !"fixture-server".equals(password.getIdentifier())) {
+                        || !java.util.Set.of("fixture-server", "fixture-server-ec256", "fixture-server-ec384", "fixture-server-ec521").contains(password.getIdentifier())) {
                     throw new java.io.IOException("Unknown synthetic signing identity");
                 }
                 password.setPassword("fixture-only");
             }
         };
-        for (String mode : new String[]{"sig", "sighdr", "sighdrweak", "sigut", "sigstale", "sigfuture", "ste128", "ste256", "ets128", "ets256"}) {
+        for (String mode : new String[]{"sig", "sigrsa384", "sigrsa512", "sigec256", "sigec384", "sigec521", "sigecwrongcurve", "sighdr", "sighdrweak", "sigut", "sigstale", "sigfuture", "ste128", "ste256", "ets128", "ets256"}) {
             for (String version : new String[]{"11", "12"}) {
                 String ns = "11".equals(version) ? "http://schemas.xmlsoap.org/soap/envelope/" : "http://www.w3.org/2003/05/soap-envelope";
                 String binding = "11".equals(version) ? SOAPBinding.SOAP11HTTP_BINDING : SOAPBinding.SOAP12HTTP_BINDING;
@@ -96,7 +99,20 @@ public final class Fixture {
                 in.put(ConfigurationConstants.REQUIRE_TIMESTAMP_EXPIRES, "true");
                 in.put(ConfigurationConstants.TTL_TIMESTAMP, "300");
                 in.put(ConfigurationConstants.TTL_FUTURE_TIMESTAMP, "60");
-                endpoint.getInInterceptors().add(new WSS4JInInterceptor(in));
+                if ("sigec521".equals(mode)) {
+                    in.put(ConfigurationConstants.SIG_ALGO, "http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha512");
+                    in.put(ConfigurationConstants.SIG_DIGEST_ALGO, "http://www.w3.org/2001/04/xmlenc#sha512");
+                    endpoint.getInInterceptors().add(new WSS4JInInterceptor(in) {
+                        @Override
+                        protected void setAlgorithmSuites(SoapMessage message, RequestData data) throws WSSecurityException {
+                            super.setAlgorithmSuites(message, data);
+                            // WSS4J's default maximum is below the standard P-521 curve.
+                            data.getAlgorithmSuite().setMaximumEllipticCurveKeyLength(521);
+                        }
+                    });
+                } else {
+                    endpoint.getInInterceptors().add(new WSS4JInInterceptor(in));
+                }
                 DefaultCryptoCoverageChecker coverage = new DefaultCryptoCoverageChecker();
                 if ("sigut".equals(mode)) {
                     // This endpoint deliberately exercises the outbound signed-token profile.
@@ -112,12 +128,30 @@ public final class Fixture {
                 endpoint.getInInterceptors().add(coverage);
                 Map<String, Object> out = new HashMap<>();
                 out.put(ConfigurationConstants.ACTION, mode.startsWith("ste") ? "Timestamp Signature Encryption" : mode.startsWith("ets") ? "Timestamp Encryption Signature" : "Timestamp Signature");
-                out.put(ConfigurationConstants.USER, "fixture-server");
+                String signer = switch (mode) {
+                    case "sigec256", "sigec384", "sigec521" -> "fixture-server-" + mode.substring(3);
+                    case "sigecwrongcurve" -> "fixture-server-ec384";
+                    default -> "fixture-server";
+                };
+                String signatureMethod = switch (mode) {
+                    case "sigrsa384" -> "rsa-sha384";
+                    case "sigrsa512" -> "rsa-sha512";
+                    case "sigec256", "sigecwrongcurve" -> "ecdsa-sha256";
+                    case "sigec384" -> "ecdsa-sha384";
+                    case "sigec521" -> "ecdsa-sha512";
+                    default -> "rsa-sha256";
+                };
+                String referenceDigest = switch (mode) {
+                    case "sigrsa512", "sigec384" -> "http://www.w3.org/2001/04/xmldsig-more#sha384";
+                    case "sigrsa384", "sigec521" -> "http://www.w3.org/2001/04/xmlenc#sha512";
+                    default -> "http://www.w3.org/2001/04/xmlenc#sha256";
+                };
+                out.put(ConfigurationConstants.USER, signer);
                 out.put(ConfigurationConstants.SIG_PROP_FILE, "signature.properties");
                 out.put(ConfigurationConstants.PW_CALLBACK_REF, signingPassword);
                 out.put(ConfigurationConstants.SIG_KEY_ID, "DirectReference");
-                out.put(ConfigurationConstants.SIG_ALGO, "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256");
-                out.put(ConfigurationConstants.SIG_DIGEST_ALGO, "http://www.w3.org/2001/04/xmlenc#sha256");
+                out.put(ConfigurationConstants.SIG_ALGO, "http://www.w3.org/2001/04/xmldsig-more#" + signatureMethod);
+                out.put(ConfigurationConstants.SIG_DIGEST_ALGO, referenceDigest);
                 out.put(ConfigurationConstants.SIG_C14N_ALGO, "http://www.w3.org/2001/10/xml-exc-c14n#");
                 out.put(ConfigurationConstants.ADD_INCLUSIVE_PREFIXES, "true");
                 out.put(ConfigurationConstants.SIGNATURE_PARTS, "{Element}{" + ns + "}Body;{Element}{http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd}Timestamp");

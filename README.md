@@ -70,7 +70,7 @@ The encryption/order kernel gate also passed; public features are activated sepa
 Key loading and cache ownership are documented in [Key material and cache](docs/keys.md).
 [Executable policy validation](docs/security-policy.md) rejects enabled unavailable
 security paths at construction. [UsernameToken and Timestamp exchanges](docs/username-token.md)
-and [core RSA signed requests](docs/signing.md) are available, with
+and [RSA and ECDSA signed requests](docs/signing.md) are available, with
 [exact coverage and pinned response verification](docs/receive.md). Encryption and
 additional profiles remain planned.
 
