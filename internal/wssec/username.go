@@ -33,12 +33,12 @@ const base64Encoding = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-
 // BuildCredentials owns a fresh tree per call. Time/randomness are internal Go
 // seams; the public Client always supplies time.Now and crypto/rand.Reader.
 func BuildCredentials(raw []byte, p Policy, now time.Time, random io.Reader, override *Credentials, limits message.Limits) ([]byte, error) {
-	return BuildSecurity(raw, p, nil, now, random, override, limits)
+	return BuildSecurity(raw, p, KeyMaterial{}, now, random, override, limits)
 }
 
 // BuildSecurity constructs credentials and signatures in one request-local tree.
 // Only the completed tree is serialized to wire bytes.
-func BuildSecurity(raw []byte, p Policy, signing *keys.Material, now time.Time, random io.Reader, override *Credentials, limits message.Limits, selectors ...message.HeaderSelector) (wire []byte, err error) {
+func BuildSecurity(raw []byte, p Policy, material KeyMaterial, now time.Time, random io.Reader, override *Credentials, limits message.Limits, selectors ...message.HeaderSelector) (wire []byte, err error) {
 	defer func() {
 		if recover() != nil {
 			wire = nil
@@ -47,6 +47,10 @@ func BuildSecurity(raw []byte, p Policy, signing *keys.Material, now time.Time, 
 	}()
 	if err = p.RequireAvailable(); err != nil {
 		return nil, err
+	}
+	signing := material.Signing
+	if p.Encrypt != nil && !validKey(material.Recipient, keys.Recipient, now) {
+		return nil, ErrPolicyKey
 	}
 	if p.Sign != nil {
 		if signing == nil || signing.Validate(keys.Signing, now) != nil || !compatible(signing, p.Sign.Algorithm) {
@@ -132,14 +136,21 @@ func BuildSecurity(raw []byte, p Policy, signing *keys.Material, now time.Time, 
 	if wss.CheckUniqueIDs(doc.Root(), xdm.QName{Local: "Id"}) != nil {
 		return nil, ErrCredentialBuild
 	}
-	output := limitedXML{max: limits.Bytes}
-	if e = c14n.Write(&output, doc.Root(), c14n.Options{Algorithm: c14n.Inclusive10WithComments}); e != nil {
-		if output.exceeded {
-			return nil, ErrOutputLimit
+	if p.Encrypt != nil {
+		wire, e = encryptRequest(doc, ns, header, p.Encrypt, material.Recipient.Certificate(), random)
+		if e != nil {
+			return nil, e
 		}
-		return nil, ErrCredentialBuild
+	} else {
+		output := limitedXML{max: limits.Bytes}
+		if e = c14n.Write(&output, doc.Root(), c14n.Options{Algorithm: c14n.Inclusive10WithComments}); e != nil {
+			if output.exceeded {
+				return nil, ErrOutputLimit
+			}
+			return nil, ErrCredentialBuild
+		}
+		wire = output.Bytes()
 	}
-	wire = output.Bytes()
 	version := "1.1"
 	if ns == xmlsec.NSSOAP12 {
 		version = "1.2"
@@ -181,19 +192,26 @@ func (w *limitedXML) Write(p []byte) (int, error) {
 	return w.Buffer.Write(p)
 }
 
-// Unlike io.ReadFull, retain an error reported with a complete final read.
-// At most 16 progressing reads are possible; zero progress fails closed.
 func freshTokenNonce(random io.Reader) ([]byte, error) {
-	if random == nil {
-		return nil, ErrRandom
-	}
 	nonce := make([]byte, 16)
-	for offset := 0; offset < len(nonce); {
-		n, err := random.Read(nonce[offset:])
-		if err != nil || n <= 0 || n > len(nonce)-offset {
-			return nil, ErrRandom
-		}
-		offset += n
+	if err := readRandom(random, nonce); err != nil {
+		return nil, err
 	}
 	return nonce, nil
+}
+
+// Unlike io.ReadFull, retain an error reported with a complete final read.
+// Zero progress fails closed instead of looping.
+func readRandom(random io.Reader, buf []byte) error {
+	if random == nil {
+		return ErrRandom
+	}
+	for len(buf) > 0 {
+		n, err := random.Read(buf)
+		if err != nil || n <= 0 || n > len(buf) {
+			return ErrRandom
+		}
+		buf = buf[n:]
+	}
+	return nil
 }

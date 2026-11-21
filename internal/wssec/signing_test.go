@@ -27,7 +27,7 @@ func TestSignedSecurityCoverageAndSerialization(t *testing.T) {
 			}
 			build := func() []byte {
 				t.Helper()
-				wire, e := BuildSecurity(envelope(version), p, material.Signing, fixedTime, bytes.NewReader(make([]byte, 16)), nil, message.Limits{})
+				wire, e := BuildSecurity(envelope(version), p, material, fixedTime, bytes.NewReader(make([]byte, 16)), nil, message.Limits{})
 				if e != nil {
 					t.Fatal(e)
 				}
@@ -87,10 +87,10 @@ func TestSignedSecurityCoverageAndSerialization(t *testing.T) {
 					t.Fatal("covered mutation accepted")
 				}
 			}
-			if out, e := BuildSecurity(envelope(version), p, material.Signing, fixedTime, bytes.NewReader(make([]byte, 16)), nil, message.Limits{Bytes: 2048}); e != ErrOutputLimit || out != nil {
+			if out, e := BuildSecurity(envelope(version), p, material, fixedTime, bytes.NewReader(make([]byte, 16)), nil, message.Limits{Bytes: 2048}); e != ErrOutputLimit || out != nil {
 				t.Fatal("signature exceeded wire budget", e)
 			}
-			if out, e := BuildSecurity(envelope(version), p, nil, fixedTime, nil, nil, message.Limits{}); e != ErrPolicyKey || out != nil {
+			if out, e := BuildSecurity(envelope(version), p, KeyMaterial{}, fixedTime, nil, nil, message.Limits{}); e != ErrPolicyKey || out != nil {
 				t.Fatal("missing key accepted", e)
 			}
 		}
@@ -118,7 +118,7 @@ func TestSigningRejectsConflictingIDs(t *testing.T) {
 	}
 	for _, id := range []string{"body-1", "ts-1", "ut-1", "bst-1", "sig-1"} {
 		raw := bytes.Replace(envelope("1.1"), []byte("<m:echo>"), []byte(`<m:echo xmlns:wsu="`+xmlsec.NSWSU+`" wsu:Id="`+id+`">`), 1)
-		wire, e := BuildSecurity(raw, p, material.Signing, fixedTime, bytes.NewReader(make([]byte, 16)), nil, message.Limits{})
+		wire, e := BuildSecurity(raw, p, material, fixedTime, bytes.NewReader(make([]byte, 16)), nil, message.Limits{})
 		if e == nil || wire != nil {
 			t.Fatal("ambiguous generated ID emitted", id, e)
 		}
@@ -133,7 +133,7 @@ func TestSigningRejectsBodyIDDecoy(t *testing.T) {
 	}
 	raw := bytes.Replace(envelope("1.1"), []byte("<s:Body>"), []byte(`<s:Body xmlns:wsu="`+xmlsec.NSWSU+`" wsu:Id="actual-body">`), 1)
 	raw = bytes.Replace(raw, []byte("<m:echo>"), []byte(`<m:echo xmlns:wsu="`+xmlsec.NSWSU+`" wsu:Id="body-1">`), 1)
-	if wire, e := BuildSecurity(raw, p, material.Signing, fixedTime, nil, nil, message.Limits{}); e == nil || wire != nil {
+	if wire, e := BuildSecurity(raw, p, material, fixedTime, nil, nil, message.Limits{}); e == nil || wire != nil {
 		t.Fatal("signed a decoy instead of the actual Body")
 	}
 }

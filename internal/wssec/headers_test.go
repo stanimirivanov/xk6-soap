@@ -25,7 +25,7 @@ func TestHeaderSignatureCoverage(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		wire, e := BuildSecurity([]byte(req.Body), p, material.Signing, fixedTime, nil, nil, message.Limits{}, req.HeaderSelectors...)
+		wire, e := BuildSecurity([]byte(req.Body), p, material, fixedTime, nil, nil, message.Limits{}, req.HeaderSelectors...)
 		if e != nil {
 			t.Fatal(e)
 		}
@@ -39,7 +39,7 @@ func TestHeaderSignatureCoverage(t *testing.T) {
 		}
 		missing := p
 		missing.Sign = &SigningPolicy{Headers: []string{"absent"}, Algorithm: p.Sign.Algorithm, Digest: p.Sign.Digest, Canonicalization: p.Sign.Canonicalization, KeyID: p.Sign.KeyID}
-		if out, e := BuildSecurity([]byte(req.Body), missing, material.Signing, fixedTime, nil, nil, message.Limits{}, req.HeaderSelectors...); e == nil || out != nil {
+		if out, e := BuildSecurity([]byte(req.Body), missing, material, fixedTime, nil, nil, message.Limits{}, req.HeaderSelectors...); e == nil || out != nil {
 			t.Fatal("missing selector accepted")
 		}
 		// A mathematically valid signature over Body/Timestamp cannot authenticate a header.
@@ -49,7 +49,7 @@ func TestHeaderSignatureCoverage(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		weak, e := BuildSecurity([]byte(noAddress.Body), unsigned, material.Signing, fixedTime, nil, nil, message.Limits{}, noAddress.HeaderSelectors...)
+		weak, e := BuildSecurity([]byte(noAddress.Body), unsigned, material, fixedTime, nil, nil, message.Limits{}, noAddress.HeaderSelectors...)
 		if e != nil {
 			t.Fatal(e)
 		}
@@ -82,7 +82,7 @@ func TestHeaderReferenceBudget(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		wire, e := BuildSecurity([]byte(req.Body), p, material.Signing, fixedTime, nil, nil, message.Limits{}, req.HeaderSelectors...)
+		wire, e := BuildSecurity([]byte(req.Body), p, material, fixedTime, nil, nil, message.Limits{}, req.HeaderSelectors...)
 		if count == 14 {
 			if e != nil || len(wire) == 0 {
 				t.Fatal("16-reference boundary rejected", e)

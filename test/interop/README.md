@@ -288,3 +288,8 @@ X509v3 KeyIdentifier, SKI and thumbprint signatures with WSS4J. Each response
 also runs through a client with an unrelated pin. The direct-reference case
 substitutes the certificate carried by the BST to check that matching a pin
 still requires verification of the signature with that key.
+
+`TestK6SignThenEncryptRequests` drives the public build API against the Apache
+sign-then-encrypt endpoints. It covers operation-element and Body-content
+targets with both AES-GCM key sizes and both SOAP versions. Apache decrypts
+and authenticates each request and rejects its signature-tampered counterpart.
