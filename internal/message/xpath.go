@@ -1,11 +1,12 @@
 package message
 
 import (
-	"github.com/antchfx/xmlquery"
-	"github.com/antchfx/xpath"
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/antchfx/xmlquery"
+	"github.com/antchfx/xpath"
 )
 
 // strictXPath binds unprefixed element/attribute name tests to the empty
@@ -34,17 +35,16 @@ func strictXPath(input string, namespaces map[string]string) (string, map[string
 			operand = true
 			continue
 		}
-		// XPath NCNames have the same XML name characters used by message validation.
+		if c == '.' || c >= '0' && c <= '9' {
+			end := xpathNumberOrStepEnd(input, i)
+			out.WriteString(input[i:end])
+			i = end
+			operand = true
+			continue
+		}
 		r, size := utf8.DecodeRuneInString(input[i:])
 		if nameStart(r) {
-			end := i + size
-			for end < len(input) {
-				next, n := utf8.DecodeRuneInString(input[end:])
-				if !(nameStart(next) || next == '-' || next == '.' || unicode.IsDigit(next) || next == 0xB7 || next >= 0x300 && next <= 0x36F || next >= 0x203F && next <= 0x2040) {
-					break
-				}
-				end += n
-			}
+			end := xpathNameEnd(input, i+size)
 			name := input[i:end]
 			look := end
 			for look < len(input) && strings.ContainsRune(" \t\r\n", rune(input[look])) {
@@ -67,13 +67,7 @@ func strictXPath(input string, namespaces map[string]string) (string, map[string
 					operand = true
 					continue
 				}
-				for end < len(input) {
-					next, n := utf8.DecodeRuneInString(input[end:])
-					if !(nameStart(next) || unicode.IsDigit(next) || next == '-' || next == '.' || next == '*') {
-						break
-					}
-					end += n
-				}
+				end = xpathNameEnd(input, end)
 				out.WriteString(input[i:end])
 				operand = true
 			} else if axis || function || operator {
@@ -93,11 +87,45 @@ func strictXPath(input string, namespaces map[string]string) (string, map[string
 		switch c {
 		case '/', '@', '[', '(', '=', '<', '>', '+', '-', ',', '|', ':':
 			operand = false
-		case ']', ')', '*', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+		case ']', ')':
 			operand = true
+		case '*':
+			// A wildcard completes a name test. Multiplication starts a new operand.
+			operand = !operand
 		}
 	}
 	return out.String(), map[string]string{prefix: ""}
+}
+
+func xpathNameEnd(input string, end int) int {
+	for end < len(input) {
+		next, size := utf8.DecodeRuneInString(input[end:])
+		if !(nameStart(next) || next == '-' || next == '.' || unicode.IsDigit(next) || next == 0xB7 || next >= 0x300 && next <= 0x36F || next >= 0x203F && next <= 0x2040) {
+			break
+		}
+		end += size
+	}
+	return end
+}
+
+// A dot can be a context step, the start of a parent step, or part of a number.
+// Consume the whole token so the following operator sees a completed operand.
+func xpathNumberOrStepEnd(input string, start int) int {
+	if strings.HasPrefix(input[start:], "..") {
+		return start + 2
+	}
+	end := xpathDigitsEnd(input, start)
+	if end < len(input) && input[end] == '.' {
+		end = xpathDigitsEnd(input, end+1)
+	}
+	return end
+}
+
+func xpathDigitsEnd(input string, end int) int {
+	for end < len(input) && input[end] >= '0' && input[end] <= '9' {
+		end++
+	}
+	return end
 }
 
 // xpathLiteral quotes namespace URIs as XPath string literals without allowing

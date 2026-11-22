@@ -4,6 +4,9 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/antchfx/xmlquery"
+	"github.com/antchfx/xpath"
 )
 
 func wrap(body string) string {
@@ -117,6 +120,56 @@ func TestXPathCDATAAndNamespaceWildcard(t *testing.T) {
 		value, err := p.XPath(expression, map[string]string{"m": "urn:test"})
 		if err != nil || !reflect.DeepEqual(value, []string{"hello<world"}) {
 			t.Fatalf("%s: %#v %v", expression, value, err)
+		}
+	}
+}
+
+func TestXPathOperandBoundaries(t *testing.T) {
+	p := Parse(200, wrap(`<m:名>文字</m:名><m:Value>2</m:Value><and xmlns="urn:other">9</and><and>3</and>`), "1.1", Limits{})
+	for _, tc := range []struct {
+		expression string
+		want       any
+	}{
+		{`. and true()`, true},
+		{`.. or true()`, true},
+		{`./m:名[. and true()][.. and true()]`, []string{"文字"}},
+		{`child::* and true()`, true},
+		{`./m:*`, []string{"文字", "2"}},
+		{`2 * and`, float64(6)},
+		{`./m:Value*and`, float64(6)},
+		{`.5 * and`, float64(1.5)},
+		{`3. div 2`, float64(1.5)},
+		{`string('.. or *')`, ".. or *"},
+	} {
+		t.Run(tc.expression, func(t *testing.T) {
+			got, err := p.XPath(tc.expression, map[string]string{"m": "urn:test"})
+			if err != nil || !reflect.DeepEqual(got, tc.want) {
+				t.Fatalf("got %#v, %v; want %#v", got, err, tc.want)
+			}
+		})
+	}
+}
+
+func TestXPathRewriteEquivalence(t *testing.T) {
+	p := Parse(200, wrap(`<m:Value>3</m:Value>`), "1.1", Limits{})
+	if !p.OK {
+		t.Fatal(p.Error)
+	}
+	bindings := map[string]string{"m": "urn:test"}
+	// Qualified names and these other operands have identical meaning before
+	// and after namespace adaptation. Test both truth values for and/or.
+	for _, operand := range []string{".", "..", "child::*", "./m:Value", "./m:Value[1]", "(.)", "3.", ".5", "'text'"} {
+		for _, suffix := range []string{" and true()", " and false()", " or true()", " or false()"} {
+			expression := operand + suffix
+			reference, err := xpath.CompileWithNS(expression, bindings)
+			if err != nil {
+				t.Fatalf("compile reference %q: %v", expression, err)
+			}
+			want := reference.Evaluate(&bodyNavigator{xmlquery.CreateXPathNavigator(p.root)})
+			got, err := p.XPath(expression, bindings)
+			if err != nil || !reflect.DeepEqual(got, want) {
+				t.Errorf("%q: got %#v, %v; reference returned %#v", expression, got, err, want)
+			}
 		}
 	}
 }
