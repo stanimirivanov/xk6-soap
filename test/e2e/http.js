@@ -24,6 +24,18 @@ export default function () {
     check(parsed, {
       'build/post/parse succeeds': p => p.ok && p.status===200 && p.error===null && p.sigVerified===null,
       'namespace XPath result': p => p.xpath('//m:Echo',{m:'urn:fixture'}).value[0]==='synthetic',
+      'context step yields a boolean': p => {
+        const result = p.xpath('. and true()');
+        return result.error === null && result.value === true;
+      },
+      'parent step yields a boolean': p => {
+        const result = p.xpath('.. or true()');
+        return result.error === null && result.value === true;
+      },
+      'context and parent steps work in predicates': p => {
+        const result = p.xpath('./m:Echo[. and true()][.. and true()]', {m:'urn:fixture'});
+        return result.error === null && result.value.length === 1 && result.value[0] === 'synthetic';
+      },
       'HTTP headers follow SOAP version': () => request.headers['Content-Type'].startsWith(contentType) && request.body.includes(namespace),
     });
   }
