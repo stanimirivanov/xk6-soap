@@ -22,30 +22,35 @@ type Parsed struct {
 }
 
 func Parse(status int, body, version string, limits Limits) (result *Parsed) {
-	result = &Parsed{Status: status}
-	defer func() {
-		if recover() != nil {
-			result = &Parsed{Status: status, Error: &Error{Code: "XML_INVALID", Stage: "parse"}}
+	defer recoverParse(status, &result)
+	var envelope ResponseEnvelope
+	if status != 0 && body != "" {
+		var err error
+		envelope, err = PrepareResponseEnvelope(body, version, limits)
+		if err != nil {
+			return &Parsed{Status: status, Error: err.(*Error)}
 		}
-	}()
+	}
+	return envelope.ParsePlain(status)
+}
+
+// ParsePlain applies plain SOAP header policy and projects the Body of a
+// validated response. The zero value represents an unavailable Body.
+func (e ResponseEnvelope) ParsePlain(status int) (result *Parsed) {
+	result = &Parsed{Status: status}
+	defer recoverParse(status, &result)
 	fail := func(code string) *Parsed { result.Error = &Error{Code: code, Stage: "parse"}; return result }
 	if status == 0 {
 		return fail("TRANSPORT_ERROR")
 	}
-	if body == "" {
+	if e.wire == "" {
 		return fail("BODY_UNAVAILABLE")
 	}
-	body, err := PrepareResponseEnvelope(body, version, limits)
-	if err != nil {
-		result.Error = err.(*Error)
-		return result
-	}
-	normalized, _ := limits.Normalized()
-	doc, err := xmlquery.Parse(strings.NewReader(body))
+	doc, err := xmlquery.Parse(strings.NewReader(e.wire))
 	if err != nil {
 		return fail("XML_INVALID")
 	}
-	ns, _ := namespace(version)
+	ns := e.namespace
 	env := child(doc, ns, "Envelope")
 	if env == nil {
 		return fail("XML_INVALID")
@@ -58,7 +63,13 @@ func Parse(status int, body, version string, limits Limits) (result *Parsed) {
 	if node == nil {
 		return fail("XML_INVALID")
 	}
-	return projectBody(status, node, ns, normalized, false)
+	return projectBody(status, node, ns, e.limits, false)
+}
+
+func recoverParse(status int, result **Parsed) {
+	if recover() != nil {
+		*result = &Parsed{Status: status, Error: &Error{Code: "XML_INVALID", Stage: "parse"}}
+	}
 }
 
 // ParseAcceptedBody projects only the security adapter's accepted canonical Body.

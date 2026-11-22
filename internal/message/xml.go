@@ -19,32 +19,49 @@ var responseXMLDeclaration = regexp.MustCompile(
 		"(?:[ \\t\\r\\n]+standalone[ \\t\\r\\n]*=[ \\t\\r\\n]*(?:\"(?:yes|no)\"|'(?:yes|no)'))?" +
 		"[ \\t\\r\\n]*\\?>")
 
+// ResponseEnvelope holds a validated inbound Envelope and the context used
+// to validate it. Obtain it with [PrepareResponseEnvelope].
+type ResponseEnvelope struct {
+	wire      string
+	namespace string
+	limits    Limits
+}
+
+// Wire returns the validated XML with any declaration removed.
+func (e ResponseEnvelope) Wire() string { return e.wire }
+
+// Namespace returns the validated SOAP Envelope namespace.
+func (e ResponseEnvelope) Namespace() string { return e.namespace }
+
 // PrepareResponseEnvelope validates an inbound Envelope and removes its optional
-// XML declaration before either XML tree parser sees it. Count the original
-// wire bytes and reserve one token for the declaration.
-func PrepareResponseEnvelope(document, version string, limits Limits) (string, error) {
-	start := strings.TrimPrefix(document, "\uFEFF")
-	if !strings.HasPrefix(start, "<?xml") {
-		return document, ValidateEnvelope(document, version, limits)
-	}
+// XML declaration before either XML tree parser sees it.
+func PrepareResponseEnvelope(document, version string, limits Limits) (ResponseEnvelope, error) {
 	ns, err := namespace(version)
 	if err != nil {
-		return "", err
+		return ResponseEnvelope{}, err
 	}
 	limits, err = limits.Normalized()
 	if err != nil {
-		return "", err
+		return ResponseEnvelope{}, err
 	}
-	if len(document) > limits.Bytes {
-		return "", failure("LIMIT_EXCEEDED", "xml")
+	validationLimits := limits
+	start := strings.TrimPrefix(document, "\uFEFF")
+	if strings.HasPrefix(start, "<?xml") {
+		// Count the original wire bytes and reserve one token for the declaration.
+		if len(document) > limits.Bytes {
+			return ResponseEnvelope{}, failure("LIMIT_EXCEEDED", "xml")
+		}
+		match := responseXMLDeclaration.FindStringIndex(start)
+		if match == nil {
+			return ResponseEnvelope{}, failure("XML_INVALID", "xml")
+		}
+		document = start[match[1]:]
+		validationLimits.Nodes--
 	}
-	match := responseXMLDeclaration.FindStringIndex(start)
-	if match == nil {
-		return "", failure("XML_INVALID", "xml")
+	if err := validate(document, validationLimits, "envelope", "", ns); err != nil {
+		return ResponseEnvelope{}, err
 	}
-	envelope := start[match[1]:]
-	limits.Nodes--
-	return envelope, validate(envelope, limits, "envelope", "", ns)
+	return ResponseEnvelope{wire: document, namespace: ns, limits: limits}, nil
 }
 
 type frame struct {
