@@ -17,7 +17,7 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 mkdir "$scratch/build"
-cp test/interop/wss4j/Dockerfile test/interop/wss4j/pom.xml test/interop/wss4j/maven-build.sh test/interop/wss4j/central-fallback.xml test/interop/wss4j/generate-keys.sh "$scratch/build/"
+cp test/interop/wss4j/Dockerfile test/interop/wss4j/pom.xml test/interop/wss4j/maven-build.sh test/interop/wss4j/central-fallback.xml test/interop/wss4j/central-fallback-eu.xml test/interop/wss4j/generate-keys.sh "$scratch/build/"
 cp -R test/interop/wss4j/src "$scratch/build/src"
 # Apache trusts only the committed synthetic client's public certificate.
 cp internal/wssec/testdata/signing-cert.pem "$scratch/build/client-cert.pem"

@@ -1,18 +1,11 @@
 # Internal layers
 
-Root AGENTS.md applies. The harness is repository tooling and cannot be a runtime
-dependency. See the [harness guide](../harness/HARNESS.md) and
-[architecture rules](../harness/archtest/rules.go).
+Follow the repository instructions. Use the [architecture checks](../harness/archtest/rules.go) for allowed dependency directions.
 
-- `adapter`: k6/Sobek bindings and per-VU state. May use message/keys/clock/wssec.
-- `message`: SOAP structure and payloads; no k6, keys or provider dependencies.
-- `keys`: byte-based key decoding and immutable material; no VU/runtime/transport.
-- `clock`: time/random injection boundary; no higher-layer imports.
-- `wssec`: message security policy and provider integration; may use message/keys/clock.
+- `adapter` owns k6/Sobek bindings and per-VU state. It may use message, keys, clock and WS-Security.
+- `message` owns SOAP structure and payloads. Keep it independent of k6, keys and the security provider.
+- `keys` decodes byte inputs and owns immutable material. Keep it independent of VU state and transport.
+- `clock` is the time and randomness injection boundary. Keep it independent of higher layers.
+- `wssec` owns message security policy and provider integration. It may use message, keys and clock.
 
-Do not create empty packages just to fill this map. A feature adds its owning package,
-focused tests and narrower AGENTS.md only if it needs additional local guidance.
-
-For security code, prove exact consumed-node coverage, bounded pre/post-decrypt parsing,
-trust selection and order handling. A provider self-round-trip is not independent interop.
-Shared mutable caches need race tests and finite capacity. No external XML URI resolvers.
+Security changes must preserve exact consumed-node coverage, bounded pre- and post-decryption parsing, trust selection, and protection order. External XML URI resolution is prohibited. Shared mutable caches require finite capacity and race coverage. Independent interoperability uses WSS4J-produced or WSS4J-verified messages.
