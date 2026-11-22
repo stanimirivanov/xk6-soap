@@ -216,15 +216,16 @@ The encryption endpoints keep their existing fault policy and regression matrix.
 
 ## Central import-BOM resolution failures
 
-CI has reported the pinned `cxf-bom:4.2.4` absent on both
+CI has reported HTTP 429 from Maven Central while resolving the pinned
+`cxf-bom:4.2.4`. Earlier runs reported the same BOM absent on both
 `repo.maven.apache.org` and `repo1.maven.org`. These two official hostnames share
 CDN infrastructure; switching between them was insufficient. The precise upstream
 cause of CI's inconsistent not-found response is still unconfirmed. Successful
 local downloads alone do not establish availability from GitHub's network.
 
 `maven-build.sh` resolves the model/dependency graph with forced-update `validate`
-before compilation/tests. Only a not-found imported BOM permits one additional
-validation attempt. The fallback now selects the independently hosted
+before compilation and tests. An imported BOM reported missing or an HTTP 429
+on an imported BOM transfer from Central permits one additional validation attempt. The fallback now selects the independently hosted
 [Google Cloud Storage mirror of Maven Central](https://docs.cloud.google.com/docs/buildpacks/java#google_cloud_hosted_maven_central_mirror),
 `https://maven-central.storage-download.googleapis.com/maven2/`, rather than the
 other Central hostname. This changes the fallback download source to Google's
@@ -234,8 +235,8 @@ The mirror may lag Central and has no availability guarantee; if both attempts f
 the build fails. No insecure TLS settings or dependency-version fallbacks are used.
 
 `-U` bypasses Maven's cached negative lookup. Original failure output and the
-recovery decision remain visible. Transfer/validation/compilation/test errors do
-not trigger recovery. After validation, exactly one package/copy-dependencies
+recovery decision remain visible. Other transfer errors and semantic validation failures stop the build.
+Compilation and test failures also stop the build. After validation, exactly one package/copy-dependencies
 invocation uses the selected source. Deterministic controller/settings tests run
 in `make verify`; cold Docker builds exercise actual Maven resolution.
 

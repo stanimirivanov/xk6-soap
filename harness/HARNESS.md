@@ -205,8 +205,7 @@ hook preservation. Hooks remain opt-in/bypassable; CI remains required.
 
 The local gate verifies the local network at push time. It cannot guarantee future
 availability from GitHub's different network. The fixture's bounded resolution
-recovery uses a Google-hosted Central mirror after a primary import-BOM not-found
-response. Its trust and availability limits are recorded in the
+recovery uses a Google-hosted Central mirror after a primary import-BOM lookup reports a missing artifact or HTTP 429. Its trust and availability limits are recorded in the
 [interop fixture guide](../test/interop/README.md).
 
 

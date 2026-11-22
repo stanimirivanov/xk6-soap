@@ -12,10 +12,11 @@ if mvn -U -B -ntp validate > "$resolution_log" 2>&1; then
 else
     result=$?
     cat "$resolution_log" >&2
-    # Recover only the observed Central missing-import-BOM response. Semantic
-    # validation failures, compilation and tests never enter this path.
-    if ! grep -F 'Non-resolvable import POM' "$resolution_log" >/dev/null \
-        || ! grep -F 'Could not find artifact' "$resolution_log" >/dev/null; then
+    # Recover an imported BOM lookup that is missing or rate-limited by Central.
+    # Require the Central endpoint and HTTP status on the same import error line.
+    central_429='Non-resolvable import POM.*Could not transfer artifact .* from/to central \(https://repo\.maven\.apache\.org/maven2/?\): status code: 429([,[:space:]]|$)'
+    if ! grep -Fq 'Non-resolvable import POM' "$resolution_log" ||
+        { ! grep -Fq 'Could not find artifact' "$resolution_log" && ! grep -Eq "$central_429" "$resolution_log"; }; then
         exit "$result"
     fi
     printf 'Central import-BOM lookup failed; trying the independently hosted Central mirror once.\n' >&2

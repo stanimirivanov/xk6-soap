@@ -19,6 +19,9 @@ func TestMavenBuildRecovery(t *testing.T) {
 		{"success", 0, 2, false},
 		{"missing-once", 0, 3, true},
 		{"missing-always", 17, 2, true},
+		{"central-429-once", 0, 3, true},
+		{"central-429-always", 18, 2, true},
+		{"other-429", 18, 1, false},
 		{"validation-error", 9, 1, false},
 		{"transfer-error", 18, 1, false},
 		{"model-error", 19, 1, false},
@@ -39,6 +42,17 @@ case "$*" in
   case "$SOAP_MAVEN_TEST_SCENARIO" in
    missing-always) missing=true ;;
    missing-once) if [ "$n" -eq 1 ]; then missing=true; else missing=false; fi ;;
+   central-429-*)
+    if [ "$n" -eq 1 ] || [ "$SOAP_MAVEN_TEST_SCENARIO" = central-429-always ]; then
+     repository='central (https://repo.maven.apache.org/maven2)'
+     if [ "$n" -gt 1 ]; then repository='central-fallback (https://maven-central.storage-download.googleapis.com/maven2/)'; fi
+     printf '[ERROR] Non-resolvable import POM: The following artifacts could not be resolved: org.apache.cxf:cxf-bom:pom:4.2.4 (absent): Could not transfer artifact org.apache.cxf:cxf-bom:pom:4.2.4 from/to %s: status code: 429, reason phrase: Too Many Requests (429) @ line 6, column 17\n' "$repository"
+     exit 18
+    fi
+    missing=false ;;
+   other-429)
+    printf '[ERROR] Non-resolvable import POM: Could not transfer artifact test:bom:pom:1 from/to other (https://repo.example.test): status code: 429, reason phrase: Too Many Requests (429)\n'
+    exit 18 ;;
    validation-error) printf '[ERROR] BannedDependencies: WSS4J versions differ\n'; exit 9 ;;
    transfer-error) printf '[ERROR] Non-resolvable import POM: Could not transfer artifact: HTTP 403\n'; exit 18 ;;
    model-error) printf '[ERROR] Non-resolvable import POM: invalid version\n'; exit 19 ;;
