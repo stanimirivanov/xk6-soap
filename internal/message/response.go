@@ -35,7 +35,8 @@ func Parse(status int, body, version string, limits Limits) (result *Parsed) {
 	if body == "" {
 		return fail("BODY_UNAVAILABLE")
 	}
-	if err := ValidateEnvelope(body, version, limits); err != nil {
+	body, err := PrepareResponseEnvelope(body, version, limits)
+	if err != nil {
 		result.Error = err.(*Error)
 		return result
 	}

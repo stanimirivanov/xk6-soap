@@ -41,10 +41,10 @@ func TestK6SOAPFixture(t *testing.T) {
 				t.Fatalf("k6 failed: %v\n%s", err, output)
 			}
 			captures := server.Captures()
-			if len(captures) != 10 {
-				t.Fatalf("expected 10 HTTP requests, got %d\n%s", len(captures), output)
+			if len(captures) != 12 {
+				t.Fatalf("expected 12 HTTP requests, got %d\n%s", len(captures), output)
 			}
-			for i := range 2 {
+			for i := range 4 {
 				if captures[i].Path != "/echo" || captures[i].Header.Get("X-Synthetic") != "soap-e2e" {
 					t.Fatalf("request %d: %+v", i, captures[i])
 				}

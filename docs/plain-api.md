@@ -23,8 +23,10 @@ are accepted, following PR-3's operation/namespace/header/limit rules.
 
 Parse accepts a k6 response or `{status,body}` object. Status is an integer
 0–599. Text bodies and attached ArrayBuffers are accepted; binary data must be
-UTF-8 XML. Missing/null/empty/discarded bodies yield BODY_UNAVAILABLE. Other body
-types are local INVALID_ARGUMENT errors. Status 0 yields TRANSPORT_ERROR before
+UTF-8 XML. Complete response Envelopes may start with an XML 1.0 declaration
+with UTF-8 or omitted encoding. Missing/null/empty/discarded bodies yield
+BODY_UNAVAILABLE. Other body types are local INVALID_ARGUMENT errors.
+Status 0 yields TRANSPORT_ERROR before
 looking at body; non-2xx responses may still carry accepted SOAP Faults.
 
 Results contain `{ok,status,body,fault,error,sigVerified,timestampValid,xpath}`.

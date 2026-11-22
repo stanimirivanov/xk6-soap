@@ -43,9 +43,17 @@ owns lexical XML parsing. The validation layer uses RawToken to retain prefixes,
 checks matching tags, and applies [XML namespace constraints](https://www.w3.org/TR/REC-xml-names/)
 that the standard Token API does not enforce, including declared prefixes,
 reserved bindings and duplicate expanded attribute names. XML 1.0 NCName rules
-apply to operation and qualified-name components. DTDs, processing instructions
-(including XML declarations), unknown entities and invalid UTF-8 are rejected.
-Comments, CDATA and predefined/numeric character references remain valid.
+apply to operation and qualified-name components. DTDs, processing instructions,
+unknown entities and invalid UTF-8 are rejected. Comments, CDATA and
+predefined/numeric character references remain valid.
+
+Complete inbound SOAP Envelopes may start with one well-formed
+[XML 1.0 declaration](https://www.w3.org/TR/xml/#sec-prolog-dtd), optionally
+preceded by a UTF-8 BOM. The encoding may be omitted or set to UTF-8. The
+original wire bytes and the declaration token count toward input limits.
+The inbound parser removes the declaration before passing the Envelope to
+either XML tree parser. Outbound fragments and internal Body projections
+still reject declarations.
 
 Envelope checks use expanded names and positions: one root Envelope, at most
 one Header before exactly one Body, no extra envelope children, and no nested

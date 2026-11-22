@@ -3,12 +3,49 @@ package message
 import (
 	"encoding/xml"
 	"io"
+	"regexp"
 	"strings"
 	"unicode/utf8"
 )
 
 const xmlNS = "http://www.w3.org/XML/1998/namespace"
 const xmlnsNS = "http://www.w3.org/2000/xmlns/"
+
+// XML 1.0 §2.8 defines the order, quoting and XML whitespace of these fields.
+// The receive profile supports only version 1.0 with optional UTF-8 encoding.
+var responseXMLDeclaration = regexp.MustCompile(
+	"^<\\?xml[ \\t\\r\\n]+version[ \\t\\r\\n]*=[ \\t\\r\\n]*(?:\"1\\.0\"|'1\\.0')" +
+		"(?:[ \\t\\r\\n]+encoding[ \\t\\r\\n]*=[ \\t\\r\\n]*(?i:\"UTF-8\"|'UTF-8'))?" +
+		"(?:[ \\t\\r\\n]+standalone[ \\t\\r\\n]*=[ \\t\\r\\n]*(?:\"(?:yes|no)\"|'(?:yes|no)'))?" +
+		"[ \\t\\r\\n]*\\?>")
+
+// PrepareResponseEnvelope validates an inbound Envelope and removes its optional
+// XML declaration before either XML tree parser sees it. Count the original
+// wire bytes and reserve one token for the declaration.
+func PrepareResponseEnvelope(document, version string, limits Limits) (string, error) {
+	start := strings.TrimPrefix(document, "\uFEFF")
+	if !strings.HasPrefix(start, "<?xml") {
+		return document, ValidateEnvelope(document, version, limits)
+	}
+	ns, err := namespace(version)
+	if err != nil {
+		return "", err
+	}
+	limits, err = limits.Normalized()
+	if err != nil {
+		return "", err
+	}
+	if len(document) > limits.Bytes {
+		return "", failure("LIMIT_EXCEEDED", "xml")
+	}
+	match := responseXMLDeclaration.FindStringIndex(start)
+	if match == nil {
+		return "", failure("XML_INVALID", "xml")
+	}
+	envelope := start[match[1]:]
+	limits.Nodes--
+	return envelope, validate(envelope, limits, "envelope", "", ns)
+}
 
 type frame struct {
 	raw xml.Name

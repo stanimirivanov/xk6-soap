@@ -52,7 +52,8 @@ func receiveWithDecryptor(status int, raw, version string, limits message.Limits
 	if status == 0 || raw == "" {
 		return message.Parse(status, raw, version, limits)
 	}
-	if e := message.ValidateEnvelope(raw, version, limits); e != nil {
+	raw, e := message.PrepareResponseEnvelope(raw, version, limits)
+	if e != nil {
 		result.Error = e.(*message.Error)
 		return result
 	}
