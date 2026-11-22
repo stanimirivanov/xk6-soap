@@ -52,20 +52,21 @@ func receiveWithDecryptor(status int, raw, version string, limits message.Limits
 	if status == 0 || raw == "" {
 		return message.Parse(status, raw, version, limits)
 	}
-	raw, e := message.PrepareResponseEnvelope(raw, version, limits)
+	envelope, e := message.PrepareResponseEnvelope(raw, version, limits)
 	if e != nil {
 		result.Error = e.(*message.Error)
 		return result
 	}
-	doc, ns, e := parsed([]byte(raw))
-	if e != nil {
+	raw = envelope.Wire()
+	doc, ns, e := parseProviderEnvelope([]byte(raw))
+	if e != nil || ns != envelope.Namespace() {
 		return fail("POLICY_VIOLATION")
 	}
 	if !policy.Signature && !policy.RequireEncryption {
 		env := element(doc.Root())
 		head := env.FirstElement(ns, "Header")
 		if head == nil || head.FirstElement(xmlsec.NSWSSE, "Security") == nil {
-			return message.Parse(status, raw, version, limits)
+			return envelope.ParsePlain(status)
 		}
 	}
 	var understood []xml.Name

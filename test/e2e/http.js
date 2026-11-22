@@ -45,6 +45,18 @@ export default function () {
         p.ok && p.status === parsed.status && p.body === parsed.body &&
         p.xpath('string(//m:Echo)', {m:'urn:fixture'}).value === 'synthetic',
     });
+    const httpError = soapClients[index].parse({status:503, body:request.body});
+    check(httpError, {
+      'HTTP errors retain accepted Body and XPath': p =>
+        !p.ok && p.error?.code === 'HTTP_STATUS' && p.body === parsed.body &&
+        p.xpath('string(//m:Echo)', {m:'urn:fixture'}).value === 'synthetic',
+    });
+    const encrypted = `<s:Envelope xmlns:s="${namespace}"><s:Body><x:EncryptedData xmlns:x="http://www.w3.org/2001/04/xmlenc#"/></s:Body></s:Envelope>`;
+    check(soapClients[index].parse({status:503, body:encrypted}), {
+      'plain client withholds encrypted Body before HTTP outcome': p =>
+        !p.ok && p.error?.code === 'POLICY_VIOLATION' && p.body === null && p.fault === null &&
+        p.xpath('.').error?.code === 'CONTENT_UNAVAILABLE',
+    });
   }
   for (let index=0;index<2;index++) {
     const version = ['11','12'][index];

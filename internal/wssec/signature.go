@@ -52,6 +52,23 @@ func rsaCertificateOK(cert *x509.Certificate, now time.Time, usage x509.KeyUsage
 	return ok && pub.N.BitLen() >= 2048 && (cert.KeyUsage == 0 || cert.KeyUsage&usage != 0)
 }
 func parsed(raw []byte) (*xmlsec.Document, string, error) {
+	doc, ns, err := parseProviderEnvelope(raw)
+	if err != nil {
+		return nil, "", err
+	}
+	version := "1.1"
+	if ns == xmlsec.NSSOAP12 {
+		version = "1.2"
+	}
+	if message.ValidateEnvelope(string(raw), version, message.Limits{}) != nil {
+		return nil, "", ErrInvalidMessage
+	}
+	return doc, ns, nil
+}
+
+// parseProviderEnvelope retains the provider's parse limits and ID checks.
+// The caller also validates the SOAP Envelope through the message layer.
+func parseProviderEnvelope(raw []byte) (*xmlsec.Document, string, error) {
 	tree, err := xmlsec.ParseWithLimits(raw, xmlsec.ParseLimits{MaxBytes: 4 << 20, MaxDepth: 64, MaxNodes: 50000})
 	if err != nil {
 		return nil, "", ErrInvalidMessage
@@ -60,18 +77,10 @@ func parsed(raw []byte) (*xmlsec.Document, string, error) {
 	if env == nil {
 		return nil, "", ErrInvalidMessage
 	}
-	ns := env.Name().URI
-	version := "1.1"
-	if ns == xmlsec.NSSOAP12 {
-		version = "1.2"
-	}
-	if message.ValidateEnvelope(string(raw), version, message.Limits{}) != nil {
-		return nil, "", ErrInvalidMessage
-	}
 	if err := wss.CheckUniqueIDs(tree.Root, xdm.QName{Local: "Id"}); err != nil {
 		return nil, "", ErrInvalidMessage
 	}
-	return xmlsec.NewDocument(tree.Root), ns, nil
+	return xmlsec.NewDocument(tree.Root), env.Name().URI, nil
 }
 func element(root *xdm.Node) *xdm.Node {
 	for n := range root.Children() {
