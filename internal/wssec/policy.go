@@ -61,6 +61,10 @@ type ReceiveOptions struct {
 	ClockSkewSeconds    *int
 	MaxAgeSeconds       *int
 }
+
+// ReceivePolicy holds the normalized requirements for inbound SOAP responses.
+// Use the Receive field of the [Policy] returned by [CompilePolicy], including
+// for plain exchanges. The zero value omits the default algorithm allow-lists.
 type ReceivePolicy struct {
 	Signature           bool
 	Timestamp           bool
@@ -103,8 +107,23 @@ var signatureKeyIDs = []string{directKeyID, "issuer-serial", "x509keyidentifier"
 var signatureAlgorithms = []string{"rsa-sha256", "rsa-sha384", "rsa-sha512", "ecdsa-sha256", "ecdsa-sha384", "ecdsa-sha512"}
 var digestAlgorithms = []string{"sha256", "sha384", "sha512"}
 
-// CompilePolicy normalizes independent send/receive defaults, then validates
-// combinations and key roles. It never grants trust from embedded wire content.
+// CompilePolicy normalizes options, validates their combinations and checks
+// the required key roles at the supplied time. Call [Policy.RequireAvailable]
+// on the result to check that the requested profile is supported.
+//
+// When omitted, receive signature verification defaults to whether outbound
+// signing is configured. Timestamp freshness defaults to the resulting receive
+// signature setting, with 60 seconds of clock skew and a maximum age of
+// 300 seconds. Body encryption is optional by default. Receive signature
+// and digest allow-lists default to RSA-SHA256 and SHA-256 independently
+// of the outbound algorithms.
+//
+// Explicit settings override the defaults subject to validation. Freshness,
+// required Body encryption and required signed or encrypted headers all
+// require signature verification. Required signature verification needs
+// configured trust pins with at least one compatible signature algorithm.
+// Required Body or header encryption needs a decryption identity. Any
+// decryption identity requires an explicit receive protection order.
 func CompilePolicy(in SecurityOptions, material KeyMaterial, now time.Time) (Policy, error) {
 	p := Policy{Order: in.Order}
 	if in.UsernameToken != nil {
@@ -247,8 +266,8 @@ func CompilePolicy(in SecurityOptions, material KeyMaterial, now time.Time) (Pol
 	return p, nil
 }
 
-// RequireAvailable activates outbound credentials and the accepted core signature
-// profile plus core pinned receive verification. Additional profiles stay gated.
+// RequireAvailable checks whether the configured signature and encryption
+// profiles are supported.
 func (p Policy) RequireAvailable() error {
 	if s := p.Sign; s != nil && (signatureURIs[s.Algorithm] == "" || digestURIs[s.Digest] == "" || s.Canonicalization != "exclusive-c14n" || !slices.Contains(signatureKeyIDs, s.KeyID)) {
 		return ErrUnavailable
