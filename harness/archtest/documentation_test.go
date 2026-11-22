@@ -22,6 +22,8 @@ func TestContractDocumentationReferences(t *testing.T) {
 		"docs/adr/README.md", "docs/keys.md", "docs/object-payloads.md", "docs/plain-api.md",
 		"docs/security-policy.md", "test/interop/README.md",
 		"docs/release.md", "RELEASE_NOTES.md", "THIRD_PARTY_NOTICES.md", "harness/HARNESS.md",
+		"AGENTS.md", "internal/AGENTS.md", "test/AGENTS.md",
+		"docs/agents/issue-tracker.md", "docs/agents/triage-labels.md", "docs/agents/domain.md",
 	} {
 		t.Run(doc, func(t *testing.T) {
 			root := filepath.Join("..", "..")
