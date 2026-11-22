@@ -2,36 +2,26 @@ package message
 
 import (
 	"errors"
+	"slices"
 	"strings"
 
 	"github.com/antchfx/xmlquery"
 )
 
 func readFault(n *xmlquery.Node, ns string) (map[string]any, error) {
-	expectedNS := ns
-	allowed := map[string]bool{"Code": true, "Reason": true, "Node": true, "Role": true, "Detail": true}
-	if ns == SOAP11 {
-		expectedNS = ""
-		allowed = map[string]bool{"faultcode": true, "faultstring": true, "faultactor": true, "detail": true}
-	}
-	seen := map[string]bool{}
-	for field := n.FirstChild; field != nil; field = field.NextSibling {
-		if field.Type != xmlquery.ElementNode {
-			continue
-		}
-		if field.NamespaceURI != expectedNS || !allowed[field.Data] || seen[field.Data] {
-			return nil, errors.New("invalid fault")
-		}
-		seen[field.Data] = true
-	}
 	fault := map[string]any{"code": nil, "subcodes": []any{}, "reason": nil, "reasons": []any{}, "role": nil, "node": nil, "detail": nil}
-	text := func(parent *xmlquery.Node, space, name string) string {
-		if c := child(parent, space, name); c != nil {
-			return c.InnerText()
-		}
-		return ""
-	}
 	if ns == SOAP11 {
+		allowed := map[string]bool{"faultcode": true, "faultstring": true, "faultactor": true, "detail": true}
+		seen := map[string]bool{}
+		for field := n.FirstChild; field != nil; field = field.NextSibling {
+			if field.Type != xmlquery.ElementNode {
+				continue
+			}
+			if field.NamespaceURI != "" || !allowed[field.Data] || seen[field.Data] {
+				return nil, errors.New("invalid fault")
+			}
+			seen[field.Data] = true
+		}
 		codeNode := child(n, "", "faultcode")
 		reason := child(n, "", "faultstring")
 		if codeNode == nil || reason == nil {
@@ -51,35 +41,40 @@ func readFault(n *xmlquery.Node, ns string) (map[string]any, error) {
 			fault["detail"] = detail.OutputXMLWithOptions(xmlquery.WithPreserveSpace())
 		}
 	} else {
-		c := child(n, ns, "Code")
-		r := child(n, ns, "Reason")
-		if c == nil || r == nil || child(c, ns, "Value") == nil {
+		if !orderedFault12Children(n, "Code", "Reason", "Node", "Role", "Detail") {
 			return nil, errors.New("invalid fault")
 		}
-		expanded, err := faultQName(child(c, ns, "Value"))
-		if err != nil {
-			return nil, err
+		c := child(n, ns, "Code")
+		r := child(n, ns, "Reason")
+		if c == nil || r == nil {
+			return nil, errors.New("invalid fault")
 		}
-		fault["code"] = expanded
 		subcodes := []any{}
-		for sub := child(c, ns, "Subcode"); sub != nil; sub = child(sub, ns, "Subcode") {
-			value := child(sub, ns, "Value")
-			if value == nil {
+		for field := c; field != nil; field = child(field, ns, "Subcode") {
+			value := child(field, ns, "Value")
+			if value == nil || !orderedFault12Children(field, "Value", "Subcode") || !faultScalar(value) {
 				return nil, errors.New("invalid fault")
 			}
 			expanded, err := faultQName(value)
 			if err != nil {
 				return nil, err
 			}
-			subcodes = append(subcodes, expanded)
+			if field == c {
+				fault["code"] = expanded
+			} else {
+				subcodes = append(subcodes, expanded)
+			}
 		}
 		fault["subcodes"] = subcodes
 		reasons := []any{}
 		preferred := ""
 		foundEnglish := false
 		for reason := r.FirstChild; reason != nil; reason = reason.NextSibling {
-			if reason.Type != xmlquery.ElementNode || reason.NamespaceURI != ns || reason.Data != "Text" {
+			if faultFormatting(reason) {
 				continue
+			}
+			if reason.Type != xmlquery.ElementNode || reason.NamespaceURI != ns || reason.Data != "Text" || !faultScalar(reason) {
+				return nil, errors.New("invalid fault")
 			}
 			lang := ""
 			for _, a := range reason.Attr {
@@ -104,17 +99,58 @@ func readFault(n *xmlquery.Node, ns string) (map[string]any, error) {
 		}
 		fault["reasons"] = reasons
 		fault["reason"] = preferred
-		if node := text(n, ns, "Node"); node != "" {
-			fault["node"] = node
-		}
-		if role := text(n, ns, "Role"); role != "" {
-			fault["role"] = role
+		for _, field := range []string{"Node", "Role"} {
+			if node := child(n, ns, field); node != nil {
+				if !faultScalar(node) {
+					return nil, errors.New("invalid fault")
+				}
+				if value := node.InnerText(); value != "" {
+					fault[strings.ToLower(field)] = value
+				}
+			}
 		}
 		if detail := child(n, ns, "Detail"); detail != nil {
 			fault["detail"] = detail.OutputXMLWithOptions(xmlquery.WithPreserveSpace())
 		}
 	}
 	return fault, nil
+}
+
+// SOAP 1.2 element-only fields allow formatting whitespace and comments.
+func faultFormatting(n *xmlquery.Node) bool {
+	switch n.Type {
+	case xmlquery.CommentNode:
+		return true
+	case xmlquery.TextNode, xmlquery.CharDataNode:
+		return strings.Trim(n.Data, " \t\r\n") == ""
+	default:
+		return false
+	}
+}
+
+// Consume each permitted field once. Omitted fields are checked by the caller
+// when required at that level.
+func orderedFault12Children(parent *xmlquery.Node, remaining ...string) bool {
+	for n := parent.FirstChild; n != nil; n = n.NextSibling {
+		if faultFormatting(n) {
+			continue
+		}
+		index := slices.Index(remaining, n.Data)
+		if n.Type != xmlquery.ElementNode || n.NamespaceURI != SOAP12 || index < 0 {
+			return false
+		}
+		remaining = remaining[index+1:]
+	}
+	return true
+}
+
+func faultScalar(n *xmlquery.Node) bool {
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if c.Type == xmlquery.ElementNode {
+			return false
+		}
+	}
+	return true
 }
 
 func faultQName(n *xmlquery.Node) (map[string]any, error) {
