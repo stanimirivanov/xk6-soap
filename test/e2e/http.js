@@ -45,6 +45,17 @@ export default function () {
     const parsed = soapClients[index].parse(response);
     check(parsed, {'parsed SOAP fault': p => !p.ok && p.error.code==='SOAP_FAULT' && p.fault.reason==='Synthetic fault'});
   }
+  const malformedFault = '<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Body><s:Fault>' +
+    '<s:Code><s:Value>s:Sender</s:Value><s:Value>s:Receiver</s:Value></s:Code>' +
+    '<s:Reason><s:Text xml:lang="en">Synthetic fault</s:Text></s:Reason></s:Fault></s:Body></s:Envelope>';
+  const malformed = http.post(base + '/echo', malformedFault, {timeout:'2s'});
+  check(soapClients[1].parse(malformed), {
+    'malformed SOAP 1.2 Fault withholds content': p => {
+      const query = p.xpath('.');
+      return p.status === 200 && !p.ok && p.error?.code === 'XML_INVALID' &&
+        p.body === null && p.fault === null && query.value === null && query.error?.code === 'CONTENT_UNAVAILABLE';
+    },
+  });
   const discarded=http.post(`${base}/echo`,'<Echo/>',{responseType:'none',timeout:'2s'});
   check(client.parse(discarded),{'discarded body unavailable': p => !p.ok && p.error.code==='BODY_UNAVAILABLE'});
   const empty = http.post(`${base}/empty`, null, { timeout: '2s' });

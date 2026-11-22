@@ -39,7 +39,9 @@ body, XML/limits/policy, SOAP_FAULT, HTTP_STATUS. Accepted Faults are retained o
 HTTP 200 or error status. Fault fields are `code:{namespace,localName}`, `subcodes`,
 `reason`, `reasons:[{lang,text}]`, `role`, `node`, and `detail` (inner XML).
 Unavailable fields are null or empty arrays. SOAP 1.2 prefers English Reason text,
-then the first supplied language. Malformed required Fault fields fail as XML_INVALID.
+then the first supplied language. Malformed required Fault fields return XML_INVALID.
+SOAP 1.2 also checks field order, cardinality and nesting before releasing Body
+and Fault content.
 
 Parsing rejects targeted unknown mandatory SOAP headers and encryption structures
 that plain mode cannot consume. Supported WS-Addressing header names are recognized;
