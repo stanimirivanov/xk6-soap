@@ -216,28 +216,33 @@ The encryption endpoints keep their existing fault policy and regression matrix.
 
 ## Central import-BOM resolution failures
 
-CI has reported the pinned `cxf-bom:4.2.4` absent on both
+CI has reported HTTP 429 from Maven Central while resolving the pinned
+`cxf-bom:4.2.4`. Earlier runs reported the same BOM absent on both
 `repo.maven.apache.org` and `repo1.maven.org`. These two official hostnames share
 CDN infrastructure; switching between them was insufficient. The precise upstream
 cause of CI's inconsistent not-found response is still unconfirmed. Successful
 local downloads alone do not establish availability from GitHub's network.
 
-`maven-build.sh` resolves the model/dependency graph with forced-update `validate`
-before compilation/tests. Only a not-found imported BOM permits one additional
-validation attempt. The fallback now selects the independently hosted
-[Google Cloud Storage mirror of Maven Central](https://docs.cloud.google.com/docs/buildpacks/java#google_cloud_hosted_maven_central_mirror),
-`https://maven-central.storage-download.googleapis.com/maven2/`, rather than the
-other Central hostname. This changes the fallback download source to Google's
-mirror. Dependency versions and alignment checks are unchanged. The pinned CXF BOM
-was fetched from both primary Central and the mirror with identical SHA-256 bytes.
-The mirror may lag Central and has no availability guarantee; if both attempts fail,
-the build fails. No insecure TLS settings or dependency-version fallbacks are used.
+`maven-build.sh` validates the model and dependency graph before compiling.
+Each validation has a 120-second deadline. The pinned Maven 3.9 Resolver uses
+10-second connect and 20-second inactivity timeouts, one HTTP retry, and at
+most five seconds of rate-limit backoff. `-U` bypasses cached negative lookups.
 
-`-U` bypasses Maven's cached negative lookup. Original failure output and the
-recovery decision remain visible. Transfer/validation/compilation/test errors do
-not trigger recovery. After validation, exactly one package/copy-dependencies
-invocation uses the selected source. Deterministic controller/settings tests run
-in `make verify`; cold Docker builds exercise actual Maven resolution.
+A missing imported BOM, a Central HTTP 429 while resolving an imported BOM,
+or a validation timeout moves from Central to the Americas mirror. If that
+mirror times out or reports HTTP 429, 500, 502, 503, or 504 while transferring
+an artifact, validation moves to the EU mirror. Both are documented
+[Google Cloud Storage Maven Central endpoints](https://storage-download.googleapis.com/maven-central/index.html).
+GitHub Actions previously reached the Americas mirror after a Central 429,
+then exhausted the outer 600-second Docker build deadline during validation.
+
+Each endpoint is attempted at most once. The wrapper prints the selected
+endpoint and original failure. Other errors, including semantic validation
+failures, stop the build. The selected endpoint runs exactly one package
+and copy-dependencies invocation. Compilation and test failures propagate.
+The fixture retains its pinned dependencies and HTTPS certificate validation.
+Deterministic recovery and settings tests run in `make verify`. Cold Docker
+builds exercise live dependency resolution.
 
 `make interop` now always uses `docker build --no-cache`, matching a clean CI build
 rather than trusting a previous Maven layer. With repository hooks enabled,
