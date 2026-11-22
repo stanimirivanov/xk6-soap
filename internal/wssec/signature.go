@@ -1,5 +1,9 @@
-// Package wssec contains the candidate XML-security adapter. No public JS
-// security behavior is enabled until independent kernel gates pass.
+// Package wssec owns WS-Security policy, outbound message protection and
+// inbound security checks for SOAP exchanges. The k6 adapter uses [BuildSecurity]
+// to prepare protected requests and [ReceiveWithKeys] to parse responses.
+//
+// [Sign], [Verify], [Protect] and [Open] are narrower kernel entry points used
+// by tests, including the independent signature and encryption interop gates.
 package wssec
 
 import (

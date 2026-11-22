@@ -18,12 +18,22 @@ import (
 
 var errReceiveSignature = errors.New("SIGNATURE_INVALID")
 
-// Receive never returns application content before all required security checks
-// succeed. Provider nodes are request-local and never escape this adapter.
+// Receive is a convenience wrapper around [ReceiveWithKeys] for responses
+// that need no decryption identity. Supply the same compiled receive policy
+// and any trust pins required by that policy.
 func Receive(status int, raw, version string, limits message.Limits, policy ReceivePolicy, trust []*keys.Material, now time.Time) *message.Parsed {
 	return ReceiveWithKeys(status, raw, version, limits, policy, KeyMaterial{Trust: trust}, now)
 }
 
+// ReceiveWithKeys parses the response using the HTTP status, SOAP version and
+// message limits supplied by the caller. Supply the Receive field of a [Policy]
+// from [CompilePolicy] that has passed [Policy.RequireAvailable], the
+// corresponding trust pins and any configured decryption identity, and the
+// current receive time.
+//
+// Accepted response content is released only after the applicable security
+// checks pass. Signature verification uses exact leaf certificate pins.
+// Provider nodes stay local to the response.
 func ReceiveWithKeys(status int, raw, version string, limits message.Limits, policy ReceivePolicy, material KeyMaterial, now time.Time) *message.Parsed {
 	return receiveWithDecryptor(status, raw, version, limits, policy, material, now, responseEncryption.decrypt)
 }

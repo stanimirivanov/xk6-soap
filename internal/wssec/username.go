@@ -37,8 +37,10 @@ func BuildCredentials(raw []byte, p Policy, now time.Time, random io.Reader, ove
 	return BuildSecurity(raw, p, KeyMaterial{}, now, random, override, limits)
 }
 
-// BuildSecurity constructs credentials and signatures in one request-local tree.
-// Only the completed tree is serialized to wire bytes.
+// BuildSecurity applies the configured UsernameToken, Timestamp, signature and
+// encryption to a prepared SOAP Envelope. Supply a [Policy] from [CompilePolicy]
+// and the corresponding key material for its configured roles.
+// The caller sends the returned wire bytes unchanged.
 func BuildSecurity(raw []byte, p Policy, material KeyMaterial, now time.Time, random io.Reader, override *Credentials, limits message.Limits, selectors ...message.HeaderSelector) (wire []byte, err error) {
 	defer func() {
 		if recover() != nil {
