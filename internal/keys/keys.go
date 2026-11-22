@@ -121,6 +121,7 @@ func (m *Material) Validate(role Role, now time.Time) error {
 // without an unbounded in-flight map. Failed loads consume no cache capacity.
 // Encoded-byte accounting is conservative even though original inputs/passwords
 // are not retained. There is no eviction that could conceal exhaustion.
+// Construct a Cache with NewCache. Its zero value cannot load material.
 type Cache struct {
 	mu           sync.Mutex
 	secret       [32]byte
@@ -133,7 +134,12 @@ func NewCache() *Cache {
 	rand.Read(c.secret[:])
 	return c
 }
+
+// Load returns ErrInvalid when the cache was not initialized by NewCache.
 func (c *Cache) Load(in Input, role Role, now time.Time) (*Material, error) {
+	if c.entries == nil {
+		return nil, ErrInvalid
+	}
 	for _, n := range []int{len(in.Cert), len(in.Key), len(in.PKCS12), len(in.Password)} {
 		if n > MaxInput {
 			return nil, ErrLimit
