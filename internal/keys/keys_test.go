@@ -37,6 +37,15 @@ func pemInput(t *testing.T) Input {
 	t.Helper()
 	return Input{Cert: fixture(t, "../wssec/testdata/signing-cert.pem"), Key: fixture(t, "../wssec/testdata/signing-key.pem")}
 }
+
+func TestZeroValueCacheRejectsLoad(t *testing.T) {
+	var cache Cache
+	material, err := cache.Load(pemInput(t), Signing, testTime)
+	if material != nil || !errors.Is(err, ErrInvalid) {
+		t.Fatal("expected no material and ErrInvalid from a zero-value cache")
+	}
+}
+
 func TestLoadAndRevalidate(t *testing.T) {
 	cache := NewCache()
 	input := pemInput(t)
