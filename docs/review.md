@@ -7,7 +7,7 @@ Reviewed inputs in the parent project folder:
 - `Research & Architecture Specification — xk6-soap A k6 Extension for SOAP + WS-Se.md`, revision 3 (423 lines).
 - `xk6-soap — M01 Implementation Plan (Revision 2, aligned with spec Rev 3).md` (431 lines).
 
-Line references below refer to those unchanged inputs. Proposed replacements are [architecture revision 4](architecture.md) and [M01 plan revision 3](../tasks/plan.md). This documentation work is tracked in [issue #1](https://github.com/stanimirivanov/xk6-soap/issues/1).
+Line references below refer to those unchanged inputs. Proposed replacements are [architecture revision 4](https://github.com/stanimirivanov/xk6-soap/blob/b74651c6bb9606566d5d848ceb63f2d02f7a2518/docs/architecture.md) and [M01 plan revision 3](https://github.com/stanimirivanov/xk6-soap/blob/b74651c6bb9606566d5d848ceb63f2d02f7a2518/tasks/plan.md). This documentation work is tracked in [issue #1](https://github.com/stanimirivanov/xk6-soap/issues/1).
 
 ## Assessment
 
