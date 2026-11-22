@@ -74,5 +74,5 @@ processing and retention, outside HTTP transport. All 24 baseline runs recorded
 zero drops. A later shared-host comparison missed budgets, including signed
 fixed-VU parse p95 at 82.7 ms against 68.4 ms in the targeted retry. Dedicated
 nightly verification is pending a matching self-hosted runner and opt-in.
-The [M01 plan](../tasks/plan.md) tracks the separate compatibility and release
-dry-run work.
+The [release checklist](release.md) records the compatibility matrix and
+release rehearsal.

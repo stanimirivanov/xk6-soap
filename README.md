@@ -46,7 +46,7 @@ service. [Client API](docs/plain-api.md) · [Key formats](docs/keys.md) ·
 - [Apache fixture and matrix](test/interop/README.md) describes the pinned, independent WSS4J exchanges.
 - [Performance and retention report](test/perf/README.md) records the runner, workload and frozen limits.
 - [JMeter migration mapping](docs/jmeter-map.md) maps protocol settings. JMeter parity is unverified.
-- [Architecture](docs/architecture.md), [decision index](docs/adr/README.md) and [M01 plan](tasks/plan.md) describe ownership, architectural proof and remaining work.
+- [Architecture](docs/architecture.md) and the [decision index](docs/adr/README.md) describe ownership and architectural evidence. [GitHub Issues](https://github.com/stanimirivanov/xk6-soap/issues) tracks ongoing work. [M01 milestone](https://github.com/stanimirivanov/xk6-soap/milestone/1)
 
 ## Compatibility and release
 

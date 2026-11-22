@@ -1,6 +1,6 @@
 # xk6-soap architecture
 
-This document describes the implemented M01 architecture. [Supported contracts and evidence](contracts.md) ties behavior to tests. The [decision index](adr/README.md) records the architectural gates, and the [M01 plan](../tasks/plan.md) tracks release preparation.
+This document describes the implemented M01 architecture. [Supported contracts and evidence](contracts.md) ties behavior to tests. The [decision index](adr/README.md) records the architectural gates.
 
 ## 1. Objective and scope
 
@@ -163,5 +163,5 @@ public examples with real k6. The other gates include `make smoke`,
   baseline and shared-host replay outcome are documented separately.
 - Target services need their own peer policy and compatibility checks.
   [Scope and limitations](contracts.md#limits-and-deferred-features)
-- PR-27 tracks the supported-version matrix, reproducible build instructions and
-  release dry-run. [M01 plan](../tasks/plan.md)
+- The supported-version matrix, reproducible build instructions and release
+  rehearsal are documented in the [release checklist](release.md).
