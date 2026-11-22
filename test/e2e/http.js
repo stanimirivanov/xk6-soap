@@ -16,10 +16,11 @@ export default function () {
   for (let index=0;index<versions.length;index++) {
     const [namespace, contentType] = versions[index];
     const request = soapClients[index].build('Echo','<m:Echo xmlns:m="urn:fixture">synthetic</m:Echo>',{soapAction:'urn:echo'});
-    const response = http.post(request.url, request.body, {
+    const params = {
       headers: {...request.headers, 'X-Synthetic':'soap-e2e'},
       responseType: index===0 ? 'text':'binary', timeout:'2s', redirects:0,
-    });
+    };
+    const response = http.post(request.url, request.body, params);
     const parsed = soapClients[index].parse(response);
     check(parsed, {
       'build/post/parse succeeds': p => p.ok && p.status===200 && p.error===null && p.sigVerified===null,
@@ -37,6 +38,12 @@ export default function () {
         return result.error === null && result.value.length === 1 && result.value[0] === 'synthetic';
       },
       'HTTP headers follow SOAP version': () => request.headers['Content-Type'].startsWith(contentType) && request.body.includes(namespace),
+    });
+    const declared = http.post(request.url, '<?xml version="1.0" encoding="UTF-8"?>\n' + request.body, params);
+    check(soapClients[index].parse(declared), {
+      'XML declaration preserves accepted response content': p =>
+        p.ok && p.status === parsed.status && p.body === parsed.body &&
+        p.xpath('string(//m:Echo)', {m:'urn:fixture'}).value === 'synthetic',
     });
   }
   for (let index=0;index<2;index++) {
