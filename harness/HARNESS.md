@@ -111,10 +111,11 @@ unless the invoked Make target needs a missing/outdated pinned tool.
 [CI](../.github/workflows/ci.yml) runs quality, compatibility, native k6 race,
 vulnerability and independent interoperability checks. It uses pinned actions
 and read-only repository permissions. The `required-ci` job requires success
-from each of these jobs. The [activation runbook](../docs/ci-activation.md)
-records the proposed ruleset addition, verification, and rollback. The active
-`main` ruleset requires pull requests and the GitHub Actions `vulnerabilities`
-check, and blocks deletion and non-fast-forward updates.
+from each of these jobs. The active `main` ruleset requires pull requests and
+both GitHub Actions checks, `required-ci` and `vulnerabilities`. It blocks
+deletion and non-fast-forward updates. The [test strategy](../docs/test-strategy.md)
+describes the evidence and the [runbook](../docs/ci-activation.md) covers
+verification, reactivation, and rollback.
 [Fuzzing](../.github/workflows/fuzz.yml), [performance](../.github/workflows/performance.yml)
 and [release rehearsal](../.github/workflows/release-dry-run.yml) have their own
 entry points. The [release checklist](../docs/release.md) records dependency policy
@@ -168,6 +169,7 @@ independent peer evidence.
 
 The `k6-race` CI job logs build and test wall times separately. To collect a
 cold compilation sample, dispatch CI with `cold_race_build` enabled. This uses
-an empty Go build cache while allowing the module download cache. Before making
-the check required, record three successful hosted runs including one cold
-compilation, and compare the slowest build and test times with their deadlines.
+an empty Go build cache while allowing the module download cache. The
+[rollout PR](https://github.com/stanimirivanov/xk6-soap/pull/107) records three
+successful hosted runs, including the cold compilation used to verify timeout
+headroom before activation.

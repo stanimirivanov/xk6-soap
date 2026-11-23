@@ -8,6 +8,7 @@
 | [ADR-0004 · explicit message trust](0004-explicit-message-trust.md) | Accepted exact leaf pins and separate TLS trust. |
 | [ADR-0005 · operation-scoped certificate validity](0005-operation-scoped-key-validity.md) | Accepted direction for future implementation. Current runtime checks span all configured roles. |
 | [ADR-0006 · receive verification defaults](0006-receive-verification-defaults.md) | Accepted signature and freshness defaults with explicit receive overrides. |
+| [ADR-0007 · required independent interoperability](0007-required-independent-interop.md) | Accepted and enforced on `main` through `required-ci`. |
 
 The ADRs preserve the evidence and versions used for their decisions. Current
 public behavior is documented in the [architecture](../architecture.md) and
