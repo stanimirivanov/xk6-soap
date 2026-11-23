@@ -76,6 +76,7 @@ Run the commands in this table from the repository root.
 | `make fuzz-smoke` | Bounded Go fuzz runs for SOAP, security receive and JavaScript policy boundaries | Local and scheduled CI |
 | `make interop` | Independent Docker CXF/WSS4J credentials, signature and encryption/order fixture | CI interop |
 | `make e2e` | Real k6 HTTP fixture scenarios and exact exit-99 negative control | CI runtime |
+| `make e2e-race` | Separate race-instrumented k6 binary, signed loopback with 320 exact exchange markers, and a verified wrong-reply control | CI k6-race on hosted Linux |
 | `make vuln` | govulncheck source and the actual custom k6 binary | CI vulnerabilities; online database |
 
 Actionlint validates workflow structure/expressions; optional ambient ShellCheck/Pyflakes
@@ -152,3 +153,18 @@ go test ./internal/wssec -run 'FuzzReceiveSecurity/<reported-id>'
 
 The fuzz inputs and generated certificates are synthetic. Keep production
 messages, credentials and keys out of the corpus.
+
+## Native k6 race evidence
+
+`make e2e-race` builds `bin/k6-race` with cgo and verifies its race
+instrumentation before launching [TestNativeK6RaceWorkload](../test/e2e/native_race_test.go).
+The Go receiver tallies every VU and iteration marker. The JavaScript client
+checks the marker independently after signature and Timestamp verification.
+The signed echo checks concurrent extension behavior. The WSS4J suite supplies
+independent peer evidence.
+
+The `k6-race` CI job logs build and test wall times separately. To collect a
+cold compilation sample, dispatch CI with `cold_race_build` enabled. This uses
+an empty Go build cache while allowing the module download cache. Before making
+the check required, record three successful hosted runs including one cold
+compilation, and compare the slowest build and test times with their deadlines.
