@@ -114,3 +114,33 @@ jobs:
         timeout-minutes: 5
       - name: Provision WSS4J and run independent assertions
         run: make test-interop
+
+  required-ci:
+    name: required-ci
+    needs: [quality, runtime, k6-race, interop, vulnerabilities]
+    if: ${{ always() && !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require every CI job to succeed
+        shell: bash
+        env:
+          QUALITY_RESULT: ${{ needs.quality.result }}
+          RUNTIME_RESULT: ${{ needs.runtime.result }}
+          K6_RACE_RESULT: ${{ needs.k6-race.result }}
+          INTEROP_RESULT: ${{ needs.interop.result }}
+          VULNERABILITIES_RESULT: ${{ needs.vulnerabilities.result }}
+        run: |
+          failed=0
+          for result in "quality=$QUALITY_RESULT" "runtime=$RUNTIME_RESULT" \
+            "k6-race=$K6_RACE_RESULT" "interop=$INTEROP_RESULT" "vulnerabilities=$VULNERABILITIES_RESULT"; do
+            echo "$result"
+            if [[ "${result#*=}" != success ]]; then
+              failed=1
+            fi
+          done
+          if [[ "$failed" == 1 ]]; then
+            echo 'Required jobs did not succeed'
+            exit 1
+          fi
+          echo 'All required jobs succeeded'
