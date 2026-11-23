@@ -251,6 +251,20 @@ on failure. This requires local Docker, GNU timeout and network access. It catch
 local dependency/build/interop failures before delivery; local success cannot
 predict a later outage or a different regional response in CI.
 
+The cold image build gets one retry if its terminal Maven invocation reports an
+artifact-transfer HTTP 429, 502, 503, or 504 from a configured repository. The
+mirror sequence above runs within each attempt. An earlier transient error does
+not qualify a later missing artifact or other terminal failure. Generic
+timeouts, DNS or TLS errors, Docker registry errors, compilation failures, and
+unclear diagnostics fail without a retry. Both attempts retain their diagnostics.
+After provisioning succeeds, the fixture starts and its independent assertions
+run once. A failed assertion or an exhausted provisioning attempt fails the check.
+
+Hosted CI allows 35 minutes total. Checkout, Go setup, and the custom k6 build
+have deadlines of one, two, and five minutes. Each cold image attempt has ten
+minutes, and fixture startup through cleanup has five minutes, including the
+90-second Go assertion deadline. The remaining two minutes cover orchestration.
+
 ## Signed Timestamp freshness (PR-13)
 
 `timestamp.js` exercises `/sig11`, `/sig12`, `/sigstale11`, `/sigstale12`,

@@ -92,8 +92,11 @@ test-e2e-race:
 e2e-race: build-k6-race
 	$(MAKE) test-e2e-race
 
-.PHONY: interop
+.PHONY: interop test-interop
 interop: build-k6
+	$(MAKE) test-interop
+
+test-interop:
 	sh scripts/interop.sh
 
 .PHONY: fuzz-smoke
