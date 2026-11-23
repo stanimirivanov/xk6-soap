@@ -98,13 +98,19 @@ jobs:
   interop:
     name: interop
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        timeout-minutes: 1
         with:
           persist-credentials: false
       - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        timeout-minutes: 2
         with:
           go-version-file: .go-version
           cache: true
-      - run: make interop
+      - name: Build custom k6
+        run: make build-k6
+        timeout-minutes: 5
+      - name: Provision WSS4J and run independent assertions
+        run: make test-interop

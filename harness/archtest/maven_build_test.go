@@ -19,7 +19,14 @@ func TestMavenBuildRecovery(t *testing.T) {
 		{"missing-once", 0, "central americas americas"},
 		{"missing-always", 17, "central americas"},
 		{"central-429-once", 0, "central americas americas"},
-		{"central-429-always", 18, "central americas eu"},
+		{"central-429-always", 75, "central americas eu"},
+		{"earlier-429-terminal-missing", 17, "central americas"},
+		{"packaging-transfer", 75, "central central"},
+		{"packaging-multiline", 75, "central central"},
+		{"packaging-descriptor", 75, "central central"},
+		{"packaging-mixed", 23, "central central"},
+		{"packaging-aggregate", 23, "central central"},
+		{"packaging-other-repo", 23, "central central"},
 		{"regional-after-timeout", 0, "central americas eu eu"},
 		{"regional-timeout", 124, "central americas eu"},
 		{"mirror-model-error", 19, "central americas"},
@@ -55,6 +62,13 @@ case "$*" in
     fi
     if [ "$n" -eq 3 ] && [ "$SOAP_MAVEN_TEST_SCENARIO" = regional-timeout ]; then exit 124; fi
     if [ "$n" -eq 1 ]; then missing=true; else missing=false; fi ;;
+   earlier-429-terminal-missing)
+    if [ "$n" -eq 2 ]; then
+     printf '[ERROR] Non-resolvable import POM: Could not find artifact test:bom:pom:1 in google-maven-central\n'
+     exit 17
+    fi
+    printf '[ERROR] Non-resolvable import POM: Could not transfer artifact test:bom:pom:1 from/to central (https://repo.maven.apache.org/maven2): status code: 429\n'
+    exit 18 ;;
    central-429-*)
     if [ "$n" -eq 1 ] || [ "$SOAP_MAVEN_TEST_SCENARIO" = central-429-always ]; then
      repository='central (https://repo.maven.apache.org/maven2)'
@@ -76,7 +90,35 @@ case "$*" in
    printf '[ERROR] Non-resolvable import POM: Could not find artifact org.apache.cxf:cxf-bom:pom:4.2.4 in central (https://repo.maven.apache.org/maven2)\n'
    exit 17
   fi ;;
- *package*) if [ "$SOAP_MAVEN_TEST_SCENARIO" = build-with-bom-text ]; then printf '[ERROR] Non-resolvable import POM: Could not find artifact\n'; exit 23; fi; if [ "$SOAP_MAVEN_TEST_SCENARIO" = build-error ]; then printf '[ERROR] Tests failed\n'; exit 23; fi ;;
+ *package*)
+  case "$SOAP_MAVEN_TEST_SCENARIO" in
+   packaging-multiline)
+    printf '%s\n' \
+     '[ERROR] Failed to execute goal on project wss4j-fixture: Could not resolve dependencies for project test:wss4j-fixture:jar:1' \
+     '[ERROR] dependency: test:dep:jar:1 (compile)' \
+     '[ERROR]     Could not transfer artifact test:dep:jar:1 from/to central (https://repo.maven.apache.org/maven2): status code: 504, reason phrase: Gateway Timeout (504)' \
+     '[ERROR] -> [Help 1]'
+    exit 23 ;;
+   packaging-descriptor)
+    printf '%s\n' \
+     '[ERROR] Failed to execute goal on project wss4j-fixture: Could not collect dependencies for project test:wss4j-fixture:jar:1' \
+     '[ERROR] Failed to read artifact descriptor for test:dep:jar:1' \
+     '[ERROR]     Could not transfer artifact test:dep:pom:1 from/to central (https://repo.maven.apache.org/maven2): status code: 502' \
+     '[ERROR] -> [Help 1]'
+    exit 23 ;;
+   packaging-aggregate)
+    printf '%s\n' '[ERROR] The following artifacts could not be resolved: test:dep:jar:1 (absent), test:missing:jar:1 (absent): Could not transfer artifact test:dep:jar:1 from/to central (https://repo.maven.apache.org/maven2): status code: 503'
+    exit 23 ;;
+   packaging-*)
+    repository='central (https://repo.maven.apache.org/maven2)'
+    if [ "$SOAP_MAVEN_TEST_SCENARIO" = packaging-other-repo ]; then repository='other (https://repo.example.test)'; fi
+    printf '[ERROR] Failed to execute goal on project wss4j-fixture: Could not resolve dependencies: Could not transfer artifact test:dep:jar:1 from/to %s: status code: 503, reason phrase: Service Unavailable (503) -> [Help 1]\n' "$repository"
+    if [ "$SOAP_MAVEN_TEST_SCENARIO" = packaging-mixed ]; then
+     printf '[ERROR] Could not find artifact test:missing:jar:1 in central\n'
+    fi
+    exit 23 ;;
+  esac
+  if [ "$SOAP_MAVEN_TEST_SCENARIO" = build-with-bom-text ]; then printf '[ERROR] Non-resolvable import POM: Could not find artifact\n'; exit 23; fi; if [ "$SOAP_MAVEN_TEST_SCENARIO" = build-error ]; then printf '[ERROR] Tests failed\n'; exit 23; fi ;;
  *) exit 98 ;;
 esac
 `
@@ -97,6 +139,9 @@ esac
 				} else {
 					t.Fatal(e)
 				}
+			}
+			if strings.Contains(string(output), "WSS4J_TERMINAL_MAVEN_TRANSFER_RETRYABLE") != (tc.exit == 75) {
+				t.Errorf("wrong retry classification: %s", output)
 			}
 			if exit != tc.exit {
 				t.Fatalf("exit=%d want %d: %s", exit, tc.exit, output)
