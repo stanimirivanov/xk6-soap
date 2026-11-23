@@ -77,6 +77,16 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/soap+xml; charset=utf-8")
 		w.WriteHeader(500)
 		_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Body><s:Fault><s:Code><s:Value>s:Receiver</s:Value></s:Code><s:Reason><s:Text xml:lang="en">Synthetic fault</s:Text></s:Reason><s:Detail><fixture/></s:Detail></s:Fault></s:Body></s:Envelope>`)
+	case "/w3c-t12", "/w3c-t15":
+		// https://www.w3.org/TR/soap12-testcollection/#T12 and #T15
+		// Adapt the two roles to synthetic client-side replies. Both carry the
+		// same Body so the parser can show whether the role permits access to it.
+		role := "urn:fixture:other-role"
+		if r.URL.Path == "/w3c-t12" {
+			role = "http://www.w3.org/2003/05/soap-envelope/role/ultimateReceiver"
+		}
+		w.Header().Set("Content-Type", "application/soap+xml; charset=utf-8")
+		_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Header><m:Unknown xmlns:m="urn:fixture" s:mustUnderstand="1" s:role="`+role+`"/></s:Header><s:Body><m:Echo xmlns:m="urn:fixture">w3c-role-marker</m:Echo></s:Body></s:Envelope>`)
 	case "/empty":
 		w.WriteHeader(http.StatusNoContent)
 	case "/binary":
