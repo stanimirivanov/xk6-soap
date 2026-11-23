@@ -108,11 +108,14 @@ unless the invoked Make target needs a missing/outdated pinned tool.
 
 ## CI and server-side enforcement
 
-[CI](../.github/workflows/ci.yml) runs quality, compatibility, vulnerability and
-independent interoperability checks. It uses pinned actions and read-only
-repository permissions. The active `main` ruleset requires pull requests and
-the GitHub Actions `vulnerabilities` check, and blocks deletion and non-fast-forward
-updates. [Fuzzing](../.github/workflows/fuzz.yml), [performance](../.github/workflows/performance.yml)
+[CI](../.github/workflows/ci.yml) runs quality, compatibility, native k6 race,
+vulnerability and independent interoperability checks. It uses pinned actions
+and read-only repository permissions. The `required-ci` job requires success
+from each of these jobs. The [activation runbook](../docs/ci-activation.md)
+records the proposed ruleset addition, verification, and rollback. The active
+`main` ruleset requires pull requests and the GitHub Actions `vulnerabilities`
+check, and blocks deletion and non-fast-forward updates.
+[Fuzzing](../.github/workflows/fuzz.yml), [performance](../.github/workflows/performance.yml)
 and [release rehearsal](../.github/workflows/release-dry-run.yml) have their own
 entry points. The [release checklist](../docs/release.md) records dependency policy
 and release verification.

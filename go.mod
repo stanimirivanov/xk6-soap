@@ -10,6 +10,7 @@ require (
 	github.com/knroy/go-xmlsec/v2 v2.0.2
 	github.com/sirupsen/logrus v1.9.3
 	go.k6.io/k6/v2 v2.4.0
+	go.yaml.in/yaml/v3 v3.0.5
 	golang.org/x/mod v0.43.0
 	software.sslmate.com/src/go-pkcs12 v0.7.4
 )
@@ -44,7 +45,6 @@ require (
 	go.opentelemetry.io/otel/sdk v1.46.0 // indirect
 	go.opentelemetry.io/otel/trace v1.46.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.11.0 // indirect
-	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.59.0 // indirect
 	golang.org/x/net v0.62.0 // indirect
 	golang.org/x/sys v0.50.0 // indirect
