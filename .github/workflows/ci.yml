@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      cold_race_build:
+        description: Build the race-enabled k6 binary with an empty Go build cache
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -47,6 +52,35 @@ jobs:
         env:
           COMPAT_GO: ${{ matrix.go }}
           COMPAT_K6: ${{ matrix.k6 }}
+  k6-race:
+    name: k6-race
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: .go-version
+          cache: true
+      - name: Build race-enabled k6
+        shell: bash
+        env:
+          COLD_RACE_BUILD: ${{ inputs.cold_race_build }}
+        run: |
+          if [[ "$COLD_RACE_BUILD" == true ]]; then
+            GOCACHE=$(mktemp -d "$RUNNER_TEMP/k6-race-cache.XXXXXX")
+            export GOCACHE
+            echo "Using an empty Go build cache"
+          fi
+          TIMEFORMAT='Race build wall time: %3R s'
+          time make build-k6-race
+      - name: Run signed loopback race workload
+        shell: bash
+        run: |
+          TIMEFORMAT='Race test wall time: %3R s'
+          time make test-e2e-race
   vulnerabilities:
     name: vulnerabilities
     runs-on: ubuntu-24.04

@@ -13,7 +13,7 @@ RELEASE_OUTPUT ?= bin/release-dry-run
 
 .PHONY: help tools fmt lint arch test build verify smoke vuln hooks test-hooks deps e2e
 help:
-	@printf '%s\n' 'make tools   Install pinned verification tools' 'make fmt     Format Go source' 'make verify  Format, architecture, vet, staticcheck, race tests, build' 'make e2e     Run local SOAP HTTP fixtures with real k6' 'make smoke   Build custom k6 and run positive/negative smoke tests' 'make compatibility  Verify the exact pinned k6 build, smoke and E2E' 'make release-dry-run  Rehearse Linux release packaging and audits' 'make vuln    Scan source and custom k6 binary (online advisory DB)' 'make fuzz-smoke  Run bounded SOAP and policy fuzz targets' 'make bench     Compare fixed performance and retention budgets on the pinned runner' 'make interop Run the independent Apache fixture (requires Docker)' 'make hooks   Install opt-in pre-commit hook without replacing existing hooks'
+	@printf '%s\n' 'make tools   Install pinned verification tools' 'make fmt     Format Go source' 'make verify  Format, architecture, vet, staticcheck, race tests, build' 'make e2e     Run local SOAP HTTP fixtures with real k6' 'make e2e-race  Run signed multi-VU loopback with race-instrumented k6' 'make smoke   Build custom k6 and run positive/negative smoke tests' 'make compatibility  Verify the exact pinned k6 build, smoke and E2E' 'make release-dry-run  Rehearse Linux release packaging and audits' 'make vuln    Scan source and custom k6 binary (online advisory DB)' 'make fuzz-smoke  Run bounded SOAP and policy fuzz targets' 'make bench     Compare fixed performance and retention budgets on the pinned runner' 'make interop Run the independent Apache fixture (requires Docker)' 'make hooks   Install opt-in pre-commit hook without replacing existing hooks'
 
 tools: $(TOOLS)/staticcheck $(TOOLS)/govulncheck $(TOOLS)/xk6 $(TOOLS)/actionlint
 $(TOOLS)/staticcheck: Makefile .go-version
@@ -79,6 +79,18 @@ release-dry-run: $(TOOLS)/xk6 $(TOOLS)/govulncheck
 
 e2e: build-k6
 	go test -race -tags=e2e ./test/e2e -count=1 -timeout=60s
+
+.PHONY: build-k6-race test-e2e-race e2e-race
+build-k6-race: $(TOOLS)/xk6
+	@mkdir -p bin
+	GOFLAGS= $(TOOLS)/xk6 build $$(go list -m -f '{{.Version}}' go.k6.io/k6/v2) --with github.com/stanimirivanov/xk6-soap=. --race-detector=1 --cgo=1 --output bin/k6-race
+
+test-e2e-race:
+	@go version -m bin/k6-race | awk '$$1 == "build" && $$2 == "-race=true" { race = 1 } $$1 == "build" && $$2 == "CGO_ENABLED=1" { cgo = 1 } END { if (!race || !cgo) { print "bin/k6-race must be built with race detection and cgo"; exit 1 } }'
+	go test -race -tags=k6race ./test/e2e -run '^TestNativeK6RaceWorkload$$' -count=1 -timeout=75s
+
+e2e-race: build-k6-race
+	$(MAKE) test-e2e-race
 
 .PHONY: interop
 interop: build-k6
