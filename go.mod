@@ -8,7 +8,7 @@ require (
 	github.com/grafana/sobek v0.0.0-20261105103427-a5b602015248
 	github.com/knroy/go-xml/v2 v2.2.0
 	github.com/knroy/go-xmlsec/v2 v2.0.2
-	github.com/sirupsen/logrus v1.9.3
+	github.com/sirupsen/logrus v1.10.2
 	go.k6.io/k6/v2 v2.4.0
 	go.yaml.in/yaml/v3 v3.0.6
 	golang.org/x/mod v0.43.0
