@@ -1,10 +1,11 @@
 package wssec
 
 import (
-	"github.com/stanimirivanov/xk6-soap/internal/message"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/stanimirivanov/xk6-soap/internal/message"
 )
 
 func TestHeaderSignatureCoverage(t *testing.T) {
@@ -61,6 +62,68 @@ func TestHeaderSignatureCoverage(t *testing.T) {
 		assertHidden(t, Receive(200, duplicate, version, message.Limits{}, p.Receive, material.Trust, fixedTime))
 		unknown := strings.Replace(string(wire), "</s:Header>", `<h:Unknown xmlns:h="urn:trace" s:mustUnderstand="1"/></s:Header>`, 1)
 		assertHidden(t, Receive(200, unknown, version, message.Limits{}, p.Receive, material.Trust, fixedTime))
+	}
+}
+
+func withSOAP11MustUnderstand(t *testing.T, raw, element string) string {
+	t.Helper()
+
+	start := "<" + element + " "
+	before, after, found := strings.Cut(raw, start)
+	if !found {
+		t.Fatalf("fixture lacks the opening tag for %s", element)
+	}
+	return before + start + `xmlns:legacy="` + message.SOAP11 + `" legacy:mustUnderstand="1" ` + after
+}
+
+func TestSignedHeaderWithForeignMustUnderstand(t *testing.T) {
+	fixture := policyKeys(t)
+	material := KeyMaterial{Signing: fixture.Signing, Trust: fixture.Trust}
+	p, err := CompilePolicy(SecurityOptions{
+		Sign:   &SigningPolicy{Headers: []string{"trace"}},
+		Verify: &ReceiveOptions{SignedHeaders: []ExpandedName{{Namespace: "urn:trace", LocalName: "Trace"}}},
+	}, material, fixedTime)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req, err := message.Build("Echo", `<Echo>signed-body</Echo>`, message.Options{Version: "1.2", Headers: []message.Header{
+		{Name: "trace", XML: `<h:Trace xmlns:h="urn:trace"/>`},
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Construct the synthetic peer's XML before applying message protection.
+	raw := withSOAP11MustUnderstand(t, req.Body, "h:Trace")
+	wire, err := BuildSecurity([]byte(raw), p, material, fixedTime, nil, nil, message.Limits{}, req.HeaderSelectors...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tampered := strings.Replace(string(wire), `legacy:mustUnderstand="1"`, `legacy:mustUnderstand="0"`, 1)
+	if tampered == string(wire) {
+		t.Fatal("signed fixture lacks the foreign attribute")
+	}
+
+	accepted := Receive(200, string(wire), "1.2", message.Limits{}, p.Receive, material.Trust, fixedTime)
+	if !accepted.OK || accepted.SigVerified == nil || !*accepted.SigVerified ||
+		accepted.TimestampValid == nil || !*accepted.TimestampValid {
+		t.Fatal("trusted reply rejected:", accepted.Error)
+	}
+	if marker, err := accepted.XPath("string(./Echo)", nil); err != nil || marker != "signed-body" {
+		t.Fatalf("expected accepted Body marker, got %v, %v", marker, err)
+	}
+
+	rejected := Receive(200, tampered, "1.2", message.Limits{}, p.Receive, material.Trust, fixedTime)
+	assertHidden(t, rejected)
+	if rejected.Error.Code != "SIGNATURE_INVALID" || rejected.Error.Stage != "security" || rejected.SigVerified == nil || *rejected.SigVerified {
+		t.Fatal("covered attribute mutation did not fail signature verification:", rejected.Error)
+	}
+
+	foreignSecurity := withSOAP11MustUnderstand(t, string(wire), "wsse:Security")
+	rejected = Receive(200, foreignSecurity, "1.2", message.Limits{}, p.Receive, material.Trust, fixedTime)
+	assertHidden(t, rejected)
+	if rejected.Error.Code != "XML_INVALID" || rejected.Error.Stage != "parse" {
+		t.Fatal("Security metadata validation changed:", rejected.Error)
 	}
 }
 

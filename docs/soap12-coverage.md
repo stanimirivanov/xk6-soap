@@ -61,7 +61,7 @@ before incorporating upstream payloads.
 | [T31][w3c-T31] | RPC void return omits the return accessor | Outside | Requires a peer RPC binding and interpretation of the return accessor. |
 | [T32][w3c-T32] | RPC returns the value of a required header | Outside | Requires the peer to understand the application header and dispatch echoHeader. |
 | [T33][w3c-T33] | Missing RPC procedure returns a qualified Subcode | Partial | [Fault projection][fault-structure] asserts a Sender code and ordered qualified Subcodes. Add this specific peer-supplied Subcode only if useful to client callers. RPC dispatch stays at the peer. |
-| [T34][w3c-T34] | Ignore a SOAP 1.1 mustUnderstand attribute in a SOAP 1.2 header | Decision | [Current response policy][header-policy] returns XML_INVALID for SOAP attributes from the other Envelope namespace. The upstream receiver ignores this header. Decide which client behavior to specify before adding a regression assertion. |
+| [T34][w3c-T34] | Ignore a SOAP 1.1 mustUnderstand attribute in a SOAP 1.2 header | Adapted | [Public k6 checks][t34-k6] exercise reply acceptance and native attribute precedence. [Signed][t34-signed] and [recovered][t34-encrypted] Header tests exercise the [compatibility decision][t34-adr] under configured receive protection. |
 | [T35][w3c-T35] | Unknown mandatory header with omitted role | Adapted | [Header role check][roles] asserts POLICY_VIOLATION and withholds Body, Fault, and XPath for an unknown mandatory block with no role. The [plain SOAP 1.1][optional-content] and [signed-header][signed-header] tests also check withholding. The upstream peer generates a Fault. |
 | [T36][w3c-T36] | Explicit ultimateReceiver on an unknown mandatory header | Adapted | [Header role check][roles] targets this role with 1 and asserts content withholding. The upstream case checks peer Fault generation. |
 | [T37][w3c-T37] | Header omits mustUnderstand | Partial | [Body-scoped XPath][xpath-tests] covers the SOAP 1.1 counterpart. Share the SOAP 1.2 omitted-mustUnderstand acceptance check with the earlier optional-header case. |
@@ -186,15 +186,30 @@ synthetic SOAP 1.1 reply and exposes the qualified `VersionMismatch` code.
 The supplied `Upgrade` Header block is fixture data. The test asserts Fault
 projection, with peer generation and version selection outside its scope.
 
-Resolve the mixed-version mustUnderstand policy before adding an adaptation
-of [T34][w3c-T34]. Keep the Envelope attribute placement questions separate as well.
+## Foreign mustUnderstand in SOAP 1.2 replies
+
+In upstream [T34][w3c-T34], the receiving node ignores the unknown request
+Header block and returns an empty Body. The [public k6 adaptation][t34-k6]
+receives a synthetic reply containing a Body marker. XPath exposes the
+marker if the block carries only SOAP 1.1-qualified `mustUnderstand` or if its
+SOAP 1.2-qualified value is optional. A native mandatory value yields
+`POLICY_VIOLATION` at `parse` in either attribute order, while a SOAP
+1.1-qualified `actor` yields `XML_INVALID`. Both errors withhold Body, Fault
+and XPath content.
+
+The [signed Header regression][t34-signed] requires a trusted signature and
+checks that changing the foreign attribute after signing invalidates it.
+The [recovered Header regression][t34-encrypted] requires selected Header
+encryption and verifies that the marker is queryable after recovery under both
+protection orders. See [ADR-0008][t34-adr] for the scope of the exception.
 
 [collection]: https://www.w3.org/TR/2007/REC-soap12-testcollection-20070427/#tests
 [contracts]: contracts.md
 [architecture]: architecture.md#5-payload-envelopes-and-headers
 [echo]: ../test/e2e/http.js#L29
 [fault]: ../test/e2e/http.js#L89
-[roles]: ../test/e2e/http.js#L123
+[roles]: ../test/e2e/http.js#L125
+[t34-k6]: ../test/e2e/http.js#L149
 [version-fault]: ../test/e2e/http.js#L102
 [wire]: ../test/e2e/http_test.go#L65
 [object]: ../test/e2e/object.js#L5
@@ -205,8 +220,10 @@ of [T34][w3c-T34]. Keep the Envelope attribute placement questions separate as w
 [plain-tests]: ../internal/message/response_test.go#L15
 [xpath-tests]: ../internal/message/response_test.go#L38
 [optional-content]: ../internal/message/response_test.go#L86
-[signed-header]: ../internal/wssec/headers_test.go#L62
-[header-policy]: ../internal/message/response.go#L336
+[signed-header]: ../internal/wssec/headers_test.go#L63
+[t34-signed]: ../internal/wssec/headers_test.go#L68
+[t34-encrypted]: ../internal/wssec/header_encryption_test.go#L30
+[t34-adr]: adr/0008-soap12-foreign-must-understand.md
 [validator]: ../internal/message/xml.go#L75
 
 [w3c-T1]: https://www.w3.org/TR/2007/REC-soap12-testcollection-20070427/#T1

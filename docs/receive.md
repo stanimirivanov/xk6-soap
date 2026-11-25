@@ -45,6 +45,12 @@ IDs, one targeted Security header, one signature, one supported KeyInfo, and at 
 one Timestamp. Unsupported algorithms, transforms, key representations, encryption
 and ambiguous security structure fail closed. [Required custom headers and WS-Addressing](headers.md) are subject to the same exact coverage checks.
 
+The [SOAP 1.2 Header compatibility rule](headers.md) applies to ordinary blocks
+on the wire and after decryption. A signature over a plaintext Header block
+covers the original SOAP 1.1 `mustUnderstand` attribute. Changing that attribute
+after signing invalidates the signature. Security metadata and EncryptedHeader
+wrapper metadata are validated under their respective rules.
+
 References must cover the actual direct Body and any present Timestamp. The
 provider verifies the exact nodes in one request-local tree. Canonicalization of
 SignedInfo and references is bounded before cryptographic verification to prevent

@@ -9,6 +9,7 @@
 | [ADR-0005 · operation-scoped certificate validity](0005-operation-scoped-key-validity.md) | Accepted direction for future implementation. Current runtime checks span all configured roles. |
 | [ADR-0006 · receive verification defaults](0006-receive-verification-defaults.md) | Accepted signature and freshness defaults with explicit receive overrides. |
 | [ADR-0007 · required independent interoperability](0007-required-independent-interop.md) | Accepted and enforced on `main` through `required-ci`. |
+| [ADR-0008 · SOAP 1.2 foreign mustUnderstand](0008-soap12-foreign-must-understand.md) | Accepted for ordinary inbound Header blocks. [W3C T34 adaptation](../soap12-coverage.md#foreign-mustunderstand-in-soap-12-replies). |
 
 The ADRs preserve the evidence and versions used for their decisions. Current
 public behavior is documented in the [architecture](../architecture.md) and

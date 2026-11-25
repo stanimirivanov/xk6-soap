@@ -304,11 +304,17 @@ func CheckSecurityEnvelope(body, version string, limits Limits, understood ...xm
 	return headerPolicy(child(doc, ns, "Envelope"), ns, true, understood...)
 }
 func plainPolicy(env *xmlquery.Node, ns string) *Error { return headerPolicy(env, ns, false) }
+func isEncryptionStructure(n *xmlquery.Node) bool {
+	return n.NamespaceURI == "http://www.w3.org/2001/04/xmlenc#" ||
+		n.NamespaceURI == "http://www.w3.org/2009/xmlenc11#" ||
+		n.NamespaceURI == "http://docs.oasis-open.org/wss/oasis-wss-wssecurity-secext-1.1.xsd" && n.Data == "EncryptedHeader"
+}
+
 func headerPolicy(env *xmlquery.Node, ns string, security bool, allowed ...xml.Name) *Error {
 	// Plain mode never reports success for encrypted content it cannot interpret.
 	var visit func(*xmlquery.Node) bool
 	visit = func(n *xmlquery.Node) bool {
-		if n.Type == xmlquery.ElementNode && (n.NamespaceURI == "http://www.w3.org/2001/04/xmlenc#" || n.NamespaceURI == "http://www.w3.org/2009/xmlenc11#" || n.NamespaceURI == "http://docs.oasis-open.org/wss/oasis-wss-wssecurity-secext-1.1.xsd" && n.Data == "EncryptedHeader") {
+		if n.Type == xmlquery.ElementNode && isEncryptionStructure(n) {
 			return false
 		}
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
@@ -329,11 +335,18 @@ func headerPolicy(env *xmlquery.Node, ns string, security bool, allowed ...xml.N
 			if n.NamespaceURI == "" {
 				return &Error{Code: "XML_INVALID", Stage: "parse"}
 			}
+			securityHeader := n.NamespaceURI == "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" && n.Data == "Security"
 			required := false
 			role := ""
 			for _, a := range n.Attr {
 				if a.NamespaceURI == SOAP11 || a.NamespaceURI == SOAP12 {
 					if a.NamespaceURI != ns {
+						// Interpret the SOAP 1.1 attribute as foreign metadata while
+						// preserving the original XML for message protection.
+						if ns == SOAP12 && a.NamespaceURI == SOAP11 && a.Name.Local == "mustUnderstand" &&
+							!securityHeader && !isEncryptionStructure(n) {
+							continue
+						}
 						return &Error{Code: "XML_INVALID", Stage: "parse"}
 					}
 					switch a.Name.Local {
@@ -356,7 +369,7 @@ func headerPolicy(env *xmlquery.Node, ns string, security bool, allowed ...xml.N
 			}
 			targeted := role == "" || ns == SOAP12 && (role == SOAP12+"/role/ultimateReceiver" || role == SOAP12+"/role/next") || ns == SOAP11 && role == "http://schemas.xmlsoap.org/soap/actor/next"
 			addressing := IsAddressingHeader(n.NamespaceURI, n.Data)
-			understood := security && n.NamespaceURI == "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd" && n.Data == "Security"
+			understood := security && securityHeader
 			for _, name := range allowed {
 				if name.Space == n.NamespaceURI && name.Local == n.Data {
 					understood = true
