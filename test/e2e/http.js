@@ -196,17 +196,25 @@ function withholdsInvalidEnvelopeContent(p) {
 }
 
 function checkSOAP12PeerFaults({soap, namespace}) {
+  const rpcNamespace = 'http://www.w3.org/2003/05/soap-rpc';
   const cases = [
     ['/soap12-sender-fault', 400, 'Sender', 'Synthetic Sender reason'],
     ['/soap12-must-understand-fault', 500, 'MustUnderstand', 'Synthetic MustUnderstand reason'],
+    ['/soap12-data-encoding-unknown-fault', 500, 'DataEncodingUnknown', 'Synthetic unsupported encoding', []],
+    ['/soap12-procedure-not-present-fault', 400, 'Sender', 'Synthetic missing procedure', ['ProcedureNotPresent']],
+    ['/soap12-bad-arguments-fault', 400, 'Sender', 'Synthetic invalid arguments', ['BadArguments']],
   ];
-  for (const [path, status, code, reason] of cases) {
+  for (const [path, status, code, reason, subcodes] of cases) {
+    const codeLabel = subcodes?.length ? `${code}/${subcodes.join('/')}` : code;
     const response = http.post(base + path, null, {timeout:'2s'});
     check(soap.parse(response), {
-      [`SOAP 1.2 HTTP ${status} ${code} Fault projects its qualified code`]: p =>
+      [`SOAP 1.2 HTTP ${status} ${codeLabel} Fault projects its qualified code`]: p =>
         p.status === status && p.ok === false && p.error?.code === 'SOAP_FAULT' && p.error.stage === 'parse' &&
-        p.fault?.code?.namespace === namespace && p.fault.code.localName === code,
-      [`SOAP 1.2 HTTP ${status} ${code} Fault exposes its Reason to Body XPath`]: p => {
+        p.fault?.code?.namespace === namespace && p.fault.code.localName === code &&
+        (subcodes === undefined || (Array.isArray(p.fault.subcodes) && p.fault.subcodes.length === subcodes.length &&
+          subcodes.every((localName, index) => p.fault.subcodes[index]?.localName === localName &&
+            p.fault.subcodes[index].namespace === rpcNamespace))),
+      [`SOAP 1.2 HTTP ${status} ${codeLabel} Fault exposes its Reason to Body XPath`]: p => {
         const query = p.xpath('string(./s:Fault/s:Reason/s:Text)', {s:namespace});
         return query.error === null && query.value === reason;
       },

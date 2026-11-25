@@ -60,7 +60,7 @@ before incorporating upstream payloads.
 | [T30][w3c-T30] | SOAP 1.1 request to a SOAP 1.2 peer | Adapted | [VersionMismatch check][version-fault] projects SOAP_FAULT and the qualified SOAP 1.1 code from a synthetic HTTP 500 reply with a supplied Upgrade Header block. [Envelope structure][envelope] separately checks wrong-version rejection. Peer Fault generation and Upgrade advertisement remain outside the client test. |
 | [T31][w3c-T31] | RPC void return omits the return accessor | Outside | Requires a peer RPC binding and interpretation of the return accessor. |
 | [T32][w3c-T32] | RPC returns the value of a required header | Outside | Requires the peer to understand the application header and dispatch echoHeader. |
-| [T33][w3c-T33] | Missing RPC procedure returns a qualified Subcode | Partial | [Fault projection][fault-structure] asserts a Sender code and ordered qualified Subcodes. Add this specific peer-supplied Subcode only if useful to client callers. RPC dispatch stays at the peer. |
+| [T33][w3c-T33] | Missing RPC procedure returns a qualified Subcode | Adapted | The [public ProcedureNotPresent check][procedure-not-present-fault] parses a synthetic HTTP 400 reply, asserts the SOAP 1.2 Sender Code and exactly one SOAP RPC ProcedureNotPresent Subcode, and reads the Reason via Body-scoped XPath. RPC dispatch and Fault generation belong to the peer. |
 | [T34][w3c-T34] | Ignore a SOAP 1.1 mustUnderstand attribute in a SOAP 1.2 header | Adapted | [Public k6 checks][t34-k6] exercise reply acceptance and native attribute precedence. [Signed][t34-signed] and [recovered][t34-encrypted] Header tests exercise the [compatibility decision][t34-adr] under configured receive protection. |
 | [T35][w3c-T35] | Unknown mandatory header with omitted role | Adapted | [Header role check][roles] asserts POLICY_VIOLATION and withholds Body, Fault, and XPath for an unknown mandatory block with no role. The [plain SOAP 1.1][optional-content] and [signed-header][signed-header] tests also check withholding. The upstream peer generates a Fault. |
 | [T36][w3c-T36] | Explicit ultimateReceiver on an unknown mandatory header | Adapted | [Header role check][roles] targets this role with 1 and asserts content withholding. The upstream case checks peer Fault generation. |
@@ -107,7 +107,7 @@ before incorporating upstream payloads.
 | [T77][w3c-T77] | RPC distinguishes absent arguments and xsi:nil | Outside | Peer interprets argument presence and XSD nil semantics. |
 | [T78][w3c-T78] | Known header explicitly targets ultimateReceiver | Outside | Peer processes the application header and generates a reply header. |
 | [T79][w3c-T79] | Intermediary forwards a header to ultimateReceiver | Outside | Requires a second hop and application processing by the peer. |
-| [T80][w3c-T80] | Unsupported encoding produces DataEncodingUnknown | Partial | [Public Fault checks][fault] cover qualified Fault projection. A client test could supply that code explicitly. Detecting unsupported payload encoding and generating the Fault belong to the peer. |
+| [T80][w3c-T80] | Unsupported encoding produces DataEncodingUnknown | Adapted | The [public DataEncodingUnknown check][data-encoding-unknown-fault] parses a synthetic HTTP 500 reply, asserts the qualified SOAP 1.2 Code and an empty Subcode array, and reads the Reason via Body-scoped XPath. Detecting unsupported encoding and generating the Fault belong to the peer. |
 
 ## HTTP binding
 
@@ -158,10 +158,10 @@ before incorporating upstream payloads.
 | [XMLP-6][w3c-XMLP-6] | Mandatory unknown header yields HTTP 500 MustUnderstand | Adapted | The [public peer Fault checks][peer-faults] assert the fixture's HTTP 500, qualified MustUnderstand code, and Reason via Body-scoped XPath. Peer Fault generation is outside the client test. |
 | [XMLP-7][w3c-XMLP-7] | HTTP 400 SOAP 1.2 Sender Fault | Adapted | The [public peer Fault checks][peer-faults] assert the fixture's HTTP 400, qualified Sender code, and Reason via Body-scoped XPath. Peer RPC dispatch and Fault generation are outside the client test. |
 | [XMLP-8][w3c-XMLP-8] | HTTP 500 SOAP 1.2 Receiver Fault | Direct | [Public Fault checks][fault] assert HTTP 500 and the qualified Receiver code, reason, and Detail from a synthetic reply. This covers the client-visible outcome. |
-| [XMLP-9][w3c-XMLP-9] | Unknown encoding on an RPC argument | Partial | [Public Fault checks][fault] exercise projection with other codes. A client test could assert a supplied DataEncodingUnknown Fault. Argument encoding and fault generation belong to the peer. |
+| [XMLP-9][w3c-XMLP-9] | Unknown encoding on an RPC argument | Adapted | The [public DataEncodingUnknown check][data-encoding-unknown-fault] shares the T80 HTTP 500 fixture and asserts the Code, empty Subcode array, and Reason. The peer detects the unsupported encoding on the RPC argument and generates the Fault. |
 | [XMLP-10][w3c-XMLP-10] | RPC call includes typed and untyped arguments | Outside | Peer interprets a mix of explicitly typed and untyped RPC parameters. |
-| [XMLP-11][w3c-XMLP-11] | Invalid integer argument yields BadArguments Subcode | Partial | [Fault projection][fault-structure] covers qualified Sender Subcodes generally. A supplied BadArguments Fault could exercise that exact projection. The peer validates the RPC argument. |
-| [XMLP-12][w3c-XMLP-12] | Unknown operation yields ProcedureNotPresent Subcode | Partial | [Fault projection][fault-structure] covers qualified Sender Subcodes generally. Share a supplied ProcedureNotPresent fixture with the missing-procedure case if selected. |
+| [XMLP-11][w3c-XMLP-11] | Invalid integer argument yields BadArguments Subcode | Adapted | The [public BadArguments check][bad-arguments-fault] parses a synthetic HTTP 400 reply, asserts the SOAP 1.2 Sender Code and exactly one SOAP RPC BadArguments Subcode, and reads the Reason via Body-scoped XPath. The peer validates the integer argument and generates the Fault. |
+| [XMLP-12][w3c-XMLP-12] | Unknown operation yields ProcedureNotPresent Subcode | Adapted | The [public ProcedureNotPresent check][procedure-not-present-fault] shares the T33 HTTP 400 fixture and asserts the Sender Code, exact SOAP RPC Subcode, and Reason. The peer rejects the unknown operation and generates the Fault. |
 | [XMLP-13][w3c-XMLP-13] | Forwarding intermediary returns original message | Outside | Requires operating an intermediary and checking preserved wire content. |
 | [XMLP-14][w3c-XMLP-14] | Active intermediary processes and forwards a message | Outside | Requires a peer to act as an active intermediary. |
 | [XMLP-15][w3c-XMLP-15] | Intermediary removes optional next Header block | Outside | Requires removal from a forwarded Envelope. |
@@ -185,6 +185,12 @@ For the client side of [T30][w3c-T30], a SOAP 1.1-configured client parses a
 synthetic SOAP 1.1 reply and exposes the qualified `VersionMismatch` code.
 The supplied `Upgrade` Header block is fixture data. The test asserts Fault
 projection, with peer generation and version selection outside its scope.
+
+The [public peer Fault checks][peer-faults] use the [SOAP 1.2 HTTP Fault mapping][http-fault-mapping]
+for `DataEncodingUnknown` (HTTP 500) and `Sender` with an RPC Subcode (HTTP 400).
+Each reply preserves its HTTP status, returns `ok: false` with `SOAP_FAULT` at
+stage `parse`, and exposes its synthetic Reason through namespace-aware Body
+XPath with no query error.
 
 ## Foreign mustUnderstand in SOAP 1.2 replies
 
@@ -228,18 +234,22 @@ adaptations exercise local client rejection, as recorded in [ADR-0009][wrapper-a
 [roles]: ../test/e2e/http.js#L129
 [mandatory-other-role]: ../test/e2e/http.js#L136
 [mandatory-next-role]: ../test/e2e/http.js#L141
-[optional-other-role]: ../test/e2e/http.js#L288
-[long-role]: ../test/e2e/http.js#L289
-[ipv6-header-namespace]: ../test/e2e/http.js#L290
-[optional-next-role]: ../test/e2e/http.js#L291
+[optional-other-role]: ../test/e2e/http.js#L296
+[long-role]: ../test/e2e/http.js#L297
+[ipv6-header-namespace]: ../test/e2e/http.js#L298
+[optional-next-role]: ../test/e2e/http.js#L299
 [t34-k6]: ../test/e2e/http.js#L153
 [omitted-must-understand]: ../test/e2e/http.js#L171
 [invalid-must-understand]: ../test/e2e/http.js#L175
 [descendant-header-attributes]: ../test/e2e/http.js#L179
 [version-fault]: ../test/e2e/http.js#L102
 [peer-faults]: ../test/e2e/http.js#L198
-[opposite-version-fault]: ../test/e2e/http.js#L225
-[unsupported-media-reply]: ../test/e2e/http.js#L236
+[data-encoding-unknown-fault]: ../test/e2e/http.js#L203-L219
+[procedure-not-present-fault]: ../test/e2e/http.js#L204-L219
+[bad-arguments-fault]: ../test/e2e/http.js#L205-L219
+[http-fault-mapping]: https://www.w3.org/TR/soap12-part2/#tabresstatereccodes
+[opposite-version-fault]: ../test/e2e/http.js#L233
+[unsupported-media-reply]: ../test/e2e/http.js#L244
 [wire]: ../test/e2e/http_test.go#L65
 [object]: ../test/e2e/object.js#L5
 [envelope]: ../internal/message/message_test.go#L81
@@ -250,16 +260,16 @@ adaptations exercise local client rejection, as recorded in [ADR-0009][wrapper-a
 [t34-signed]: ../internal/wssec/headers_test.go#L68
 [t34-encrypted]: ../internal/wssec/header_encryption_test.go#L30
 [t34-adr]: adr/0008-soap12-foreign-must-understand.md
-[wrapper-k6]: ../test/e2e/http.js#L244
+[wrapper-k6]: ../test/e2e/http.js#L252
 [wrapper-control-k6]: ../test/e2e/http.js#L186
-[t24-k6]: ../test/e2e/http.js#L246
-[t25-k6]: ../test/e2e/http.js#L247
-[t64-k6]: ../test/e2e/http.js#L249
-[t65-k6]: ../test/e2e/http.js#L250
-[t67-k6]: ../test/e2e/http.js#L276
-[t68-k6]: ../test/e2e/http.js#L281
-[t69-k6]: ../test/e2e/http.js#L251
-[t70-k6]: ../test/e2e/http.js#L252
+[t24-k6]: ../test/e2e/http.js#L254
+[t25-k6]: ../test/e2e/http.js#L255
+[t64-k6]: ../test/e2e/http.js#L257
+[t65-k6]: ../test/e2e/http.js#L258
+[t67-k6]: ../test/e2e/http.js#L284
+[t68-k6]: ../test/e2e/http.js#L289
+[t69-k6]: ../test/e2e/http.js#L259
+[t70-k6]: ../test/e2e/http.js#L260
 [wrapper-signed]: ../internal/adapter/receive_test.go#L52
 [wrapper-recovered]: ../internal/wssec/response_encryption_test.go#L143
 [wrapper-adr]: adr/0009-soap12-response-wrapper-attributes.md
