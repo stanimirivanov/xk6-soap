@@ -55,8 +55,8 @@ func TestK6SOAPFixture(t *testing.T) {
 			}
 			captures := server.Captures()
 			assertSOAPActionCaptures(t, captures)
-			if len(captures) != 32 {
-				t.Fatalf("expected 32 HTTP requests, got %d\n%s", len(captures), output)
+			if len(captures) != 36 {
+				t.Fatalf("expected 36 HTTP requests, got %d\n%s", len(captures), output)
 			}
 		})
 	}

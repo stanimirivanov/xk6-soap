@@ -11,6 +11,16 @@ import (
 const xmlNS = "http://www.w3.org/XML/1998/namespace"
 const xmlnsNS = "http://www.w3.org/2000/xmlns/"
 
+type validationMode uint8
+
+const (
+	payloadMode validationMode = iota + 1
+	headerMode
+	bodyMode
+	requestEnvelopeMode
+	responseEnvelopeMode
+)
+
 // XML 1.0 §2.8 defines the order, quoting and XML whitespace of these fields.
 // The receive profile supports only version 1.0 with optional UTF-8 encoding.
 var responseXMLDeclaration = regexp.MustCompile(
@@ -58,7 +68,7 @@ func PrepareResponseEnvelope(document, version string, limits Limits) (ResponseE
 		document = start[match[1]:]
 		validationLimits.Nodes--
 	}
-	if err := validate(document, validationLimits, "envelope", "", ns); err != nil {
+	if err := validate(document, validationLimits, responseEnvelopeMode, "", ns); err != nil {
 		return ResponseEnvelope{}, err
 	}
 	return ResponseEnvelope{wire: document, namespace: ns, limits: limits}, nil
@@ -72,8 +82,17 @@ type frame struct {
 // encoding/xml owns lexical decoding. RawToken retains prefixes so this layer
 // can reject undeclared prefixes and duplicate expanded attributes explicitly;
 // Decoder.Token otherwise tolerates unresolved prefixes. No external resolver is used.
-func validate(input string, limits Limits, mode, operation, soapNS string) error {
+func validate(input string, limits Limits, mode validationMode, operation, soapNS string) error {
 	bad := func() error { return failure("XML_INVALID", "xml") }
+	var envelope bool
+	switch mode {
+	case payloadMode, headerMode, bodyMode:
+	case requestEnvelopeMode, responseEnvelopeMode:
+		envelope = true
+	default:
+		return bad()
+	}
+	soap12Response := mode == responseEnvelopeMode && soapNS == SOAP12
 	if len(input) > limits.Bytes {
 		return failure("LIMIT_EXCEEDED", "xml")
 	}
@@ -125,6 +144,9 @@ func validate(input string, limits Limits, mode, operation, soapNS string) error
 			if !ok {
 				return bad()
 			}
+			depth := len(stack)
+			soap12Envelope := soap12Response && depth == 0 && expanded == (xml.Name{Space: SOAP12, Local: "Envelope"})
+			soap12Body := soap12Response && depth == 1 && expanded == (xml.Name{Space: SOAP12, Local: "Body"})
 			attrs := map[xml.Name]bool{}
 			for _, a := range token.Attr {
 				if a.Name.Space == "xmlns" || a.Name.Space == "" && a.Name.Local == "xmlns" {
@@ -134,34 +156,40 @@ func validate(input string, limits Limits, mode, operation, soapNS string) error
 				if !ok || attrs[name] {
 					return bad()
 				}
+				if soap12Envelope && name.Space == "" ||
+					(soap12Envelope || soap12Body) && name == (xml.Name{Space: SOAP12, Local: "encodingStyle"}) {
+					return bad()
+				}
 				attrs[name] = true
 			}
-			depth := len(stack)
 			if depth == 0 {
 				roots++
 				if roots != 1 {
 					return bad()
 				}
-				if mode == "payload" {
+				switch mode {
+				case payloadMode:
 					if expanded.Local != operation {
 						return bad()
 					}
-				} else if mode == "header" {
+				case headerMode:
 					if expanded.Space == "" {
 						return bad()
 					}
-				} else if mode == "body" {
+				case bodyMode:
 					if expanded != (xml.Name{Space: soapNS, Local: "Body"}) {
 						return bad()
 					}
-				} else if expanded != (xml.Name{Space: soapNS, Local: "Envelope"}) {
-					return bad()
+				case requestEnvelopeMode, responseEnvelopeMode:
+					if expanded != (xml.Name{Space: soapNS, Local: "Envelope"}) {
+						return bad()
+					}
 				}
 			}
-			if mode == "payload" && (expanded.Space == SOAP11 || expanded.Space == SOAP12) {
+			if mode == payloadMode && (expanded.Space == SOAP11 || expanded.Space == SOAP12) {
 				return bad()
 			}
-			if mode == "envelope" && depth == 1 {
+			if envelope && depth == 1 {
 				switch expanded {
 				case xml.Name{Space: soapNS, Local: "Header"}:
 					if header || body {
@@ -177,7 +205,7 @@ func validate(input string, limits Limits, mode, operation, soapNS string) error
 					return bad()
 				}
 			}
-			if mode == "envelope" && (expanded.Space == SOAP11 || expanded.Space == SOAP12) {
+			if envelope && (expanded.Space == SOAP11 || expanded.Space == SOAP12) {
 				switch expanded.Local {
 				case "Envelope":
 					if depth != 0 {
@@ -196,14 +224,14 @@ func validate(input string, limits Limits, mode, operation, soapNS string) error
 			}
 			stack = stack[:len(stack)-1]
 		case xml.CharData:
-			if (len(stack) == 0 || mode == "envelope" && len(stack) == 1) && strings.TrimSpace(string(token)) != "" {
+			if (len(stack) == 0 || envelope && len(stack) == 1) && strings.TrimSpace(string(token)) != "" {
 				return bad()
 			}
 		case xml.Directive, xml.ProcInst:
 			return bad()
 		}
 	}
-	if roots != 1 || len(stack) != 0 || mode == "envelope" && !body {
+	if roots != 1 || len(stack) != 0 || envelope && !body {
 		return bad()
 	}
 	return nil

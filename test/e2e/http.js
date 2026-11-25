@@ -176,6 +176,25 @@ function checkHeaderAttributeHandling(soap) {
   });
 }
 
+function checkSOAP12WrapperAttributes(soap) {
+  for (const test of ['t28', 't71', 't72']) {
+    const response = http.post(`${base}/w3c-${test}`, null, {timeout:'2s'});
+    check(soap.parse(response), {
+      [`W3C ${test.toUpperCase()} invalid wrapper attribute withholds content`]: p => {
+        const query = p.xpath('string(./m:Echo)', echoNamespaces);
+        return p.status === 200 && !p.ok && p.error?.code === 'XML_INVALID' && p.error.stage === 'xml' &&
+          p.body === null && p.fault === null && query.value === null && query.error?.code === 'CONTENT_UNAVAILABLE';
+      },
+    });
+  }
+  const response = http.post(`${base}/soap12-qualified-wrapper-attributes`, null, {timeout:'2s'});
+  check(soap.parse(response), {
+    'SOAP 1.2 accepts qualified wrapper attributes and encodingStyle on a Body child': p =>
+      p.ok && p.status === 200 && p.error === null &&
+      p.xpath('string(./m:Echo)', echoNamespaces).value === 'soap12-wrapper-marker',
+  });
+}
+
 export default function () {
   check(client, { 'custom extension loaded': (c) => typeof c.build === 'function' && typeof c.parse === 'function' });
   checkEcho(soap11);
@@ -190,6 +209,7 @@ export default function () {
   checkMandatoryHeaderRoles(soap12.soap);
   checkForeignMustUnderstand(soap12.soap);
   checkHeaderAttributeHandling(soap12.soap);
+  checkSOAP12WrapperAttributes(soap12.soap);
   const malformedFault = '<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Body><s:Fault>' +
     '<s:Code><s:Value>s:Sender</s:Value><s:Value>s:Receiver</s:Value></s:Code>' +
     '<s:Reason><s:Text xml:lang="en">Synthetic fault</s:Text></s:Reason></s:Fault></s:Body></s:Envelope>';

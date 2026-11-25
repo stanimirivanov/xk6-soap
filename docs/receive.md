@@ -45,6 +45,18 @@ IDs, one targeted Security header, one signature, one supported KeyInfo, and at 
 one Timestamp. Unsupported algorithms, transforms, key representations, encryption
 and ambiguous security structure fail closed. [Required custom headers and WS-Addressing](headers.md) are subject to the same exact coverage checks.
 
+For plain and secured SOAP 1.2 replies, the client rejects unqualified
+Envelope attributes and SOAP 1.2-qualified `encodingStyle` directly on the
+Envelope or Body. Namespace declarations, qualified extension attributes
+such as `wsu:Id`, and `encodingStyle` on non-Fault Body children are accepted
+when the other receive checks pass. An invalid wire wrapper returns
+`XML_INVALID` at stage `xml` before verification or decryption and leaves
+both verification flags null. An invalid recovered wrapper returns
+`DECRYPTION_FAILED` at stage `security`. Both outcomes leave Body and Fault
+null and make XPath return `CONTENT_UNAVAILABLE`. These are local client
+outcomes. The W3C cases exercise Fault generation by a receiving peer.
+[Coverage for W3C T28, T71 and T72](soap12-coverage.md#soap-12-envelope-and-body-attributes)
+
 The [SOAP 1.2 Header compatibility rule](headers.md) applies to ordinary blocks
 on the wire and after decryption. A signature over a plaintext Header block
 covers the original SOAP 1.1 `mustUnderstand` attribute. Changing that attribute

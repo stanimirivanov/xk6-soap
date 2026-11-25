@@ -91,7 +91,7 @@ func ParseAcceptedBody(status int, body, version string, limits Limits) (result 
 		result.Error = e.(*Error)
 		return result
 	}
-	if e = validate(body, normalized, "body", "", ns); e != nil {
+	if e = validate(body, normalized, bodyMode, "", ns); e != nil {
 		result.Error = e.(*Error)
 		return result
 	}
