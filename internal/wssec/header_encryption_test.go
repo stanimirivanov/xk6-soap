@@ -46,6 +46,14 @@ func TestEncryptRecoverSelectedHeaderBlocks(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		raw := request.Body
+		if version == "1.2" {
+			// Put the peer's foreign attribute inside the selected Header block.
+			raw = strings.Replace(raw, "<h:Trace", `<h:Trace xmlns:legacy="`+message.SOAP11+`" legacy:mustUnderstand="1"`, 1)
+			if raw == request.Body {
+				t.Fatal("original Header block missing from fixture")
+			}
+		}
 		for _, order := range []ProtectionOrder{SignThenEncrypt, EncryptThenSign} {
 			t.Run(version+"/"+string(order), func(t *testing.T) {
 				options := SecurityOptions{
@@ -58,11 +66,11 @@ func TestEncryptRecoverSelectedHeaderBlocks(t *testing.T) {
 				if e != nil {
 					t.Fatal(e)
 				}
-				wire, e := BuildSecurity([]byte(request.Body), p, material, fixedTime, rand.Reader, nil, message.Limits{}, request.HeaderSelectors...)
+				wire, e := BuildSecurity([]byte(raw), p, material, fixedTime, rand.Reader, nil, message.Limits{}, request.HeaderSelectors...)
 				if e != nil {
 					t.Fatal(e)
 				}
-				for _, v := range []string{"hidden-trace", "hidden-context", "urn:other-actor"} {
+				for _, v := range []string{"hidden-trace", "hidden-context", "urn:other-actor", "legacy:mustUnderstand"} {
 					if bytes.Contains(wire, []byte(v)) {
 						t.Fatal("selected plaintext leaked")
 					}
@@ -115,9 +123,19 @@ func TestEncryptRecoverSelectedHeaderBlocks(t *testing.T) {
 					!blocks[1].IsElement("urn:trace", "Clear") || !blocks[2].IsElement(context.Namespace, context.LocalName) {
 					t.Fatal("header order, names or original SOAP metadata lost")
 				}
+				if version == "1.2" {
+					foreign := blocks[0].Attr(message.SOAP11, "mustUnderstand")
+					if foreign == nil || foreign.Value() != "1" {
+						t.Fatal("recovered fixture lacks the foreign attribute")
+					}
+				}
 				valid := ReceiveWithKeys(200, string(wire), version, message.Limits{}, p.Receive, material, fixedTime)
 				if !valid.OK || valid.SigVerified == nil || !*valid.SigVerified || !strings.Contains(*valid.Body, "visible-body") {
 					t.Fatal(valid.Error)
+				}
+
+				if marker, err := valid.XPath("string(./Echo)", nil); err != nil || marker != "visible-body" {
+					t.Fatalf("expected accepted Body marker, got %v, %v", marker, err)
 				}
 
 				if _, err := BuildSecurity([]byte(request.Body), p, material, fixedTime, rand.Reader, nil, message.Limits{}, request.HeaderSelectors[:2]...); err != ErrEncryptionBuild {
@@ -145,6 +163,15 @@ func TestEncryptRecoverSelectedHeaderBlocks(t *testing.T) {
 				assertHidden(t, result)
 				if result.Error.Code != "POLICY_VIOLATION" {
 					t.Fatal(result.Error)
+				}
+
+				if version == "1.2" {
+					foreignWrapper := strings.Replace(string(wire), "<wsse11:EncryptedHeader", `<wsse11:EncryptedHeader xmlns:legacy="`+message.SOAP11+`" legacy:mustUnderstand="1"`, 1)
+					result := ReceiveWithKeys(200, foreignWrapper, version, message.Limits{}, p.Receive, material, fixedTime)
+					assertHidden(t, result)
+					if result.Error.Code != "XML_INVALID" || result.Error.Stage != "parse" {
+						t.Fatal("EncryptedHeader metadata validation changed:", result.Error)
+					}
 				}
 			})
 		}

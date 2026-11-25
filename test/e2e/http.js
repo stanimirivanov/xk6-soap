@@ -108,9 +108,11 @@ function checkVersionMismatchFault({namespace, soap}) {
   });
 }
 
-function withholdsMandatoryHeader(p) {
+const withholdsMandatoryHeader = p => withholdsHeaderBody(p, 'POLICY_VIOLATION');
+
+function withholdsHeaderBody(p, code) {
   const query = p.xpath('string(./m:Echo)', echoNamespaces);
-  return p.status === 200 && !p.ok && p.error?.code === 'POLICY_VIOLATION' && p.error.stage === 'parse' &&
+  return p.status === 200 && !p.ok && p.error?.code === code && p.error.stage === 'parse' &&
     p.body === null && p.fault === null && query.value === null && query.error?.code === 'CONTENT_UNAVAILABLE';
 }
 
@@ -144,6 +146,21 @@ function checkMandatoryHeaderRoles(soap) {
   }
 }
 
+function checkForeignMustUnderstand(soap) {
+  const cases = [
+    ['foreign-only', acceptsRoleBody],
+    ['mandatory-native-first', withholdsMandatoryHeader],
+    ['mandatory-foreign-first', withholdsMandatoryHeader],
+    ['optional-native-first', acceptsRoleBody],
+    ['optional-foreign-first', acceptsRoleBody],
+    ['foreign-actor', p => withholdsHeaderBody(p, 'XML_INVALID')],
+  ];
+  for (const [name, outcome] of cases) {
+    const response = http.post(`${base}/w3c-t34/${name}`, null, {timeout:'2s'});
+    check(soap.parse(response), { [`W3C T34 ${name}`]: outcome });
+  }
+}
+
 export default function () {
   check(client, { 'custom extension loaded': (c) => typeof c.build === 'function' && typeof c.parse === 'function' });
   checkEcho(soap11);
@@ -156,6 +173,7 @@ export default function () {
     'typed array view rejects at the response body boundary': soap => rejectsArgument(() => soap.parse({status:200, body:new Uint8Array([65])}), 'body'),
   });
   checkMandatoryHeaderRoles(soap12.soap);
+  checkForeignMustUnderstand(soap12.soap);
   const malformedFault = '<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Body><s:Fault>' +
     '<s:Code><s:Value>s:Sender</s:Value><s:Value>s:Receiver</s:Value></s:Code>' +
     '<s:Reason><s:Text xml:lang="en">Synthetic fault</s:Text></s:Reason></s:Fault></s:Body></s:Envelope>';

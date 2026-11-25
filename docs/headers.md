@@ -53,6 +53,13 @@ A configured required signed custom header is understood for mandatory-header
 handling; unknown targeted mandatory blocks are rejected. Plain/skipped verification
 makes no authenticity claim. Body, Fault and XPath remain unavailable on failure.
 
+On ordinary Header blocks in SOAP 1.2 replies, the client treats a SOAP 1.1
+Envelope-qualified `mustUnderstand` as foreign metadata. Only the SOAP
+1.2-qualified attribute determines mandatory status, regardless of attribute
+order. An unknown block carrying only the foreign attribute is optional.
+A SOAP 1.1-qualified `actor` on a SOAP 1.2 reply Header block returns
+`XML_INVALID`. See the [W3C T34 adaptation](soap12-coverage.md#foreign-mustunderstand-in-soap-12-replies).
+
 Evidence: `TestHeaderInputs`, `TestHeaderVersionMetadataAndBudgets`,
 `TestPublicSignedHeaderInputs`, `TestHeaderSignatureCoverage` and native
 `TestK6SignedHeaderExchanges`. The Apache fixture constructs its own DOM headers

@@ -14,6 +14,7 @@ import (
 
 const MaxBodyBytes = 64 << 10
 const maxCaptures = 128
+const legacySOAPNamespace = ` xmlns:legacy="http://schemas.xmlsoap.org/soap/envelope/"`
 
 // Capture is an in-memory synthetic request, never written to production logs.
 type Capture struct {
@@ -97,6 +98,18 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		writeHeaderRoleReply(w, "http://www.w3.org/2003/05/soap-envelope/role/"+strings.TrimPrefix(r.URL.Path, "/w3c-standard-role/"), "1")
 	case "/w3c-default-role/0", "/w3c-default-role/1", "/w3c-default-role/true", "/w3c-default-role/false":
 		writeHeaderRoleReply(w, "", strings.TrimPrefix(r.URL.Path, "/w3c-default-role/"))
+	case "/w3c-t34/foreign-only":
+		writeHeaderReply(w, legacySOAPNamespace+` legacy:mustUnderstand="1"`)
+	case "/w3c-t34/mandatory-native-first":
+		writeHeaderReply(w, legacySOAPNamespace+` s:mustUnderstand="1" legacy:mustUnderstand="0"`)
+	case "/w3c-t34/mandatory-foreign-first":
+		writeHeaderReply(w, legacySOAPNamespace+` legacy:mustUnderstand="0" s:mustUnderstand="1"`)
+	case "/w3c-t34/optional-native-first":
+		writeHeaderReply(w, legacySOAPNamespace+` s:mustUnderstand="0" legacy:mustUnderstand="1"`)
+	case "/w3c-t34/optional-foreign-first":
+		writeHeaderReply(w, legacySOAPNamespace+` legacy:mustUnderstand="1" s:mustUnderstand="0"`)
+	case "/w3c-t34/foreign-actor":
+		writeHeaderReply(w, legacySOAPNamespace+` legacy:actor="urn:fixture:actor"`)
 	case "/empty":
 		w.WriteHeader(http.StatusNoContent)
 	case "/binary":
@@ -129,6 +142,12 @@ func writeHeaderRoleReply(w http.ResponseWriter, role, mustUnderstand string) {
 	if role != "" {
 		roleAttribute = ` s:role="` + role + `"`
 	}
+	writeHeaderReply(w, ` s:mustUnderstand="`+mustUnderstand+`"`+roleAttribute)
+}
+
+// All attributes come from the synthetic cases above. Keep the Header block
+// and Body marker fixed across role checks and the W3C T34 adaptation.
+func writeHeaderReply(w http.ResponseWriter, attributes string) {
 	w.Header().Set("Content-Type", "application/soap+xml; charset=utf-8")
-	_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Header><m:Unknown xmlns:m="urn:fixture" s:mustUnderstand="`+mustUnderstand+`"`+roleAttribute+`/></s:Header><s:Body><m:Echo xmlns:m="urn:fixture">w3c-role-marker</m:Echo></s:Body></s:Envelope>`)
+	_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Header><m:Unknown xmlns:m="urn:fixture"`+attributes+`/></s:Header><s:Body><m:Echo xmlns:m="urn:fixture">w3c-role-marker</m:Echo></s:Body></s:Envelope>`)
 }
