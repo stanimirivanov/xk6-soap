@@ -181,37 +181,12 @@ function checkHeaderAttributeHandling(soap) {
 }
 
 function checkSOAP12WrapperAttributes(soap) {
-  for (const test of ['t28', 't71', 't72']) {
-    const response = http.post(`${base}/w3c-${test}`, null, {timeout:'2s'});
-    check(soap.parse(response), {
-      [`W3C ${test.toUpperCase()} invalid wrapper attribute withholds content`]: withholdsInvalidEnvelopeContent,
-    });
-  }
   const response = http.post(`${base}/soap12-qualified-wrapper-attributes`, null, {timeout:'2s'});
   check(soap.parse(response), {
     'SOAP 1.2 accepts qualified wrapper attributes and encodingStyle on a Body child': p =>
       p.ok && p.status === 200 && p.error === null &&
       p.xpath('string(./m:Echo)', echoNamespaces).value === 'soap12-wrapper-marker',
   });
-}
-
-function checkSOAP12EnvelopeStructure(soap) {
-  const control = http.post(`${base}/soap12-valid-envelope`, null, {timeout:'2s'});
-  check(soap.parse(control), {
-    'SOAP 1.2 accepts an optional Header followed by Body': p => {
-      const query = p.xpath('string(./m:Echo)', echoNamespaces);
-      return p.status === 200 && p.ok === true && p.error === null && p.fault === null &&
-        query.error === null && query.value === 'soap12-envelope-marker';
-    },
-  });
-  const malformed = [
-    ['t69', 'W3C T69 missing Body withholds content'],
-    ['t70', 'W3C T70 Trailer after Body withholds content'],
-  ];
-  for (const [test, assertion] of malformed) {
-    const response = http.post(`${base}/w3c-${test}`, null, {timeout:'2s'});
-    check(soap.parse(response), { [assertion]: withholdsInvalidEnvelopeContent });
-  }
 }
 
 function withholdsInvalidEnvelopeContent(p) {
@@ -266,6 +241,48 @@ function checkUnsupportedMediaReply() {
   });
 }
 
+function checkSOAP12XMLRejection(soap) {
+  const cases = [
+    ['t24', 'W3C T24 unrelated Envelope namespace withholds content'],
+    ['t25', 'W3C T25 external DTD withholds content'],
+    ['t28', 'W3C T28 invalid wrapper attribute withholds content'],
+    ['t64', 'W3C T64 notation declaration withholds content'],
+    ['t65', 'W3C T65 unparsed entity declaration withholds content'],
+    ['t69', 'W3C T69 missing Body withholds content'],
+    ['t70', 'W3C T70 Trailer after Body withholds content'],
+    ['t71', 'W3C T71 invalid wrapper attribute withholds content'],
+    ['t72', 'W3C T72 invalid wrapper attribute withholds content'],
+  ];
+  for (const [test, assertion] of cases) {
+    const response = http.post(`${base}/w3c-${test}`, null, {timeout:'2s'});
+    check(soap.parse(response), { [assertion]: withholdsInvalidEnvelopeContent });
+  }
+}
+
+function acceptsSOAP12XMLReply(p, marker) {
+  const query = p.xpath('string(./m:Echo)', echoNamespaces);
+  return p.status === 200 && p.ok === true && p.error === null && p.fault === null &&
+    query.error === null && query.value === marker;
+}
+
+function checkSOAP12XMLAcceptance(soap) {
+  const control = http.post(`${base}/soap12-valid-envelope`, null, {timeout:'2s'});
+  check(soap.parse(control), {
+    'SOAP 1.2 accepts an optional Header followed by Body': p => acceptsSOAP12XMLReply(p, 'soap12-envelope-marker'),
+  });
+  const marker = 'soap12-xml-marker';
+  const standalone = http.post(`${base}/w3c-t67`, null, {timeout:'2s'});
+  check(soap.parse(standalone), {
+    'W3C T67 standalone yes without encoding exposes the Body marker': p => acceptsSOAP12XMLReply(p, marker),
+  });
+  for (const format of ['compact', 'formatted']) {
+    const response = http.post(`${base}/w3c-t68/${format}`, null, {timeout:'2s'});
+    check(soap.parse(response), {
+      [`W3C T68 ${format} Envelope and Header expose the same Body marker`]: p => acceptsSOAP12XMLReply(p, marker),
+    });
+  }
+}
+
 export default function () {
   check(client, { 'custom extension loaded': (c) => typeof c.build === 'function' && typeof c.parse === 'function' });
   checkEcho(soap11);
@@ -281,10 +298,11 @@ export default function () {
   checkForeignMustUnderstand(soap12.soap);
   checkHeaderAttributeHandling(soap12.soap);
   checkSOAP12WrapperAttributes(soap12.soap);
-  checkSOAP12EnvelopeStructure(soap12.soap);
   checkSOAP12PeerFaults(soap12);
   checkOppositeVersionFault();
   checkUnsupportedMediaReply();
+  checkSOAP12XMLRejection(soap12.soap);
+  checkSOAP12XMLAcceptance(soap12.soap);
   const malformedFault = '<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Body><s:Fault>' +
     '<s:Code><s:Value>s:Sender</s:Value><s:Value>s:Receiver</s:Value></s:Code>' +
     '<s:Reason><s:Text xml:lang="en">Synthetic fault</s:Text></s:Reason></s:Fault></s:Body></s:Envelope>';
