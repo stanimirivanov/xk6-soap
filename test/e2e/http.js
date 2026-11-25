@@ -235,6 +235,33 @@ function checkSOAP12PeerFaults({soap, namespace}) {
   }
 }
 
+function checkOppositeVersionFault() {
+  const response = http.post(`${base}/w3c-th3`, null, {timeout:'2s'});
+  check(soap12.soap.parse(response), {
+    'SOAP 1.2 client projects the fixture VersionMismatch Fault': p =>
+      p.status === 500 && p.error?.code === 'SOAP_FAULT' &&
+      p.fault?.code?.namespace === soap12.namespace && p.fault.code.localName === 'VersionMismatch',
+  });
+  check(soap11.soap.parse(response), {
+    'W3C TH3 and XMLP-5 SOAP 1.1 client withholds a SOAP 1.2 VersionMismatch Fault': p => {
+      const query = p.xpath('string(./s:Fault/s:Reason/s:Text)', {s:soap12.namespace});
+      return p.status === 500 && p.ok === false && p.error?.code === 'XML_INVALID' && p.error.stage === 'xml' &&
+        p.body === null && p.fault === null && query.value === null && query.error?.code === 'CONTENT_UNAVAILABLE';
+    },
+  });
+}
+
+function checkUnsupportedMediaReply() {
+  const response = http.post(`${base}/w3c-th5`, null, {timeout:'2s'});
+  check(soap12.soap.parse(response), {
+    'W3C TH5 bare HTTP 415 preserves status and reports unavailable content': p => {
+      const query = p.xpath('.');
+      return p.status === 415 && p.ok === false && p.error?.code === 'BODY_UNAVAILABLE' &&
+        p.body === null && p.fault === null && query.value === null && query.error?.code === 'CONTENT_UNAVAILABLE';
+    },
+  });
+}
+
 export default function () {
   check(client, { 'custom extension loaded': (c) => typeof c.build === 'function' && typeof c.parse === 'function' });
   checkEcho(soap11);
@@ -252,6 +279,8 @@ export default function () {
   checkSOAP12WrapperAttributes(soap12.soap);
   checkSOAP12EnvelopeStructure(soap12.soap);
   checkSOAP12PeerFaults(soap12);
+  checkOppositeVersionFault();
+  checkUnsupportedMediaReply();
   const malformedFault = '<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Body><s:Fault>' +
     '<s:Code><s:Value>s:Sender</s:Value><s:Value>s:Receiver</s:Value></s:Code>' +
     '<s:Reason><s:Text xml:lang="en">Synthetic fault</s:Text></s:Reason></s:Fault></s:Body></s:Envelope>';

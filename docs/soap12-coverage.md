@@ -115,9 +115,9 @@ before incorporating upstream payloads.
 | --- | --- | --- | --- |
 | [TH1][w3c-TH1] | SOAP 1.2 POST returns HTTP 200 with SOAP XML | Direct | [Public echo check][echo] and [receiver request check][wire] assert a SOAP 1.2 exchange with the expected request and reply media types, HTTP 200, and an accepted Body marker. This evidence covers the HTTP binding behavior with a synthetic echo payload. |
 | [TH2][w3c-TH2] | Missing Body yields HTTP 400 Sender Fault | Adapted | The [public peer Fault checks][peer-faults] use a synthetic HTTP 400 SOAP 1.2 Sender reply and assert the status, qualified Fault code, and Reason via Body-scoped XPath. The fixture supplies the outcome. Fault generation after a request with a missing Body is outside the client test. |
-| [TH3][w3c-TH3] | SOAP 1.1 request yields HTTP 500 VersionMismatch | Partial | [VersionMismatch check][version-fault] asserts HTTP 500 and Fault projection for a SOAP 1.1 reply. The upstream binding example supplies a SOAP 1.2 Fault instead and tests what the peer returns. |
+| [TH3][w3c-TH3] | SOAP 1.1 request yields HTTP 500 VersionMismatch | Adapted | The [opposite-version reply check][opposite-version-fault] asserts that a SOAP 1.1 client preserves HTTP 500 for a supplied SOAP 1.2 VersionMismatch Fault and returns ok false, XML_INVALID at stage xml, and null Body and Fault. Body-scoped XPath returns CONTENT_UNAVAILABLE and a null value. Peer Fault and Upgrade generation are outside the client test. |
 | [TH4][w3c-TH4] | Mandatory header failure yields HTTP 500 MustUnderstand | Adapted | The [public peer Fault checks][peer-faults] use a synthetic HTTP 500 SOAP 1.2 MustUnderstand reply and assert the status, qualified Fault code, and Reason via Body-scoped XPath. The fixture supplies the outcome. Peer handling of a mandatory header and Fault generation are outside the client test. |
-| [TH5][w3c-TH5] | Unsupported media type yields HTTP 415 | Outside | Request media negotiation is tested at the peer. [Plain response cases][plain-tests] cover a generic HTTP error result at a different status. |
+| [TH5][w3c-TH5] | Unsupported media type yields HTTP 415 | Adapted | The [bare 415 reply check][unsupported-media-reply] asserts HTTP 415, ok false, BODY_UNAVAILABLE, and null Body and Fault. Body-scoped XPath returns CONTENT_UNAVAILABLE and a null value. The peer's decision to reject the request media type is outside the client test. |
 
 ## SOAPBuilders
 
@@ -154,7 +154,7 @@ before incorporating upstream payloads.
 | [XMLP-2][w3c-XMLP-2] | HTTP GET returns a document-style SOAP reply | Partial | k6 owns HTTP GET. [Public echo check][echo] verifies parsing an HTTP 200 SOAP reply received via POST. Add a GET fixture only if the client contract needs explicit evidence. |
 | [XMLP-3][w3c-XMLP-3] | HTTP GET returns an RPC-style SOAP reply | Outside | k6 owns HTTP GET. Peer produces the RPC result and its typed interpretation is outside the client contract. |
 | [XMLP-4][w3c-XMLP-4] | RPC parameter order differs | Outside | Peer binds RPC arguments by the expected rules. Ordered XML output is a separate contract. |
-| [XMLP-5][w3c-XMLP-5] | SOAP 1.1 request yields a SOAP 1.2 VersionMismatch reply | Partial | [Envelope structure][envelope] covers a configured-version mismatch in the opposite direction. A separate SOAP 1.1 Client.parse test could show withholding on a SOAP 1.2 reply. Peer HTTP status and Upgrade generation are separate. |
+| [XMLP-5][w3c-XMLP-5] | SOAP 1.1 request yields a SOAP 1.2 VersionMismatch reply | Adapted | The [opposite-version reply check][opposite-version-fault] preserves HTTP 500 and withholds Body, Fault, and XPath content when a SOAP 1.1 client parses a supplied SOAP 1.2 VersionMismatch Fault. Peer Fault and Upgrade generation are outside the client test. |
 | [XMLP-6][w3c-XMLP-6] | Mandatory unknown header yields HTTP 500 MustUnderstand | Adapted | The [public peer Fault checks][peer-faults] assert the fixture's HTTP 500, qualified MustUnderstand code, and Reason via Body-scoped XPath. Peer Fault generation is outside the client test. |
 | [XMLP-7][w3c-XMLP-7] | HTTP 400 SOAP 1.2 Sender Fault | Adapted | The [public peer Fault checks][peer-faults] assert the fixture's HTTP 400, qualified Sender code, and Reason via Body-scoped XPath. Peer RPC dispatch and Fault generation are outside the client test. |
 | [XMLP-8][w3c-XMLP-8] | HTTP 500 SOAP 1.2 Receiver Fault | Direct | [Public Fault checks][fault] assert HTTP 500 and the qualified Receiver code, reason, and Detail from a synthetic reply. This covers the client-visible outcome. |
@@ -232,13 +232,14 @@ adaptations exercise local client rejection, as recorded in [ADR-0009][wrapper-a
 [descendant-header-attributes]: ../test/e2e/http.js#L175
 [version-fault]: ../test/e2e/http.js#L102
 [peer-faults]: ../test/e2e/http.js#L219
+[opposite-version-fault]: ../test/e2e/http.js#L246
+[unsupported-media-reply]: ../test/e2e/http.js#L257
 [wire]: ../test/e2e/http_test.go#L65
 [object]: ../test/e2e/object.js#L5
 [invalid-payload]: ../internal/message/message_test.go#L55
 [envelope]: ../internal/message/message_test.go#L81
 [declaration]: ../internal/message/xml_declaration_test.go#L7
 [fault-structure]: ../internal/message/fault_test.go#L9
-[plain-tests]: ../internal/message/response_test.go#L15
 [optional-content]: ../internal/message/response_test.go#L86
 [signed-header]: ../internal/wssec/headers_test.go#L63
 [t34-signed]: ../internal/wssec/headers_test.go#L68

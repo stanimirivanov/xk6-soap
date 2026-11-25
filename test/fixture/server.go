@@ -89,6 +89,10 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		writeSOAP12FaultReply(w, http.StatusBadRequest, "Sender", "Synthetic Sender reason", "")
 	case "/soap12-must-understand-fault":
 		writeSOAP12FaultReply(w, http.StatusInternalServerError, "MustUnderstand", "Synthetic MustUnderstand reason", "")
+	case "/w3c-th3":
+		writeSOAP12FaultReply(w, http.StatusInternalServerError, "VersionMismatch", "Synthetic SOAP 1.2 version mismatch", "")
+	case "/w3c-th5":
+		w.WriteHeader(http.StatusUnsupportedMediaType)
 	case "/w3c-t28":
 		writeWrapperAttributeReply(w, "", ` s:encodingStyle="`+soap12EncodingNone+`"`, "")
 	case "/soap12-valid-envelope":
