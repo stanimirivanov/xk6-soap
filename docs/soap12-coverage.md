@@ -208,8 +208,8 @@ protection orders. See [ADR-0008][t34-adr] for the scope of the exception.
 The [public k6 loopback][wrapper-k6] adapts [T28][w3c-T28], [T71][w3c-T71]
 and [T72][w3c-T72] to response acceptance. Each invalid reply returns
 `XML_INVALID` at stage `xml` with null Body and Fault and XPath
-`CONTENT_UNAVAILABLE`. The positive reply accepts qualified extension
-attributes on both wrappers and exposes a Body child with SOAP
+`CONTENT_UNAVAILABLE`. The [positive reply][wrapper-control-k6] accepts qualified
+extension attributes on both wrappers and exposes a Body child with SOAP
 `encodingStyle` set to the standard `encoding/none` URI.
 
 With signature verification required, the [signed wire test][wrapper-signed]
@@ -231,9 +231,9 @@ adaptations exercise local client rejection, as recorded in [ADR-0009][wrapper-a
 [invalid-must-understand]: ../test/e2e/http.js#L175
 [descendant-header-attributes]: ../test/e2e/http.js#L179
 [version-fault]: ../test/e2e/http.js#L102
-[peer-faults]: ../test/e2e/http.js#L223
-[opposite-version-fault]: ../test/e2e/http.js#L250
-[unsupported-media-reply]: ../test/e2e/http.js#L261
+[peer-faults]: ../test/e2e/http.js#L198
+[opposite-version-fault]: ../test/e2e/http.js#L225
+[unsupported-media-reply]: ../test/e2e/http.js#L236
 [wire]: ../test/e2e/http_test.go#L65
 [object]: ../test/e2e/object.js#L5
 [envelope]: ../internal/message/message_test.go#L81
@@ -244,15 +244,16 @@ adaptations exercise local client rejection, as recorded in [ADR-0009][wrapper-a
 [t34-signed]: ../internal/wssec/headers_test.go#L68
 [t34-encrypted]: ../internal/wssec/header_encryption_test.go#L30
 [t34-adr]: adr/0008-soap12-foreign-must-understand.md
-[wrapper-k6]: ../test/e2e/http.js#L183
-[t24-k6]: ../test/e2e/http.js#L271
-[t25-k6]: ../test/e2e/http.js#L272
-[t64-k6]: ../test/e2e/http.js#L273
-[t65-k6]: ../test/e2e/http.js#L274
-[t67-k6]: ../test/e2e/http.js#L291
-[t68-k6]: ../test/e2e/http.js#L296
-[t69-k6]: ../test/e2e/http.js#L208
-[t70-k6]: ../test/e2e/http.js#L209
+[wrapper-k6]: ../test/e2e/http.js#L244
+[wrapper-control-k6]: ../test/e2e/http.js#L186
+[t24-k6]: ../test/e2e/http.js#L246
+[t25-k6]: ../test/e2e/http.js#L247
+[t64-k6]: ../test/e2e/http.js#L249
+[t65-k6]: ../test/e2e/http.js#L250
+[t67-k6]: ../test/e2e/http.js#L276
+[t68-k6]: ../test/e2e/http.js#L281
+[t69-k6]: ../test/e2e/http.js#L251
+[t70-k6]: ../test/e2e/http.js#L252
 [wrapper-signed]: ../internal/adapter/receive_test.go#L52
 [wrapper-recovered]: ../internal/wssec/response_encryption_test.go#L143
 [wrapper-adr]: adr/0009-soap12-response-wrapper-attributes.md
