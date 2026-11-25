@@ -7,11 +7,11 @@ export const options = { vus: 1, iterations: 1, thresholds: { checks: ['rate==1'
 const base = __ENV.SOAP_FIXTURE_URL;
 const client = new Client({url:base});
 const soap11 = {
-  version:'11', namespace:'http://schemas.xmlsoap.org/soap/envelope/', code:'Server', responseType:'text',
+  version:'11', namespace:'http://schemas.xmlsoap.org/soap/envelope/', code:'Server', responseType:'text', mediaType:'text/xml',
   soap:new Client({url:base+'/echo', soapVersion:'1.1'}),
 };
 const soap12 = {
-  version:'12', namespace:'http://www.w3.org/2003/05/soap-envelope', code:'Receiver', responseType:'binary',
+  version:'12', namespace:'http://www.w3.org/2003/05/soap-envelope', code:'Receiver', responseType:'binary', mediaType:'application/soap+xml',
   soap:new Client({url:base+'/echo', soapVersion:'1.2', namespace:'urn:fixture'}),
 };
 const echoNamespaces = {m:'urn:fixture'};
@@ -26,7 +26,7 @@ function rejectsArgument(call, stage) {
   return false;
 }
 
-function checkEcho({version, namespace, responseType, soap}) {
+function checkEcho({version, namespace, responseType, mediaType, soap}) {
   const explicit = `soap${version}-explicit`;
   const omitted = `soap${version}-omitted`;
   const request = soap.build('Echo', echoPayload(explicit), {soapAction:'urn:echo'});
@@ -63,6 +63,10 @@ function checkEcho({version, namespace, responseType, soap}) {
   const undeclared = soap.parse({status:200, body:declarationRequest.body});
   const declared = http.post(declarationRequest.url, '<?xml version="1.0" encoding="UTF-8"?>\n' + declarationRequest.body,
     {...params, headers:declarationRequest.headers});
+  check([response, omittedReply, declared], {
+    [`SOAP ${version} echo replies have the expected media type`]: replies => replies.every(reply =>
+      reply.status === 200 && reply.headers['Content-Type']?.split(';', 1)[0].trim().toLowerCase() === mediaType),
+  });
   check(soap.parse(declared), {
     'XML declaration preserves accepted response content': p =>
       p.ok && p.status === undeclared.status && p.body === undeclared.body &&
