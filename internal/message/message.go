@@ -98,7 +98,7 @@ func Build(operation, payload string, options Options) (Request, error) {
 			return result, failure("INVALID_ARGUMENT", "soapAction")
 		}
 	}
-	if err := validate(payload, limits, "payload", operation, ns); err != nil {
+	if err := validate(payload, limits, payloadMode, operation, ns); err != nil {
 		return result, err
 	}
 	// A prefixed wrapper adds no default namespace to the standalone payload.
@@ -112,7 +112,7 @@ func Build(operation, payload string, options Options) (Request, error) {
 		return result, failure("LIMIT_EXCEEDED", "xml")
 	}
 	body := prefix + payload + suffix
-	if err := validate(body, limits, "envelope", "", ns); err != nil {
+	if err := validate(body, limits, requestEnvelopeMode, "", ns); err != nil {
 		return result, err
 	}
 	headers := map[string]string{}
@@ -129,7 +129,7 @@ func Build(operation, payload string, options Options) (Request, error) {
 }
 
 func ValidateEnvelope(document, version string, limits Limits) error {
-	return validateEnvelope(document, version, limits, "envelope")
+	return validateEnvelope(document, version, limits, requestEnvelopeMode)
 }
 
 // ValidateRecoveredEnvelope applies inbound wrapper rules to a decrypted
@@ -138,7 +138,7 @@ func ValidateRecoveredEnvelope(document, version string, limits Limits) error {
 	return validateEnvelope(document, version, limits, responseEnvelopeMode)
 }
 
-func validateEnvelope(document, version string, limits Limits, mode string) error {
+func validateEnvelope(document, version string, limits Limits, mode validationMode) error {
 	ns, err := namespace(version)
 	if err != nil {
 		return err

@@ -68,7 +68,7 @@ func headerBlocks(options Options, limits Limits, ns string) (string, []HeaderSe
 			return bad()
 		}
 		names[h.Name] = true
-		if err := validate(h.XML, limits, "header", "", ns); err != nil {
+		if err := validate(h.XML, limits, headerMode, "", ns); err != nil {
 			return "", nil, "", err
 		}
 		decoder := xml.NewDecoder(strings.NewReader(h.XML))

@@ -78,6 +78,15 @@ func TestInvalidPayloads(t *testing.T) {
 	code(t, err, "INVALID_ARGUMENT")
 }
 
+func TestValidateRejectsUnknownMode(t *testing.T) {
+	limits, err := (Limits{}).Normalized()
+	if err != nil {
+		t.Fatal(err)
+	}
+	document := `<s:Envelope xmlns:s="` + SOAP12 + `"/>`
+	code(t, validate(document, limits, 0, "", SOAP12), "XML_INVALID")
+}
+
 func TestEnvelopeStructure(t *testing.T) {
 	ns := ` xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"`
 	for _, inside := range []string{`<s:Body/>`, `<s:Header/><s:Body/>`, `<s:Body><x xmlns="urn:test"/></s:Body>`} {

@@ -10,7 +10,16 @@ import (
 
 const xmlNS = "http://www.w3.org/XML/1998/namespace"
 const xmlnsNS = "http://www.w3.org/2000/xmlns/"
-const responseEnvelopeMode = "response-envelope"
+
+type validationMode uint8
+
+const (
+	payloadMode validationMode = iota + 1
+	headerMode
+	bodyMode
+	requestEnvelopeMode
+	responseEnvelopeMode
+)
 
 // XML 1.0 §2.8 defines the order, quoting and XML whitespace of these fields.
 // The receive profile supports only version 1.0 with optional UTF-8 encoding.
@@ -73,10 +82,17 @@ type frame struct {
 // encoding/xml owns lexical decoding. RawToken retains prefixes so this layer
 // can reject undeclared prefixes and duplicate expanded attributes explicitly;
 // Decoder.Token otherwise tolerates unresolved prefixes. No external resolver is used.
-func validate(input string, limits Limits, mode, operation, soapNS string) error {
-	envelope := mode == "envelope" || mode == responseEnvelopeMode
-	soap12Response := mode == responseEnvelopeMode && soapNS == SOAP12
+func validate(input string, limits Limits, mode validationMode, operation, soapNS string) error {
 	bad := func() error { return failure("XML_INVALID", "xml") }
+	var envelope bool
+	switch mode {
+	case payloadMode, headerMode, bodyMode:
+	case requestEnvelopeMode, responseEnvelopeMode:
+		envelope = true
+	default:
+		return bad()
+	}
+	soap12Response := mode == responseEnvelopeMode && soapNS == SOAP12
 	if len(input) > limits.Bytes {
 		return failure("LIMIT_EXCEEDED", "xml")
 	}
@@ -151,23 +167,26 @@ func validate(input string, limits Limits, mode, operation, soapNS string) error
 				if roots != 1 {
 					return bad()
 				}
-				if mode == "payload" {
+				switch mode {
+				case payloadMode:
 					if expanded.Local != operation {
 						return bad()
 					}
-				} else if mode == "header" {
+				case headerMode:
 					if expanded.Space == "" {
 						return bad()
 					}
-				} else if mode == "body" {
+				case bodyMode:
 					if expanded != (xml.Name{Space: soapNS, Local: "Body"}) {
 						return bad()
 					}
-				} else if expanded != (xml.Name{Space: soapNS, Local: "Envelope"}) {
-					return bad()
+				case requestEnvelopeMode, responseEnvelopeMode:
+					if expanded != (xml.Name{Space: soapNS, Local: "Envelope"}) {
+						return bad()
+					}
 				}
 			}
-			if mode == "payload" && (expanded.Space == SOAP11 || expanded.Space == SOAP12) {
+			if mode == payloadMode && (expanded.Space == SOAP11 || expanded.Space == SOAP12) {
 				return bad()
 			}
 			if envelope && depth == 1 {
