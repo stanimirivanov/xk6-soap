@@ -33,7 +33,7 @@ before incorporating upstream payloads.
 | [T2][w3c-T2] | Known header targeted at an application role | Outside | Peer assumes a custom role and produces a reply header. |
 | [T3][w3c-T3] | Known header with no role | Outside | Peer processes the application header and produces a reply header. Default-role rejection of unknown mandatory headers is tracked below. |
 | [T4][w3c-T4] | Known header targeted at ultimateReceiver | Outside | Peer processes the application header and produces a reply header. |
-| [T5][w3c-T5] | Optional header for another application role | Partial | [Header role check][roles] covers ignoring a mandatory header for another role. A reply with an optional header would isolate this variant. |
+| [T5][w3c-T5] | Optional header for another application role | Adapted | [Optional unrelated-role check][optional-other-role] omits mustUnderstand and exposes the reply's Body marker. The upstream receiver ignores an application Header block in a request and returns an empty Body. |
 | [T6][w3c-T6] | Forward a header for another role | Outside | Requires an intermediary to preserve the block on forwarding. |
 | [T7][w3c-T7] | Remove an optional targeted header | Outside | Requires an intermediary to remove its own block before forwarding. |
 | [T8][w3c-T8] | Remove only the block for the intermediary | Outside | Requires intermediary role-based removal and preservation of the other blocks. |
@@ -56,7 +56,7 @@ before incorporating upstream payloads.
 | [T26][w3c-T26] | Ignore an XML processing instruction | Outside | The [client XML policy][architecture] deliberately rejects processing instructions. [Declaration and XML rejection][declaration] verifies the restriction. |
 | [T27][w3c-T27] | Reject a complex value in a string array | Outside | Peer validates SOAP Encoding item types. |
 | [T28][w3c-T28] | Reject encodingStyle on Body | Adapted | [Public k6 wrapper check][wrapper-k6] rejects SOAP 1.2-qualified `encodingStyle` on Body and withholds content. The upstream node generates a Fault. |
-| [T29][w3c-T29] | Accept a long absolute role URI | Gap | Add an optional Header block with a synthetic long role URI within configured XML limits and assert Body acceptance. |
+| [T29][w3c-T29] | Accept a long absolute role URI | Adapted | [Long role URI check][long-role] exposes the Body marker in a reply whose optional Header block uses a 2,048-byte absolute role URI within the default XML limits. The upstream receiver returns an empty Body. |
 | [T30][w3c-T30] | SOAP 1.1 request to a SOAP 1.2 peer | Adapted | [VersionMismatch check][version-fault] projects SOAP_FAULT and the qualified SOAP 1.1 code from a synthetic HTTP 500 reply with a supplied Upgrade Header block. [Envelope structure][envelope] separately checks wrong-version rejection. Peer Fault generation and Upgrade advertisement remain outside the client test. |
 | [T31][w3c-T31] | RPC void return omits the return accessor | Outside | Requires a peer RPC binding and interpretation of the return accessor. |
 | [T32][w3c-T32] | RPC returns the value of a required header | Outside | Requires the peer to understand the application header and dispatch echoHeader. |
@@ -67,7 +67,7 @@ before incorporating upstream payloads.
 | [T37][w3c-T37] | Header omits mustUnderstand | Adapted | [Omitted attribute check][omitted-must-understand] shares T10's Body marker assertion. The upstream receiver returns a valid reply with an empty Body. |
 | [T38][w3c-T38] | Four lexical forms of mustUnderstand | Partial | [Header role check][roles] exercises all four lexical forms with an omitted role. It verifies equivalent client outcomes for 1 and true, and for 0 and false. The upstream case also exercises application Header block processing at the peer. |
 | [T39][w3c-T39] | Unknown Header block with invalid mustUnderstand | Adapted | [Invalid attribute check][invalid-must-understand] asserts XML_INVALID at parse, null Body and Fault, and XPath CONTENT_UNAVAILABLE. The upstream receiver generates a Sender Fault. |
-| [T40][w3c-T40] | IPv6 literal in the Header block namespace URI | Gap | Use an optional unknown reply header with an IPv6 literal in its namespace URI and verify Body acceptance without network access. |
+| [T40][w3c-T40] | IPv6 literal in the Header block namespace URI | Adapted | [IPv6 namespace check][ipv6-header-namespace] exposes the Body marker in a loopback reply with an unknown ultimateReceiver block, mustUnderstand=false, and a bracketed IPv6 documentation address in its namespace URI. |
 | [T41][w3c-T41] | RPC typed struct echo | Outside | Peer handles XSD typing and RPC echo semantics. |
 | [T42][w3c-T42] | SOAP Encoding array of structs | Outside | Peer interprets the encoded struct item type. |
 | [T43][w3c-T43] | RPC struct expanded into scalar outputs | Outside | Peer converts typed struct fields to RPC output parameters. |
@@ -144,7 +144,7 @@ before incorporating upstream payloads.
 | [SBR2-echoNestedArray][w3c-SBR2-echoNestedArray] | RPC nested array round trip | Outside | Peer binds nested encoded arrays. |
 | [SBR2-echoMeStringRequest][w3c-SBR2-echoMeStringRequest] | Application string Header block echo | Outside | Peer recognizes and echoes the test Header block. Client XPath is scoped to accepted Body content. |
 | [SBR2-echoMeStructRequest][w3c-SBR2-echoMeStructRequest] | Application struct Header block echo | Outside | Peer recognizes and echoes the typed Header block. |
-| [SBR2-echoMeUnknown][w3c-SBR2-echoMeUnknown] | Optional and mandatory unknown blocks for next or an unrelated role | Partial | [Header role check][roles] rejects a mandatory next block and accepts one for an unrelated role. Add acceptance for the optional variants if extending this matrix. The peer still owns Fault generation. |
+| [SBR2-echoMeUnknown][w3c-SBR2-echoMeUnknown] | Optional and mandatory unknown blocks for next or an unrelated role | Adapted | [Optional next][optional-next-role] and [optional unrelated-role][optional-other-role] replies omit mustUnderstand and expose the Body marker. [Mandatory next][mandatory-next-role] withholds content and [mandatory unrelated role][mandatory-other-role] exposes the marker. The upstream receiver generates the MustUnderstand Fault. |
 
 ## XMLP interoperability
 
@@ -226,6 +226,12 @@ adaptations exercise local client rejection, as recorded in [ADR-0009][wrapper-a
 [echo]: ../test/e2e/http.js#L29
 [fault]: ../test/e2e/http.js#L89
 [roles]: ../test/e2e/http.js#L129
+[mandatory-other-role]: ../test/e2e/http.js#L136
+[mandatory-next-role]: ../test/e2e/http.js#L141
+[optional-other-role]: ../test/e2e/http.js#L288
+[long-role]: ../test/e2e/http.js#L289
+[ipv6-header-namespace]: ../test/e2e/http.js#L290
+[optional-next-role]: ../test/e2e/http.js#L291
 [t34-k6]: ../test/e2e/http.js#L153
 [omitted-must-understand]: ../test/e2e/http.js#L171
 [invalid-must-understand]: ../test/e2e/http.js#L175
