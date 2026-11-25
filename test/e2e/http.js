@@ -99,22 +99,43 @@ function checkFault({version, namespace, code, soap}) {
   });
 }
 
+function checkVersionMismatchFault({namespace, soap}) {
+  const response = http.post(`${base}/w3c-t30`, null, {timeout:'2s'});
+  check(soap.parse(response), {
+    'W3C T30 SOAP 1.1 VersionMismatch Fault projects its qualified code': p =>
+      p.status === 500 && !p.ok && p.error?.code === 'SOAP_FAULT' &&
+      p.fault?.code?.namespace === namespace && p.fault.code.localName === 'VersionMismatch',
+  });
+}
+
+function withholdsMandatoryHeader(p) {
+  const query = p.xpath('string(./m:Echo)', echoNamespaces);
+  return p.status === 200 && !p.ok && p.error?.code === 'POLICY_VIOLATION' && p.error.stage === 'parse' &&
+    p.body === null && p.fault === null && query.value === null && query.error?.code === 'CONTENT_UNAVAILABLE';
+}
+
+function acceptsRoleBody(p) {
+  const query = p.xpath('string(./m:Echo)', echoNamespaces);
+  return p.status === 200 && p.ok && p.error === null && p.fault === null &&
+    query.error === null && query.value === 'w3c-role-marker';
+}
+
 function checkMandatoryHeaderRoles(soap) {
   const targeted = http.post(`${base}/w3c-t12`, null, {timeout:'2s'});
   check(soap.parse(targeted), {
-    'W3C T12 targeted unknown mandatory header withholds content': p => {
-      const query = p.xpath('string(./m:Echo)', echoNamespaces);
-      return p.status === 200 && !p.ok && p.error?.code === 'POLICY_VIOLATION' && p.error.stage === 'parse' &&
-        p.body === null && p.fault === null && query.value === null && query.error?.code === 'CONTENT_UNAVAILABLE';
-    },
+    'W3C T12 targeted unknown mandatory header withholds content': withholdsMandatoryHeader,
   });
   const otherRole = http.post(`${base}/w3c-t15`, null, {timeout:'2s'});
   check(soap.parse(otherRole), {
-    'W3C T15 unknown mandatory header for a different role allows Body': p => {
-      const query = p.xpath('string(./m:Echo)', echoNamespaces);
-      return p.status === 200 && p.ok && p.error === null && p.fault === null && query.error === null && query.value === 'w3c-role-marker';
-    },
+    'W3C T15 unknown mandatory header for a different role allows Body': acceptsRoleBody,
   });
+  for (const mustUnderstand of ['1', 'true', 'false']) {
+    const response = http.post(`${base}/w3c-default-role/${mustUnderstand}`, null, {timeout:'2s'});
+    check(soap.parse(response), {
+      [`SOAP 1.2 omitted role with mustUnderstand=${mustUnderstand}`]:
+        mustUnderstand === 'false' ? acceptsRoleBody : withholdsMandatoryHeader,
+    });
+  }
 }
 
 export default function () {
@@ -123,6 +144,7 @@ export default function () {
   checkEcho(soap12);
   checkFault(soap11);
   checkFault(soap12);
+  checkVersionMismatchFault(soap11);
   check(soap12.soap, {
     'nested null rejects at the payload boundary': soap => rejectsArgument(() => soap.build('Echo', {value:null}), 'payload'),
     'typed array view rejects at the response body boundary': soap => rejectsArgument(() => soap.parse({status:200, body:new Uint8Array([65])}), 'body'),

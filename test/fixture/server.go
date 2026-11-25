@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -83,16 +84,17 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/soap+xml; charset=utf-8")
 		w.WriteHeader(500)
 		_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Body><s:Fault><s:Code><s:Value>s:Receiver</s:Value></s:Code><s:Reason><s:Text xml:lang="en">Synthetic fault</s:Text></s:Reason><s:Detail><fixture/></s:Detail></s:Fault></s:Body></s:Envelope>`)
-	case "/w3c-t12", "/w3c-t15":
-		// https://www.w3.org/TR/soap12-testcollection/#T12 and #T15
-		// Adapt the two roles to synthetic client-side replies. Both carry the
-		// same Body so the parser can show whether the role permits access to it.
-		role := "urn:fixture:other-role"
-		if r.URL.Path == "/w3c-t12" {
-			role = "http://www.w3.org/2003/05/soap-envelope/role/ultimateReceiver"
-		}
-		w.Header().Set("Content-Type", "application/soap+xml; charset=utf-8")
-		_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Header><m:Unknown xmlns:m="urn:fixture" s:mustUnderstand="1" s:role="`+role+`"/></s:Header><s:Body><m:Echo xmlns:m="urn:fixture">w3c-role-marker</m:Echo></s:Body></s:Envelope>`)
+	case "/w3c-t30":
+		// Adapt W3C T30 to projection of a supplied Fault reply.
+		w.Header().Set("Content-Type", "text/xml; charset=utf-8")
+		w.WriteHeader(http.StatusInternalServerError)
+		_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Header><s:Upgrade><s:SupportedEnvelope xmlns:n="http://www.w3.org/2003/05/soap-envelope" qname="n:Envelope"/></s:Upgrade></s:Header><s:Body><s:Fault><faultcode>s:VersionMismatch</faultcode><faultstring>Synthetic version mismatch</faultstring></s:Fault></s:Body></s:Envelope>`)
+	case "/w3c-t12":
+		writeHeaderRoleReply(w, "http://www.w3.org/2003/05/soap-envelope/role/ultimateReceiver", "1")
+	case "/w3c-t15":
+		writeHeaderRoleReply(w, "urn:fixture:other-role", "1")
+	case "/w3c-default-role/1", "/w3c-default-role/true", "/w3c-default-role/false":
+		writeHeaderRoleReply(w, "", strings.TrimPrefix(r.URL.Path, "/w3c-default-role/"))
 	case "/empty":
 		w.WriteHeader(http.StatusNoContent)
 	case "/binary":
@@ -116,4 +118,15 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.NotFound(w, r)
 	}
+}
+
+// Adapt W3C T11, T12, T13, T15, T35 and T38 to client reply acceptance.
+// Keep the Body marker fixed while varying only the role or mustUnderstand.
+func writeHeaderRoleReply(w http.ResponseWriter, role, mustUnderstand string) {
+	roleAttribute := ""
+	if role != "" {
+		roleAttribute = ` s:role="` + role + `"`
+	}
+	w.Header().Set("Content-Type", "application/soap+xml; charset=utf-8")
+	_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Header><m:Unknown xmlns:m="urn:fixture" s:mustUnderstand="`+mustUnderstand+`"`+roleAttribute+`/></s:Header><s:Body><m:Echo xmlns:m="urn:fixture">w3c-role-marker</m:Echo></s:Body></s:Envelope>`)
 }

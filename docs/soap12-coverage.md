@@ -39,9 +39,9 @@ before incorporating upstream payloads.
 | [T8][w3c-T8] | Remove only the block for the intermediary | Outside | Requires intermediary role-based removal and preservation of the other blocks. |
 | [T9][w3c-T9] | Forward an ultimateReceiver header | Outside | Requires an intermediary to preserve a block for the ultimate receiver. |
 | [T10][w3c-T10] | Unknown header without mustUnderstand | Partial | [Body-scoped XPath][xpath-tests] accepts an optional unknown SOAP 1.1 block with no role. Add a SOAP 1.2 reply for the explicit ultimateReceiver role and assert the accepted Body. |
-| [T11][w3c-T11] | Unknown header with mustUnderstand=false | Gap | Add this lexical form to the optional-header acceptance check. |
+| [T11][w3c-T11] | Unknown header with mustUnderstand=false | Adapted | [Header role check][roles] accepts an unknown block with mustUnderstand=false and makes the Body marker queryable. The reply omits the role. The upstream request names ultimateReceiver and the peer sends an empty Body. |
 | [T12][w3c-T12] | Unknown mandatory header for ultimateReceiver | Adapted | [Header role check][roles] asserts HTTP 200, a failed SOAP outcome, POLICY_VIOLATION at parse, null Body and Fault, and CONTENT_UNAVAILABLE with a null XPath value. The upstream receiver instead generates a MustUnderstand Fault with NotUnderstood. |
-| [T13][w3c-T13] | Unknown mandatory header with mustUnderstand=true | Partial | [Header role check][roles] uses 1 on receive. Add true and assert the same rejection. |
+| [T13][w3c-T13] | Unknown mandatory header with mustUnderstand=true | Adapted | [Header role check][roles] withholds content for an unknown block with mustUnderstand=true and omitted role. The upstream request names ultimateReceiver and the peer generates a MustUnderstand Fault. |
 | [T14][w3c-T14] | Invalid mustUnderstand on a known application header | Gap | Assert XML_INVALID and withheld Body on a reply with the invalid value. Peer Fault generation is separate. |
 | [T15][w3c-T15] | Unknown mandatory header for another role | Adapted | [Header role check][roles] keeps the same Header block and Body marker as the targeted case, changes the role, and checks HTTP 200, a successful SOAP outcome without an error or Fault, and the accepted marker through XPath without an error. The upstream receiver ignores the block and sends an empty SOAP Body. |
 | [T16][w3c-T16] | Forward an unknown mandatory header for a later role | Outside | Requires preserving a block at an intermediary for a downstream receiver. |
@@ -57,15 +57,15 @@ before incorporating upstream payloads.
 | [T27][w3c-T27] | Reject a complex value in a string array | Outside | Peer validates SOAP Encoding item types. |
 | [T28][w3c-T28] | Reject encodingStyle on Body | Decision | [Envelope structure][envelope] does not check this attribute. Decide whether SOAP Envelope structural validation should enforce its placement before specifying an assertion. |
 | [T29][w3c-T29] | Accept a long absolute role URI | Gap | Add an optional Header block with a synthetic long role URI within configured XML limits and assert Body acceptance. |
-| [T30][w3c-T30] | SOAP 1.1 request to a SOAP 1.2 peer | Partial | [Envelope structure][envelope] checks wrong-version rejection and [public Fault checks][fault] project other Fault codes. Consider projecting a peer-supplied SOAP 1.1 VersionMismatch Fault through a SOAP 1.1 client. Generation of the Fault and Upgrade/SupportedEnvelope advertisement belongs to the peer. |
+| [T30][w3c-T30] | SOAP 1.1 request to a SOAP 1.2 peer | Adapted | [VersionMismatch check][version-fault] projects SOAP_FAULT and the qualified SOAP 1.1 code from a synthetic HTTP 500 reply with a supplied Upgrade Header block. [Envelope structure][envelope] separately checks wrong-version rejection. Peer Fault generation and Upgrade advertisement remain outside the client test. |
 | [T31][w3c-T31] | RPC void return omits the return accessor | Outside | Requires a peer RPC binding and interpretation of the return accessor. |
 | [T32][w3c-T32] | RPC returns the value of a required header | Outside | Requires the peer to understand the application header and dispatch echoHeader. |
 | [T33][w3c-T33] | Missing RPC procedure returns a qualified Subcode | Partial | [Fault projection][fault-structure] asserts a Sender code and ordered qualified Subcodes. Add this specific peer-supplied Subcode only if useful to client callers. RPC dispatch stays at the peer. |
 | [T34][w3c-T34] | Ignore a SOAP 1.1 mustUnderstand attribute in a SOAP 1.2 header | Decision | [Current response policy][header-policy] returns XML_INVALID for SOAP attributes from the other Envelope namespace. The upstream receiver ignores this header. Decide which client behavior to specify before adding a regression assertion. |
-| [T35][w3c-T35] | Unknown mandatory header with omitted role | Partial | [Signed header check][signed-header] asserts withholding for an added unknown mandatory block with omitted role. The [plain-client rejection test][optional-content] proves the exact outcome for SOAP 1.1. Add the corresponding public SOAP 1.2 assertion. |
+| [T35][w3c-T35] | Unknown mandatory header with omitted role | Adapted | [Header role check][roles] asserts POLICY_VIOLATION and withholds Body, Fault, and XPath for an unknown mandatory block with no role. The [plain SOAP 1.1][optional-content] and [signed-header][signed-header] tests also check withholding. The upstream peer generates a Fault. |
 | [T36][w3c-T36] | Explicit ultimateReceiver on an unknown mandatory header | Adapted | [Header role check][roles] targets this role with 1 and asserts content withholding. The upstream case checks peer Fault generation. |
 | [T37][w3c-T37] | Header omits mustUnderstand | Partial | [Body-scoped XPath][xpath-tests] covers the SOAP 1.1 counterpart. Share the SOAP 1.2 omitted-mustUnderstand acceptance check with the earlier optional-header case. |
-| [T38][w3c-T38] | Four lexical forms of mustUnderstand | Partial | [Header metadata tests][header-tests] build a SOAP 1.2 true header, and [header role check][roles] receives 1. Exercise 0, false, 1, and true together at the receive boundary if adding a lexical table. |
+| [T38][w3c-T38] | Four lexical forms of mustUnderstand | Partial | [Header role check][roles] exercises 1, true, and false with omitted role. [Header metadata tests][header-tests] also build a SOAP 1.2 block with true. The receive matrix lacks 0 and does not exercise upstream application-header processing. |
 | [T39][w3c-T39] | Unknown Header block with invalid mustUnderstand | Gap | Add a synthetic reply and assert XML_INVALID with no queryable Body. A Sender Fault is the upstream peer outcome. |
 | [T40][w3c-T40] | IPv6 literal in the Header block namespace URI | Gap | Use an optional unknown reply header with an IPv6 literal in its namespace URI and verify Body acceptance without network access. |
 | [T41][w3c-T41] | RPC typed struct echo | Outside | Peer handles XSD typing and RPC echo semantics. |
@@ -115,7 +115,7 @@ before incorporating upstream payloads.
 | --- | --- | --- | --- |
 | [TH1][w3c-TH1] | SOAP 1.2 POST returns HTTP 200 with SOAP XML | Direct | [Public echo check][echo] and [receiver request check][wire] assert a SOAP 1.2 exchange with the expected request and reply media types, HTTP 200, and an accepted Body marker. This evidence covers the HTTP binding behavior with a synthetic echo payload. |
 | [TH2][w3c-TH2] | Missing Body yields HTTP 400 Sender Fault | Partial | [Envelope structure][envelope] covers missing Body rejection and [Fault projection][fault-structure] covers Sender at other statuses. Add a peer-supplied HTTP 400 Sender reply if prioritizing Fault projection. |
-| [TH3][w3c-TH3] | SOAP 1.1 request yields HTTP 500 VersionMismatch | Partial | [Public Fault checks][fault] assert HTTP 500 with other SOAP Fault codes. The example returns a SOAP 1.2 Fault. Keep that reply distinct from the SOAP 1.1 Fault proposed for the client projection check. |
+| [TH3][w3c-TH3] | SOAP 1.1 request yields HTTP 500 VersionMismatch | Partial | [VersionMismatch check][version-fault] asserts HTTP 500 and Fault projection for a SOAP 1.1 reply. The upstream binding example supplies a SOAP 1.2 Fault instead and tests what the peer returns. |
 | [TH4][w3c-TH4] | Mandatory header failure yields HTTP 500 MustUnderstand | Partial | [Header role check][roles] covers local rejection, and [public Fault checks][fault] cover HTTP 500 projection with other codes. Consider a supplied MustUnderstand reply if the client outcome needs evidence. |
 | [TH5][w3c-TH5] | Unsupported media type yields HTTP 415 | Outside | Request media negotiation is tested at the peer. [Plain response cases][plain-tests] cover a generic HTTP error result at a different status. |
 
@@ -170,21 +170,19 @@ before incorporating upstream payloads.
 | [XMLP-18][w3c-XMLP-18] | Intermediary retains a targeted header marked relay=true | Outside | Requires SOAP forwarding and relay semantics. |
 | [XMLP-19][w3c-XMLP-19] | Mandatory next header stops intermediary forwarding | Outside | Requires a peer Fault and no forwarded exchange. [Header role check][roles] provides adjacent ultimate-receiver rejection evidence. |
 
-## Candidate tests for the next PR
+## Default-role and Fault adaptations
 
-Use the existing public k6 seam and original synthetic SOAP replies.
+The public custom-k6 loopback runs the [explicit-role controls][roles] and
+three replies with omitted role and the same Body marker. Both mandatory
+values, `1` and `true`, return `POLICY_VIOLATION` at `parse`, null Body and
+Fault, and XPath `CONTENT_UNAVAILABLE`. The `false` variant exposes the marker
+through XPath. These checks draw on [T11][w3c-T11], [T13][w3c-T13],
+[T35][w3c-T35], and [T38][w3c-T38].
 
-1. **Default role and mandatory-header values.** Adapt [T11][w3c-T11],
-   [T13][w3c-T13], [T35][w3c-T35], and [T38][w3c-T38]. Build on the existing explicit
-   role control by omitting the role and varying `mustUnderstand` among
-   `1`, `true`, and `false`. Assert `POLICY_VIOLATION` at `parse`, null Body
-   and Fault, and XPath `CONTENT_UNAVAILABLE` for both mandatory replies.
-   Assert Body marker acceptance through XPath for the optional reply.
-2. **VersionMismatch Fault projection.** For the client side of [T30][w3c-T30],
-   send a synthetic SOAP 1.1 Fault reply to a SOAP 1.1-configured client and
-   assert `SOAP_FAULT` and the
-   qualified `VersionMismatch` code. The peer's construction of the
-   `Upgrade` Header block and any version negotiation are separate.
+For the client side of [T30][w3c-T30], a SOAP 1.1-configured client parses a
+synthetic SOAP 1.1 reply and exposes the qualified `VersionMismatch` code.
+The supplied `Upgrade` Header block is fixture data. The test asserts Fault
+projection, with peer generation and version selection outside its scope.
 
 Resolve the mixed-version mustUnderstand policy before adding an adaptation
 of [T34][w3c-T34]. Keep the Envelope attribute placement questions separate as well.
@@ -194,7 +192,8 @@ of [T34][w3c-T34]. Keep the Envelope attribute placement questions separate as w
 [architecture]: architecture.md#5-payload-envelopes-and-headers
 [echo]: ../test/e2e/http.js#L29
 [fault]: ../test/e2e/http.js#L89
-[roles]: ../test/e2e/http.js#L102
+[roles]: ../test/e2e/http.js#L123
+[version-fault]: ../test/e2e/http.js#L102
 [wire]: ../test/e2e/http_test.go#L65
 [object]: ../test/e2e/object.js#L5
 [invalid-payload]: ../internal/message/message_test.go#L55
