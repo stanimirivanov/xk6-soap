@@ -38,11 +38,11 @@ before incorporating upstream payloads.
 | [T7][w3c-T7] | Remove an optional targeted header | Outside | Requires an intermediary to remove its own block before forwarding. |
 | [T8][w3c-T8] | Remove only the block for the intermediary | Outside | Requires intermediary role-based removal and preservation of the other blocks. |
 | [T9][w3c-T9] | Forward an ultimateReceiver header | Outside | Requires an intermediary to preserve a block for the ultimate receiver. |
-| [T10][w3c-T10] | Unknown header without mustUnderstand | Partial | [Body-scoped XPath][xpath-tests] accepts an optional unknown SOAP 1.1 block with no role. Add a SOAP 1.2 reply for the explicit ultimateReceiver role and assert the accepted Body. |
+| [T10][w3c-T10] | Unknown header without mustUnderstand | Adapted | [Omitted attribute check][omitted-must-understand] exposes the Body marker for the explicit ultimateReceiver role. The upstream receiver returns an empty Body. |
 | [T11][w3c-T11] | Unknown header with mustUnderstand=false | Adapted | [Header role check][roles] accepts an unknown block with mustUnderstand=false and makes the Body marker queryable. The reply omits the role. The upstream request names ultimateReceiver and the peer sends an empty Body. |
 | [T12][w3c-T12] | Unknown mandatory header for ultimateReceiver | Adapted | [Header role check][roles] asserts HTTP 200, a failed SOAP outcome, POLICY_VIOLATION at parse, null Body and Fault, and CONTENT_UNAVAILABLE with a null XPath value. The upstream receiver instead generates a MustUnderstand Fault with NotUnderstood. |
 | [T13][w3c-T13] | Unknown mandatory header with mustUnderstand=true | Adapted | [Header role check][roles] withholds content for an unknown block with mustUnderstand=true and omitted role. The upstream request names ultimateReceiver and the peer generates a MustUnderstand Fault. |
-| [T14][w3c-T14] | Invalid mustUnderstand on a known application header | Gap | Assert XML_INVALID and withheld Body on a reply with the invalid value. Peer Fault generation is separate. |
+| [T14][w3c-T14] | Invalid mustUnderstand on a known application header | Partial | [Invalid attribute check][invalid-must-understand] shares T39's unknown block to verify rejection of the invalid lexical value. The upstream receiver generates a Sender Fault for its known application header. |
 | [T15][w3c-T15] | Unknown mandatory header for another role | Adapted | [Header role check][roles] keeps the same Header block and Body marker as the targeted case, changes the role, and checks HTTP 200, a successful SOAP outcome without an error or Fault, and the accepted marker through XPath without an error. The upstream receiver ignores the block and sends an empty SOAP Body. |
 | [T16][w3c-T16] | Forward an unknown mandatory header for a later role | Outside | Requires preserving a block at an intermediary for a downstream receiver. |
 | [T17][w3c-T17] | Unknown mandatory header targeted at next | Adapted | [Header role check][roles] withholds content for a SOAP 1.2 reply targeting next with mustUnderstand=1. The upstream node generates a MustUnderstand Fault. |
@@ -64,9 +64,9 @@ before incorporating upstream payloads.
 | [T34][w3c-T34] | Ignore a SOAP 1.1 mustUnderstand attribute in a SOAP 1.2 header | Adapted | [Public k6 checks][t34-k6] exercise reply acceptance and native attribute precedence. [Signed][t34-signed] and [recovered][t34-encrypted] Header tests exercise the [compatibility decision][t34-adr] under configured receive protection. |
 | [T35][w3c-T35] | Unknown mandatory header with omitted role | Adapted | [Header role check][roles] asserts POLICY_VIOLATION and withholds Body, Fault, and XPath for an unknown mandatory block with no role. The [plain SOAP 1.1][optional-content] and [signed-header][signed-header] tests also check withholding. The upstream peer generates a Fault. |
 | [T36][w3c-T36] | Explicit ultimateReceiver on an unknown mandatory header | Adapted | [Header role check][roles] targets this role with 1 and asserts content withholding. The upstream case checks peer Fault generation. |
-| [T37][w3c-T37] | Header omits mustUnderstand | Partial | [Body-scoped XPath][xpath-tests] covers the SOAP 1.1 counterpart. Share the SOAP 1.2 omitted-mustUnderstand acceptance check with the earlier optional-header case. |
+| [T37][w3c-T37] | Header omits mustUnderstand | Adapted | [Omitted attribute check][omitted-must-understand] shares T10's Body marker assertion. The upstream receiver returns a valid reply with an empty Body. |
 | [T38][w3c-T38] | Four lexical forms of mustUnderstand | Partial | [Header role check][roles] exercises all four lexical forms with an omitted role. It verifies equivalent client outcomes for 1 and true, and for 0 and false. The upstream case also exercises application Header block processing at the peer. |
-| [T39][w3c-T39] | Unknown Header block with invalid mustUnderstand | Gap | Add a synthetic reply and assert XML_INVALID with no queryable Body. A Sender Fault is the upstream peer outcome. |
+| [T39][w3c-T39] | Unknown Header block with invalid mustUnderstand | Adapted | [Invalid attribute check][invalid-must-understand] asserts XML_INVALID at parse, null Body and Fault, and XPath CONTENT_UNAVAILABLE. The upstream receiver generates a Sender Fault. |
 | [T40][w3c-T40] | IPv6 literal in the Header block namespace URI | Gap | Use an optional unknown reply header with an IPv6 literal in its namespace URI and verify Body acceptance without network access. |
 | [T41][w3c-T41] | RPC typed struct echo | Outside | Peer handles XSD typing and RPC echo semantics. |
 | [T42][w3c-T42] | SOAP Encoding array of structs | Outside | Peer interprets the encoded struct item type. |
@@ -101,7 +101,7 @@ before incorporating upstream payloads.
 | [T71][w3c-T71] | Reject an unqualified attribute on Envelope | Decision | [Current Envelope validator][validator] checks XML attribute names and duplicates. Decide whether to enforce this SOAP-specific restriction on replies before adding a test. |
 | [T72][w3c-T72] | Reject encodingStyle on Envelope | Decision | [Current Envelope validator][validator] does not enforce this placement rule. Resolve applicability with the related Body attribute case. |
 | [T73][w3c-T73] | RPC echo with encodingStyle on payload and argument | Outside | Peer interprets encoding-style scopes and RPC return semantics. |
-| [T74][w3c-T74] | SOAP role and mustUnderstand occur on a descendant | Gap | Add an optional unknown reply Header block with those attributes on a child and assert Body acceptance. |
+| [T74][w3c-T74] | SOAP role and mustUnderstand occur on a descendant | Adapted | [Descendant attribute check][descendant-header-attributes] exposes the Body marker when a child of an optional block carries both attributes. The upstream receiver ignores the unknown block and responds to a separate known application header. |
 | [T75][w3c-T75] | Resolve a relative XLink against xml:base | Outside | Requires peer processing of an application reference. Client XPath reads XML content without link resolution. |
 | [T76][w3c-T76] | Inline and referenced strings produce the same RPC result | Outside | Peer interprets SOAP Encoding references and checks semantic equivalence. |
 | [T77][w3c-T77] | RPC distinguishes absent arguments and xsi:nil | Outside | Peer interprets argument presence and XSD nil semantics. |
@@ -210,6 +210,9 @@ protection orders. See [ADR-0008][t34-adr] for the scope of the exception.
 [fault]: ../test/e2e/http.js#L89
 [roles]: ../test/e2e/http.js#L125
 [t34-k6]: ../test/e2e/http.js#L149
+[omitted-must-understand]: ../test/e2e/http.js#L167
+[invalid-must-understand]: ../test/e2e/http.js#L171
+[descendant-header-attributes]: ../test/e2e/http.js#L175
 [version-fault]: ../test/e2e/http.js#L102
 [wire]: ../test/e2e/http_test.go#L65
 [object]: ../test/e2e/object.js#L5
@@ -218,7 +221,6 @@ protection orders. See [ADR-0008][t34-adr] for the scope of the exception.
 [declaration]: ../internal/message/xml_declaration_test.go#L7
 [fault-structure]: ../internal/message/fault_test.go#L9
 [plain-tests]: ../internal/message/response_test.go#L15
-[xpath-tests]: ../internal/message/response_test.go#L38
 [optional-content]: ../internal/message/response_test.go#L86
 [signed-header]: ../internal/wssec/headers_test.go#L63
 [t34-signed]: ../internal/wssec/headers_test.go#L68
