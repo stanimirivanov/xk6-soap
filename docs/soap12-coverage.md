@@ -96,8 +96,8 @@ before incorporating upstream payloads.
 | [T66][w3c-T66] | Accept an explicit UTF-8 XML declaration | Adapted | [Public echo check][echo] compares declared and undeclared accepted Body content and asserts the marker. The upstream peer responds to an application header. |
 | [T67][w3c-T67] | Accept an XML declaration with standalone=yes | Partial | [Declaration and XML rejection][declaration] asserts standalone=yes with UTF-8 on a SOAP 1.1 reply. Add a standalone-only SOAP 1.2 variant if extending the declaration matrix. |
 | [T68][w3c-T68] | Accept extra Envelope and Header whitespace | Gap | Compare compact and formatted synthetic SOAP 1.2 replies at Client.parse and assert equivalent XPath values. |
-| [T69][w3c-T69] | Reject a missing Body | Partial | [Envelope structure][envelope] rejects a SOAP 1.1 Envelope without Body. Add SOAP 1.2 response acceptance coverage for this shape. A peer would generate the Fault. |
-| [T70][w3c-T70] | Reject a Trailer following Header and Body | Partial | [Envelope structure][envelope] rejects an unexpected direct Envelope child before Body and extra content after the Envelope. Add a SOAP 1.2 child after Body for the exact receive shape. |
+| [T69][w3c-T69] | Reject a missing Body | Adapted | [Public k6 T69 check][t69-k6] rejects an HTTP 200 SOAP 1.2 reply that retains its Header and omits Body. The upstream receiving peer generates a Fault. |
+| [T70][w3c-T70] | Reject a Trailer following Header and Body | Adapted | [Public k6 T70 check][t70-k6] rejects an HTTP 200 SOAP 1.2 reply with an unqualified Trailer after Body and withholds the Body marker. The upstream receiving peer generates a Fault. |
 | [T71][w3c-T71] | Reject an unqualified attribute on Envelope | Adapted | [Public k6 wrapper check][wrapper-k6] rejects an unqualified Envelope attribute. [Signed wire][wrapper-signed] and [recovered snapshot][wrapper-recovered] checks verify the respective error boundaries. The upstream node generates a Fault. |
 | [T72][w3c-T72] | Reject encodingStyle on Envelope | Adapted | [Public k6 wrapper check][wrapper-k6] rejects SOAP 1.2-qualified `encodingStyle` on Envelope and withholds content. The upstream node generates a Fault. |
 | [T73][w3c-T73] | RPC echo with encodingStyle on payload and argument | Outside | Peer interprets encoding-style scopes and RPC return semantics. |
@@ -244,6 +244,8 @@ adaptations exercise local client rejection, as recorded in [ADR-0009][wrapper-a
 [t34-encrypted]: ../internal/wssec/header_encryption_test.go#L30
 [t34-adr]: adr/0008-soap12-foreign-must-understand.md
 [wrapper-k6]: ../test/e2e/http.js#L179
+[t69-k6]: ../test/e2e/http.js#L208
+[t70-k6]: ../test/e2e/http.js#L209
 [wrapper-signed]: ../internal/adapter/receive_test.go#L52
 [wrapper-recovered]: ../internal/wssec/response_encryption_test.go#L143
 [wrapper-adr]: adr/0009-soap12-response-wrapper-attributes.md

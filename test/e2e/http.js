@@ -195,6 +195,31 @@ function checkSOAP12WrapperAttributes(soap) {
   });
 }
 
+function checkSOAP12EnvelopeStructure(soap) {
+  const control = http.post(`${base}/soap12-valid-envelope`, null, {timeout:'2s'});
+  check(soap.parse(control), {
+    'SOAP 1.2 accepts an optional Header followed by Body': p => {
+      const query = p.xpath('string(./m:Echo)', echoNamespaces);
+      return p.status === 200 && p.ok === true && p.error === null && p.fault === null &&
+        query.error === null && query.value === 'soap12-envelope-marker';
+    },
+  });
+  const malformed = [
+    ['t69', 'W3C T69 missing Body withholds content'],
+    ['t70', 'W3C T70 Trailer after Body withholds content'],
+  ];
+  for (const [test, assertion] of malformed) {
+    const response = http.post(`${base}/w3c-${test}`, null, {timeout:'2s'});
+    check(soap.parse(response), {
+      [assertion]: p => {
+        const query = p.xpath('string(./m:Echo)', echoNamespaces);
+        return p.status === 200 && p.ok === false && p.error?.code === 'XML_INVALID' && p.error.stage === 'xml' &&
+          p.body === null && p.fault === null && query.value === null && query.error?.code === 'CONTENT_UNAVAILABLE';
+      },
+    });
+  }
+}
+
 export default function () {
   check(client, { 'custom extension loaded': (c) => typeof c.build === 'function' && typeof c.parse === 'function' });
   checkEcho(soap11);
@@ -210,6 +235,7 @@ export default function () {
   checkForeignMustUnderstand(soap12.soap);
   checkHeaderAttributeHandling(soap12.soap);
   checkSOAP12WrapperAttributes(soap12.soap);
+  checkSOAP12EnvelopeStructure(soap12.soap);
   const malformedFault = '<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Body><s:Fault>' +
     '<s:Code><s:Value>s:Sender</s:Value><s:Value>s:Receiver</s:Value></s:Code>' +
     '<s:Reason><s:Text xml:lang="en">Synthetic fault</s:Text></s:Reason></s:Fault></s:Body></s:Envelope>';
