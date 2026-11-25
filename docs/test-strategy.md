@@ -22,7 +22,9 @@ An unknown mandatory header targeted at the ultimate receiver withholds the
 Body. The same header targeted at an unrelated role leaves it queryable.
 Record the upstream case ID, source, applicable contract, expected public
 result, and any adaptation for future additions. Use material with appropriate
-provenance and reuse terms. [W3C T12](https://www.w3.org/TR/soap12-testcollection/#T12) ·
+provenance and reuse terms. The [coverage inventory](soap12-coverage.md) maps
+all 125 upstream cases to client test evidence or a scope decision.
+[W3C T12](https://www.w3.org/TR/soap12-testcollection/#T12) ·
 [W3C T15](https://www.w3.org/TR/soap12-testcollection/#T15)
 
 ## Public runtime acceptance
