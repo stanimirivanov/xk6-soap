@@ -266,6 +266,38 @@ function checkUnsupportedMediaReply() {
   });
 }
 
+function checkSOAP12XMLRejection(soap) {
+  const cases = [
+    ['t24', 'W3C T24 unrelated Envelope namespace withholds content'],
+    ['t25', 'W3C T25 external DTD withholds content'],
+    ['t64', 'W3C T64 notation declaration withholds content'],
+    ['t65', 'W3C T65 unparsed entity declaration withholds content'],
+  ];
+  for (const [test, assertion] of cases) {
+    const response = http.post(`${base}/w3c-${test}`, null, {timeout:'2s'});
+    check(soap.parse(response), { [assertion]: withholdsInvalidEnvelopeContent });
+  }
+}
+
+function acceptsSOAP12XMLReply(p) {
+  const query = p.xpath('string(./m:Echo)', echoNamespaces);
+  return p.status === 200 && p.ok === true && p.error === null && p.fault === null &&
+    query.error === null && query.value === 'soap12-xml-marker';
+}
+
+function checkSOAP12XMLAcceptance(soap) {
+  const standalone = http.post(`${base}/w3c-t67`, null, {timeout:'2s'});
+  check(soap.parse(standalone), {
+    'W3C T67 standalone yes without encoding exposes the Body marker': acceptsSOAP12XMLReply,
+  });
+  for (const format of ['compact', 'formatted']) {
+    const response = http.post(`${base}/w3c-t68/${format}`, null, {timeout:'2s'});
+    check(soap.parse(response), {
+      [`W3C T68 ${format} Envelope and Header expose the same Body marker`]: acceptsSOAP12XMLReply,
+    });
+  }
+}
+
 export default function () {
   check(client, { 'custom extension loaded': (c) => typeof c.build === 'function' && typeof c.parse === 'function' });
   checkEcho(soap11);
@@ -285,6 +317,8 @@ export default function () {
   checkSOAP12PeerFaults(soap12);
   checkOppositeVersionFault();
   checkUnsupportedMediaReply();
+  checkSOAP12XMLRejection(soap12.soap);
+  checkSOAP12XMLAcceptance(soap12.soap);
   const malformedFault = '<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Body><s:Fault>' +
     '<s:Code><s:Value>s:Sender</s:Value><s:Value>s:Receiver</s:Value></s:Code>' +
     '<s:Reason><s:Text xml:lang="en">Synthetic fault</s:Text></s:Reason></s:Fault></s:Body></s:Envelope>';

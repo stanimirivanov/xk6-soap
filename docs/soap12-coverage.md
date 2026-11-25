@@ -51,8 +51,8 @@ before incorporating upstream payloads.
 | [T21][w3c-T21] | Intermediary stops forwarding after mandatory-header failure | Outside | Requires a peer Fault and proof that the second hop received no message. |
 | [T22][w3c-T22] | Process a known mandatory header and application Body together | Outside | Requires application-specific header and Body handlers at the peer. |
 | [T23][w3c-T23] | Return exactly one Fault for multiple Header errors | Outside | Fault selection and generation are peer behavior. [Fault projection][fault-structure] exercises the shape of received Faults. |
-| [T24][w3c-T24] | Reject an Envelope in an unrelated namespace | Partial | [Envelope structure][envelope] rejects a missing namespace and a SOAP version mismatch. Add an unrelated namespace at Client.parse if needed. VersionMismatch generation is peer behavior. |
-| [T25][w3c-T25] | Reject an external DTD | Partial | [Declaration and XML rejection][declaration] checks a local DOCTYPE. A fixture can verify external declaration rejection without any resolution. Generation of a Fault describing unsupported DTDs is peer behavior. |
+| [T24][w3c-T24] | Reject an Envelope in an unrelated namespace | Adapted | The [public namespace check][t24-k6] preserves HTTP 200 and rejects the unrelated namespace with XML_INVALID at stage xml, withholding Body, Fault and XPath content. The upstream peer generates a VersionMismatch Fault. |
+| [T25][w3c-T25] | Reject an external DTD | Adapted | The [public external DTD check][t25-k6] asserts XML_INVALID and withheld content for a reply with an inert SYSTEM identifier. The upstream peer generates a Fault describing unsupported DTDs. |
 | [T26][w3c-T26] | Ignore an XML processing instruction | Outside | The [client XML policy][architecture] deliberately rejects processing instructions. [Declaration and XML rejection][declaration] verifies the restriction. |
 | [T27][w3c-T27] | Reject a complex value in a string array | Outside | Peer validates SOAP Encoding item types. |
 | [T28][w3c-T28] | Reject encodingStyle on Body | Adapted | [Public k6 wrapper check][wrapper-k6] rejects SOAP 1.2-qualified `encodingStyle` on Body and withholds content. The upstream node generates a Fault. |
@@ -91,11 +91,11 @@ before incorporating upstream payloads.
 | [T61][w3c-T61] | SOAP Encoding wildcard in a later dimension | Outside | Peer validates dimensions and generates a Fault. |
 | [T62][w3c-T62] | Concatenate Header blocks and forward | Outside | Requires intermediary application processing and a second hop. |
 | [T63][w3c-T63] | Validate a country code carried in a mandatory header | Outside | Requires a peer handler for the application header and its fault semantics. |
-| [T64][w3c-T64] | XML notation declaration | Partial | [Declaration and XML rejection][declaration] covers DOCTYPE rejection. Add a synthetic notation declaration only if separate regression evidence is needed. |
-| [T65][w3c-T65] | Unparsed entity declaration | Partial | [Payload validity][invalid-payload] checks entity and DTD input rejection. A receive-side unparsed-entity fixture would isolate the upstream shape without resolving entities. |
+| [T64][w3c-T64] | XML notation declaration | Adapted | The [public notation check][t64-k6] asserts XML_INVALID and withheld content for an internal subset that declares a notation. The upstream peer generates a Fault. |
+| [T65][w3c-T65] | Unparsed entity declaration | Adapted | The [public unparsed entity check][t65-k6] asserts XML_INVALID and withheld content for an internal subset with an inert NDATA entity. This matches the described request shape. The published sample only declares elements, and the upstream peer generates a Fault. |
 | [T66][w3c-T66] | Accept an explicit UTF-8 XML declaration | Adapted | [Public echo check][echo] compares declared and undeclared accepted Body content and asserts the marker. The upstream peer responds to an application header. |
-| [T67][w3c-T67] | Accept an XML declaration with standalone=yes | Partial | [Declaration and XML rejection][declaration] asserts standalone=yes with UTF-8 on a SOAP 1.1 reply. Add a standalone-only SOAP 1.2 variant if extending the declaration matrix. |
-| [T68][w3c-T68] | Accept extra Envelope and Header whitespace | Gap | Compare compact and formatted synthetic SOAP 1.2 replies at Client.parse and assert equivalent XPath values. |
+| [T67][w3c-T67] | Accept an XML declaration with standalone=yes | Adapted | The [public standalone check][t67-k6] accepts a SOAP 1.2 reply with an XML 1.0 standalone declaration and no declared encoding, then queries its Body marker. The upstream peer answers a standalone request with an application reply Header. |
+| [T68][w3c-T68] | Accept extra Envelope and Header whitespace | Adapted | The [public whitespace checks][t68-k6] accept compact and formatted SOAP 1.2 replies and assert the same namespace-aware Body XPath value. The upstream peer answers the whitespace-varied request with an application reply Header. |
 | [T69][w3c-T69] | Reject a missing Body | Adapted | [Public k6 T69 check][t69-k6] rejects an HTTP 200 SOAP 1.2 reply that retains its Header and omits Body. The upstream receiving peer generates a Fault. |
 | [T70][w3c-T70] | Reject a Trailer following Header and Body | Adapted | [Public k6 T70 check][t70-k6] rejects an HTTP 200 SOAP 1.2 reply with an unqualified Trailer after Body and withholds the Body marker. The upstream receiving peer generates a Fault. |
 | [T71][w3c-T71] | Reject an unqualified attribute on Envelope | Adapted | [Public k6 wrapper check][wrapper-k6] rejects an unqualified Envelope attribute. [Signed wire][wrapper-signed] and [recovered snapshot][wrapper-recovered] checks verify the respective error boundaries. The upstream node generates a Fault. |
@@ -236,7 +236,6 @@ adaptations exercise local client rejection, as recorded in [ADR-0009][wrapper-a
 [unsupported-media-reply]: ../test/e2e/http.js#L261
 [wire]: ../test/e2e/http_test.go#L65
 [object]: ../test/e2e/object.js#L5
-[invalid-payload]: ../internal/message/message_test.go#L55
 [envelope]: ../internal/message/message_test.go#L81
 [declaration]: ../internal/message/xml_declaration_test.go#L7
 [fault-structure]: ../internal/message/fault_test.go#L9
@@ -246,6 +245,12 @@ adaptations exercise local client rejection, as recorded in [ADR-0009][wrapper-a
 [t34-encrypted]: ../internal/wssec/header_encryption_test.go#L30
 [t34-adr]: adr/0008-soap12-foreign-must-understand.md
 [wrapper-k6]: ../test/e2e/http.js#L183
+[t24-k6]: ../test/e2e/http.js#L271
+[t25-k6]: ../test/e2e/http.js#L272
+[t64-k6]: ../test/e2e/http.js#L273
+[t65-k6]: ../test/e2e/http.js#L274
+[t67-k6]: ../test/e2e/http.js#L291
+[t68-k6]: ../test/e2e/http.js#L296
 [t69-k6]: ../test/e2e/http.js#L208
 [t70-k6]: ../test/e2e/http.js#L209
 [wrapper-signed]: ../internal/adapter/receive_test.go#L52

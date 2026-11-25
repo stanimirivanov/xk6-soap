@@ -17,6 +17,9 @@ const maxCaptures = 128
 const soap12EncodingNone = "http://www.w3.org/2003/05/soap-envelope/encoding/none"
 const soap12EnvelopeFixtureBody = `<s:Body><m:Echo>soap12-envelope-marker</m:Echo></s:Body>`
 const legacySOAPNamespace = ` xmlns:legacy="http://schemas.xmlsoap.org/soap/envelope/"`
+const soap12XMLFixtureBody = `<s:Body><m:Echo>soap12-xml-marker</m:Echo></s:Body>`
+const soap12CompactXMLReply = `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:m="urn:fixture">` +
+	`<s:Header><m:Optional/></s:Header>` + soap12XMLFixtureBody + `</s:Envelope>`
 
 // Capture is an in-memory synthetic request, never written to production logs.
 type Capture struct {
@@ -93,6 +96,31 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		writeSOAP12FaultReply(w, http.StatusInternalServerError, "VersionMismatch", "Synthetic SOAP 1.2 version mismatch", "")
 	case "/w3c-th5":
 		w.WriteHeader(http.StatusUnsupportedMediaType)
+	case "/w3c-t24":
+		writeSOAP12XMLReply(w, strings.Replace(soap12CompactXMLReply, "http://www.w3.org/2003/05/soap-envelope", "urn:fixture:unrelated-envelope", 1))
+	case "/w3c-t25":
+		writeSOAP12XMLReply(w, `<!DOCTYPE s:Envelope SYSTEM "urn:fixture:external-dtd">`+soap12CompactXMLReply)
+	case "/w3c-t64":
+		writeSOAP12XMLReply(w, `<!DOCTYPE s:Envelope [<!NOTATION fixture SYSTEM "urn:fixture:notation">]>`+soap12CompactXMLReply)
+	case "/w3c-t65":
+		// Exercise the described unparsed entity shape. The published sample only declares elements.
+		writeSOAP12XMLReply(w, `<!DOCTYPE s:Envelope [
+<!NOTATION fixture SYSTEM "urn:fixture:notation">
+<!ENTITY sample SYSTEM "urn:fixture:unparsed-entity" NDATA fixture>
+]>`+soap12CompactXMLReply)
+	case "/w3c-t67":
+		writeSOAP12XMLReply(w, `<?xml version="1.0" standalone="yes"?>`+soap12CompactXMLReply)
+	case "/w3c-t68/compact":
+		writeSOAP12XMLReply(w, soap12CompactXMLReply)
+	case "/w3c-t68/formatted":
+		writeSOAP12XMLReply(w, `<s:Envelope
+  xmlns:s="http://www.w3.org/2003/05/soap-envelope"
+  xmlns:m="urn:fixture">
+  <s:Header  >
+    <m:Optional/>
+  </s:Header>
+  `+soap12XMLFixtureBody+`
+</s:Envelope>`)
 	case "/w3c-t28":
 		writeWrapperAttributeReply(w, "", ` s:encodingStyle="`+soap12EncodingNone+`"`, "")
 	case "/soap12-valid-envelope":
@@ -161,6 +189,11 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.NotFound(w, r)
 	}
+}
+
+func writeSOAP12XMLReply(w http.ResponseWriter, body string) {
+	w.Header().Set("Content-Type", "application/soap+xml; charset=utf-8")
+	_, _ = io.WriteString(w, body)
 }
 
 func writeSOAP12FaultReply(w http.ResponseWriter, status int, code, reason, detail string) {
