@@ -140,10 +140,17 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/xml; charset=utf-8")
 		w.WriteHeader(http.StatusInternalServerError)
 		_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Header><s:Upgrade><s:SupportedEnvelope xmlns:n="http://www.w3.org/2003/05/soap-envelope" qname="n:Envelope"/></s:Upgrade></s:Header><s:Body><s:Fault><faultcode>s:VersionMismatch</faultcode><faultstring>Synthetic version mismatch</faultstring></s:Fault></s:Body></s:Envelope>`)
+	case "/w3c-t5":
+		writeHeaderRoleReply(w, "urn:fixture:other-role", "")
 	case "/w3c-t12":
 		writeHeaderRoleReply(w, "http://www.w3.org/2003/05/soap-envelope/role/ultimateReceiver", "1")
 	case "/w3c-t15":
 		writeHeaderRoleReply(w, "urn:fixture:other-role", "1")
+	case "/w3c-t29":
+		const rolePrefix = "https://roles.example.invalid/"
+		writeHeaderRoleReply(w, rolePrefix+strings.Repeat("r", 2048-len(rolePrefix)), "")
+	case "/w3c-sbr2-optional-next":
+		writeHeaderRoleReply(w, "http://www.w3.org/2003/05/soap-envelope/role/next", "")
 	case "/w3c-standard-role/next", "/w3c-standard-role/none":
 		writeHeaderRoleReply(w, "http://www.w3.org/2003/05/soap-envelope/role/"+strings.TrimPrefix(r.URL.Path, "/w3c-standard-role/"), "1")
 	case "/w3c-default-role/0", "/w3c-default-role/1", "/w3c-default-role/true", "/w3c-default-role/false":
@@ -164,6 +171,9 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		writeHeaderReply(w, ` s:role="http://www.w3.org/2003/05/soap-envelope/role/ultimateReceiver"`)
 	case "/w3c-t39":
 		writeHeaderRoleReply(w, "", "invalid")
+	case "/w3c-t40":
+		writeHeaderBlockReply(w, `<m:Unknown xmlns:m="http://[2001:db8::42]/fixture-header"`+
+			` s:role="http://www.w3.org/2003/05/soap-envelope/role/ultimateReceiver" s:mustUnderstand="false"/>`)
 	case "/w3c-t74":
 		writeHeaderBlockReply(w, `<m:Unknown xmlns:m="urn:fixture"><m:Nested s:role="http://www.w3.org/2003/05/soap-envelope/role/next" s:mustUnderstand="1"/></m:Unknown>`)
 	case "/empty":
@@ -204,14 +214,17 @@ func writeSOAP12FaultReply(w http.ResponseWriter, status int, code, reason, deta
 		`</s:Text></s:Reason>`+detail+`</s:Fault></s:Body></s:Envelope>`)
 }
 
-// Adapt W3C T11, T12, T13, T15, T17, T19, T35 and T38 to client reply acceptance.
 // Keep the Body marker fixed while varying only the role or mustUnderstand.
+// An empty value omits its attribute.
 func writeHeaderRoleReply(w http.ResponseWriter, role, mustUnderstand string) {
-	roleAttribute := ""
-	if role != "" {
-		roleAttribute = ` s:role="` + role + `"`
+	attributes := ""
+	if mustUnderstand != "" {
+		attributes = ` s:mustUnderstand="` + mustUnderstand + `"`
 	}
-	writeHeaderReply(w, ` s:mustUnderstand="`+mustUnderstand+`"`+roleAttribute)
+	if role != "" {
+		attributes += ` s:role="` + role + `"`
+	}
+	writeHeaderReply(w, attributes)
 }
 
 // All attributes come from the synthetic cases above.

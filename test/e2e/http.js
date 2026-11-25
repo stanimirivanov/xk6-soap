@@ -283,6 +283,19 @@ function checkSOAP12XMLAcceptance(soap) {
   }
 }
 
+function checkOptionalHeaderRoles(soap) {
+  const cases = [
+    ['/w3c-t5', 'W3C T5 and SBR2-echoMeUnknown optional header for an unrelated role allows Body'],
+    ['/w3c-t29', 'W3C T29 optional header with a 2048-byte role URI allows Body'],
+    ['/w3c-t40', 'W3C T40 optional ultimateReceiver header with an IPv6 namespace allows Body'],
+    ['/w3c-sbr2-optional-next', 'W3C SBR2-echoMeUnknown optional next header allows Body'],
+  ];
+  for (const [path, label] of cases) {
+    const response = http.post(base + path, null, {timeout:'2s'});
+    check(soap.parse(response), { [label]: acceptsHeaderReplyBody });
+  }
+}
+
 export default function () {
   check(client, { 'custom extension loaded': (c) => typeof c.build === 'function' && typeof c.parse === 'function' });
   checkEcho(soap11);
@@ -295,6 +308,7 @@ export default function () {
     'typed array view rejects at the response body boundary': soap => rejectsArgument(() => soap.parse({status:200, body:new Uint8Array([65])}), 'body'),
   });
   checkMandatoryHeaderRoles(soap12.soap);
+  checkOptionalHeaderRoles(soap12.soap);
   checkForeignMustUnderstand(soap12.soap);
   checkHeaderAttributeHandling(soap12.soap);
   checkSOAP12WrapperAttributes(soap12.soap);
