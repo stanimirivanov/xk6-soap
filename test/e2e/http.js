@@ -129,11 +129,17 @@ function checkMandatoryHeaderRoles(soap) {
   check(soap.parse(otherRole), {
     'W3C T15 unknown mandatory header for a different role allows Body': acceptsRoleBody,
   });
-  for (const mustUnderstand of ['1', 'true', 'false']) {
+  for (const role of ['next', 'none']) {
+    const response = http.post(`${base}/w3c-standard-role/${role}`, null, {timeout:'2s'});
+    check(soap.parse(response), {
+      [`SOAP 1.2 role=${role} with mustUnderstand=1`]: role === 'next' ? withholdsMandatoryHeader : acceptsRoleBody,
+    });
+  }
+  for (const mustUnderstand of ['1', 'true', '0', 'false']) {
     const response = http.post(`${base}/w3c-default-role/${mustUnderstand}`, null, {timeout:'2s'});
     check(soap.parse(response), {
       [`SOAP 1.2 omitted role with mustUnderstand=${mustUnderstand}`]:
-        mustUnderstand === 'false' ? acceptsRoleBody : withholdsMandatoryHeader,
+        ['1', 'true'].includes(mustUnderstand) ? withholdsMandatoryHeader : acceptsRoleBody,
     });
   }
 }

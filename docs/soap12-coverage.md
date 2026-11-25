@@ -45,9 +45,9 @@ before incorporating upstream payloads.
 | [T14][w3c-T14] | Invalid mustUnderstand on a known application header | Gap | Assert XML_INVALID and withheld Body on a reply with the invalid value. Peer Fault generation is separate. |
 | [T15][w3c-T15] | Unknown mandatory header for another role | Adapted | [Header role check][roles] keeps the same Header block and Body marker as the targeted case, changes the role, and checks HTTP 200, a successful SOAP outcome without an error or Fault, and the accepted marker through XPath without an error. The upstream receiver ignores the block and sends an empty SOAP Body. |
 | [T16][w3c-T16] | Forward an unknown mandatory header for a later role | Outside | Requires preserving a block at an intermediary for a downstream receiver. |
-| [T17][w3c-T17] | Unknown mandatory header targeted at next | Partial | [Header role check][roles] uses ultimateReceiver. Add next and assert the same client rejection. Fault generation belongs to the peer. |
+| [T17][w3c-T17] | Unknown mandatory header targeted at next | Adapted | [Header role check][roles] withholds content for a SOAP 1.2 reply targeting next with mustUnderstand=1. The upstream node generates a MustUnderstand Fault. |
 | [T18][w3c-T18] | Forward a header for role none | Outside | Requires intermediary forwarding and a receiving peer that ignores the block. |
-| [T19][w3c-T19] | Ignore a mandatory header for role none | Partial | [Header role check][roles] uses an unrelated application role. Add the standard none role and assert acceptance. |
+| [T19][w3c-T19] | Ignore a mandatory header for role none | Adapted | [Header role check][roles] accepts the Body when the unknown block targets none. The synthetic reply uses mustUnderstand=1 so only the role changes from the next control. The upstream request uses true and the peer returns an empty Body. |
 | [T21][w3c-T21] | Intermediary stops forwarding after mandatory-header failure | Outside | Requires a peer Fault and proof that the second hop received no message. |
 | [T22][w3c-T22] | Process a known mandatory header and application Body together | Outside | Requires application-specific header and Body handlers at the peer. |
 | [T23][w3c-T23] | Return exactly one Fault for multiple Header errors | Outside | Fault selection and generation are peer behavior. [Fault projection][fault-structure] exercises the shape of received Faults. |
@@ -65,7 +65,7 @@ before incorporating upstream payloads.
 | [T35][w3c-T35] | Unknown mandatory header with omitted role | Adapted | [Header role check][roles] asserts POLICY_VIOLATION and withholds Body, Fault, and XPath for an unknown mandatory block with no role. The [plain SOAP 1.1][optional-content] and [signed-header][signed-header] tests also check withholding. The upstream peer generates a Fault. |
 | [T36][w3c-T36] | Explicit ultimateReceiver on an unknown mandatory header | Adapted | [Header role check][roles] targets this role with 1 and asserts content withholding. The upstream case checks peer Fault generation. |
 | [T37][w3c-T37] | Header omits mustUnderstand | Partial | [Body-scoped XPath][xpath-tests] covers the SOAP 1.1 counterpart. Share the SOAP 1.2 omitted-mustUnderstand acceptance check with the earlier optional-header case. |
-| [T38][w3c-T38] | Four lexical forms of mustUnderstand | Partial | [Header role check][roles] exercises 1, true, and false with omitted role. [Header metadata tests][header-tests] also build a SOAP 1.2 block with true. The receive matrix lacks 0 and does not exercise upstream application-header processing. |
+| [T38][w3c-T38] | Four lexical forms of mustUnderstand | Partial | [Header role check][roles] exercises all four lexical forms with an omitted role. It verifies equivalent client outcomes for 1 and true, and for 0 and false. The upstream case also exercises application Header block processing at the peer. |
 | [T39][w3c-T39] | Unknown Header block with invalid mustUnderstand | Gap | Add a synthetic reply and assert XML_INVALID with no queryable Body. A Sender Fault is the upstream peer outcome. |
 | [T40][w3c-T40] | IPv6 literal in the Header block namespace URI | Gap | Use an optional unknown reply header with an IPv6 literal in its namespace URI and verify Body acceptance without network access. |
 | [T41][w3c-T41] | RPC typed struct echo | Outside | Peer handles XSD typing and RPC echo semantics. |
@@ -144,7 +144,7 @@ before incorporating upstream payloads.
 | [SBR2-echoNestedArray][w3c-SBR2-echoNestedArray] | RPC nested array round trip | Outside | Peer binds nested encoded arrays. |
 | [SBR2-echoMeStringRequest][w3c-SBR2-echoMeStringRequest] | Application string Header block echo | Outside | Peer recognizes and echoes the test Header block. Client XPath is scoped to accepted Body content. |
 | [SBR2-echoMeStructRequest][w3c-SBR2-echoMeStructRequest] | Application struct Header block echo | Outside | Peer recognizes and echoes the typed Header block. |
-| [SBR2-echoMeUnknown][w3c-SBR2-echoMeUnknown] | Optional and mandatory unknown blocks for next or an unrelated role | Partial | [Header role check][roles] accepts a mandatory block for an unrelated role. Add acceptance for the optional variants and rejection for a mandatory next block if extending this matrix. The peer still owns Fault generation. |
+| [SBR2-echoMeUnknown][w3c-SBR2-echoMeUnknown] | Optional and mandatory unknown blocks for next or an unrelated role | Partial | [Header role check][roles] rejects a mandatory next block and accepts one for an unrelated role. Add acceptance for the optional variants if extending this matrix. The peer still owns Fault generation. |
 
 ## XMLP interoperability
 
@@ -173,11 +173,13 @@ before incorporating upstream payloads.
 ## Default-role and Fault adaptations
 
 The public custom-k6 loopback runs the [explicit-role controls][roles] and
-three replies with omitted role and the same Body marker. Both mandatory
+four replies with omitted role and the same Body marker. Both mandatory
 values, `1` and `true`, return `POLICY_VIOLATION` at `parse`, null Body and
-Fault, and XPath `CONTENT_UNAVAILABLE`. The `false` variant exposes the marker
-through XPath. These checks draw on [T11][w3c-T11], [T13][w3c-T13],
-[T35][w3c-T35], and [T38][w3c-T38].
+Fault, and XPath `CONTENT_UNAVAILABLE`. Both optional values, `0` and
+`false`, expose the marker through XPath. These checks draw on [T11][w3c-T11],
+[T13][w3c-T13], [T35][w3c-T35], and [T38][w3c-T38]. The same fixture with a
+mandatory block withholds content for `next` and exposes it for `none`, adapting
+[T17][w3c-T17] and [T19][w3c-T19] to the client role policy.
 
 For the client side of [T30][w3c-T30], a SOAP 1.1-configured client parses a
 synthetic SOAP 1.1 reply and exposes the qualified `VersionMismatch` code.
@@ -200,7 +202,6 @@ of [T34][w3c-T34]. Keep the Envelope attribute placement questions separate as w
 [envelope]: ../internal/message/message_test.go#L81
 [declaration]: ../internal/message/xml_declaration_test.go#L7
 [fault-structure]: ../internal/message/fault_test.go#L9
-[header-tests]: ../internal/message/headers_test.go#L60
 [plain-tests]: ../internal/message/response_test.go#L15
 [xpath-tests]: ../internal/message/response_test.go#L38
 [optional-content]: ../internal/message/response_test.go#L86

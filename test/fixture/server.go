@@ -93,7 +93,9 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		writeHeaderRoleReply(w, "http://www.w3.org/2003/05/soap-envelope/role/ultimateReceiver", "1")
 	case "/w3c-t15":
 		writeHeaderRoleReply(w, "urn:fixture:other-role", "1")
-	case "/w3c-default-role/1", "/w3c-default-role/true", "/w3c-default-role/false":
+	case "/w3c-standard-role/next", "/w3c-standard-role/none":
+		writeHeaderRoleReply(w, "http://www.w3.org/2003/05/soap-envelope/role/"+strings.TrimPrefix(r.URL.Path, "/w3c-standard-role/"), "1")
+	case "/w3c-default-role/0", "/w3c-default-role/1", "/w3c-default-role/true", "/w3c-default-role/false":
 		writeHeaderRoleReply(w, "", strings.TrimPrefix(r.URL.Path, "/w3c-default-role/"))
 	case "/empty":
 		w.WriteHeader(http.StatusNoContent)
@@ -120,7 +122,7 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Adapt W3C T11, T12, T13, T15, T35 and T38 to client reply acceptance.
+// Adapt W3C T11, T12, T13, T15, T17, T19, T35 and T38 to client reply acceptance.
 // Keep the Body marker fixed while varying only the role or mustUnderstand.
 func writeHeaderRoleReply(w http.ResponseWriter, role, mustUnderstand string) {
 	roleAttribute := ""
