@@ -7,11 +7,14 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"encoding/xml"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -59,8 +62,6 @@ func TestK6SOAPHTTPSWithBasicAuth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
 	env := []string{
 		"SOAP_TLS_URL=" + server.URL,
 		"SOAP_BASIC_AUTH=" + base64.StdEncoding.EncodeToString([]byte(user+":"+password)),
@@ -68,8 +69,30 @@ func TestK6SOAPHTTPSWithBasicAuth(t *testing.T) {
 		"SSL_CERT_DIR=" + trustDir,
 	}
 	args := []string{"run", "--quiet", "--no-usage-report", "--insecure-skip-tls-verify=false", "--http-debug=", "--http-debug-redact=false", "--no-thresholds=false", "https.js"}
-	output, err := Run(ctx, binary, args, env)
-	if err != nil {
-		t.Fatalf("HTTPS SOAP exchange: %v\n%s", err, output)
+	for _, scenario := range []struct {
+		name      string
+		interrupt string
+	}{
+		{name: "complete"},
+		{name: "interrupted-before-checks", interrupt: "before-checks"},
+		{name: "interrupted-after-authenticated", interrupt: "after-authenticated"},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			output, err := Run(ctx, binary, args, append(env, "SOAP_HTTPS_INTERRUPT="+scenario.interrupt))
+			if scenario.interrupt == "" {
+				if err != nil {
+					t.Fatalf("HTTPS SOAP exchange: %v\n%s", err, output)
+				}
+				return
+			}
+			var exit *exec.ExitError
+			if !errors.As(err, &exit) || exit.ExitCode() != 99 ||
+				!strings.Contains(output, "HTTPS control: "+scenario.interrupt) ||
+				!strings.Contains(output, "thresholds on metrics 'https_scenarios_completed' have been crossed") {
+				t.Fatalf("expected HTTPS interruption %s to fail only the completion threshold: %v\n%s", scenario.interrupt, err, output)
+			}
+		})
 	}
 }

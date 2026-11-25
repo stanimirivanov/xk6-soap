@@ -2,6 +2,7 @@
 package fixture
 
 import (
+	"encoding/xml"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -67,7 +68,12 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	s.mu.Unlock()
 	switch r.URL.Path {
 	case "/echo":
-		w.Header().Set("Content-Type", "text/xml; charset=utf-8")
+		var root struct{ XMLName xml.Name }
+		mediaType := "text/xml"
+		if xml.Unmarshal(body, &root) == nil && root.XMLName == (xml.Name{Space: "http://www.w3.org/2003/05/soap-envelope", Local: "Envelope"}) {
+			mediaType = "application/soap+xml"
+		}
+		w.Header().Set("Content-Type", mediaType+"; charset=utf-8")
 		_, _ = w.Write(body)
 	case "/fault11":
 		w.Header().Set("Content-Type", "text/xml; charset=utf-8")
