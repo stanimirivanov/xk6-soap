@@ -15,6 +15,7 @@ import (
 const MaxBodyBytes = 64 << 10
 const maxCaptures = 128
 const soap12EncodingNone = "http://www.w3.org/2003/05/soap-envelope/encoding/none"
+const soap12EnvelopeFixtureBody = `<s:Body><m:Echo>soap12-envelope-marker</m:Echo></s:Body>`
 const legacySOAPNamespace = ` xmlns:legacy="http://schemas.xmlsoap.org/soap/envelope/"`
 
 // Capture is an in-memory synthetic request, never written to production logs.
@@ -88,6 +89,12 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Body><s:Fault><s:Code><s:Value>s:Receiver</s:Value></s:Code><s:Reason><s:Text xml:lang="en">Synthetic fault</s:Text></s:Reason><s:Detail><fixture/></s:Detail></s:Fault></s:Body></s:Envelope>`)
 	case "/w3c-t28":
 		writeWrapperAttributeReply(w, "", ` s:encodingStyle="`+soap12EncodingNone+`"`, "")
+	case "/soap12-valid-envelope":
+		writeEnvelopeStructureReply(w, soap12EnvelopeFixtureBody)
+	case "/w3c-t69":
+		writeEnvelopeStructureReply(w, "")
+	case "/w3c-t70":
+		writeEnvelopeStructureReply(w, soap12EnvelopeFixtureBody+`<Trailer/>`)
 	case "/w3c-t71":
 		writeWrapperAttributeReply(w, ` xmlns="http://www.w3.org/2003/05/soap-envelope" ordinary="fixture"`, "", "")
 	case "/w3c-t72":
@@ -176,4 +183,11 @@ func writeWrapperAttributeReply(w http.ResponseWriter, envelope, body, child str
 	w.Header().Set("Content-Type", "application/soap+xml; charset=utf-8")
 	_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:m="urn:fixture"`+envelope+
 		`><s:Body`+body+`><m:Echo`+child+`>soap12-wrapper-marker</m:Echo></s:Body></s:Envelope>`)
+}
+
+// Adapt W3C T69 and T70 to client reply acceptance with the same optional Header.
+func writeEnvelopeStructureReply(w http.ResponseWriter, afterHeader string) {
+	w.Header().Set("Content-Type", "application/soap+xml; charset=utf-8")
+	_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:m="urn:fixture">`+
+		`<s:Header><m:Optional/></s:Header>`+afterHeader+`</s:Envelope>`)
 }
