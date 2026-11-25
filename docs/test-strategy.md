@@ -17,9 +17,11 @@ response acceptance, and the JavaScript contract around those operations.
 | Fuzzing | Go tests replay the committed seeds. Scheduled fuzzing searches the XML, XPath, policy, and receive boundaries. Retain minimal synthetic regressions for new findings. |
 | Performance and retention | `make bench` checks frozen throughput, latency, allocation, and Go retention budgets on the reference host. The scheduled runner remains tracked in [#72](https://github.com/stanimirivanov/xk6-soap/issues/72). The multi-VU correctness run carries no performance or retention budgets. |
 
-The loopback suite adapts W3C SOAP 1.2 cases T12 and T15 to response acceptance.
-An unknown mandatory header targeted at the ultimate receiver withholds the
-Body. The same header targeted at an unrelated role leaves it queryable.
+The loopback suite adapts W3C SOAP 1.2 cases to client response acceptance.
+An unknown mandatory header withholds the Body when it targets the ultimate
+receiver or omits the role. The same block leaves the Body queryable when
+it targets an unrelated role or is optional. A SOAP 1.1 reply supplied by
+the fixture exercises projection of a qualified VersionMismatch Fault.
 Record the upstream case ID, source, applicable contract, expected public
 result, and any adaptation for future additions. Use material with appropriate
 provenance and reuse terms. The [coverage inventory](soap12-coverage.md) maps
