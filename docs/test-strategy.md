@@ -19,9 +19,10 @@ response acceptance, and the JavaScript contract around those operations.
 
 The loopback suite adapts W3C SOAP 1.2 cases to client response acceptance.
 An unknown mandatory header withholds the Body when it targets the ultimate
-receiver or omits the role. The same block leaves the Body queryable when
-it targets an unrelated role or is optional. A SOAP 1.1 reply supplied by
-the fixture exercises projection of a qualified VersionMismatch Fault.
+receiver or `next`, or omits the role. The same block leaves the Body queryable
+when it targets `none` or an unrelated role, or uses an optional value. A
+synthetic SOAP 1.1 reply exercises projection of a qualified
+`VersionMismatch` Fault.
 Record the upstream case ID, source, applicable contract, expected public
 result, and any adaptation for future additions. Use material with appropriate
 provenance and reuse terms. The [coverage inventory](soap12-coverage.md) maps
