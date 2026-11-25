@@ -108,12 +108,16 @@ function checkVersionMismatchFault({namespace, soap}) {
   });
 }
 
+function withholdsContent(p, query) {
+  return p.body === null && p.fault === null && query.value === null && query.error?.code === 'CONTENT_UNAVAILABLE';
+}
+
 const withholdsMandatoryHeader = p => withholdsHeaderBody(p, 'POLICY_VIOLATION');
 
 function withholdsHeaderBody(p, code) {
   const query = p.xpath('string(./m:Echo)', echoNamespaces);
   return p.status === 200 && !p.ok && p.error?.code === code && p.error.stage === 'parse' &&
-    p.body === null && p.fault === null && query.value === null && query.error?.code === 'CONTENT_UNAVAILABLE';
+    withholdsContent(p, query);
 }
 
 function acceptsHeaderReplyBody(p) {
@@ -213,7 +217,7 @@ function checkSOAP12EnvelopeStructure(soap) {
 function withholdsInvalidEnvelopeContent(p) {
   const query = p.xpath('string(./m:Echo)', echoNamespaces);
   return p.status === 200 && p.ok === false && p.error?.code === 'XML_INVALID' && p.error.stage === 'xml' &&
-    p.body === null && p.fault === null && query.value === null && query.error?.code === 'CONTENT_UNAVAILABLE';
+    withholdsContent(p, query);
 }
 
 function checkSOAP12PeerFaults({soap, namespace}) {
@@ -246,7 +250,7 @@ function checkOppositeVersionFault() {
     'W3C TH3 and XMLP-5 SOAP 1.1 client withholds a SOAP 1.2 VersionMismatch Fault': p => {
       const query = p.xpath('string(./s:Fault/s:Reason/s:Text)', {s:soap12.namespace});
       return p.status === 500 && p.ok === false && p.error?.code === 'XML_INVALID' && p.error.stage === 'xml' &&
-        p.body === null && p.fault === null && query.value === null && query.error?.code === 'CONTENT_UNAVAILABLE';
+        withholdsContent(p, query);
     },
   });
 }
@@ -257,7 +261,7 @@ function checkUnsupportedMediaReply() {
     'W3C TH5 bare HTTP 415 preserves status and reports unavailable content': p => {
       const query = p.xpath('.');
       return p.status === 415 && p.ok === false && p.error?.code === 'BODY_UNAVAILABLE' &&
-        p.body === null && p.fault === null && query.value === null && query.error?.code === 'CONTENT_UNAVAILABLE';
+        withholdsContent(p, query);
     },
   });
 }
@@ -289,7 +293,7 @@ export default function () {
     'malformed SOAP 1.2 Fault withholds content': p => {
       const query = p.xpath('.');
       return p.status === 200 && !p.ok && p.error?.code === 'XML_INVALID' &&
-        p.body === null && p.fault === null && query.value === null && query.error?.code === 'CONTENT_UNAVAILABLE';
+        withholdsContent(p, query);
     },
   });
   const discarded=http.post(`${base}/echo`,'<Echo/>',{responseType:'none',timeout:'2s'});
