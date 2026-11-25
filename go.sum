@@ -86,8 +86,8 @@ github.com/jhump/protoreflect/v2 v2.0.0-beta.1 h1:Dw1rslK/VotaUGYsv53XVWITr+5RCP
 github.com/jhump/protoreflect/v2 v2.0.0-beta.1/go.mod h1:D9LBEowZyv8/iSu97FU2zmXG3JxVTmNw21mu63niFzU=
 github.com/klauspost/compress v1.20.3 h1:zWNoFqq/lSuYQRim3dUXlXeA0IqwuZGicdG5ZTfY5j4=
 github.com/klauspost/compress v1.20.3/go.mod h1:LUdAzn7YLVvxLpc7y3V1m40wESHTgc1422pwwBSKYuI=
-github.com/knroy/go-xml/v2 v2.2.0 h1:8kBYSzWAz5s7Wxhu+N6fWvTxvRkITBNWCdG63izPMlU=
-github.com/knroy/go-xml/v2 v2.2.0/go.mod h1:q3hL666HVFOGRuv+qwUQCyql/QteEB1qCk6EUdNk7pw=
+github.com/knroy/go-xml/v2 v2.3.1 h1:ogU5WL+S0mhsY+uXAwYAtxiLgKxIJIoNlRKfnCP/JQY=
+github.com/knroy/go-xml/v2 v2.3.1/go.mod h1:q3hL666HVFOGRuv+qwUQCyql/QteEB1qCk6EUdNk7pw=
 github.com/knroy/go-xmlsec/v2 v2.0.2 h1:eJ7sja4Nn1rBYW3Bd9OwB7Y9pCsCVpp1pGzAI8hYtPw=
 github.com/knroy/go-xmlsec/v2 v2.0.2/go.mod h1:j3WeLo50S4v3o79WS2Vs61yJa+ReW/s1r70PgszqgSY=
 github.com/mattn/go-colorable v0.1.16 h1:+2YjeAe7xP1OQbZW1jERPWWCDLlNqFNCvjiqGiAt84A=
