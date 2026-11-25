@@ -84,9 +84,11 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
 		_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><s:Fault><faultcode>s:Server</faultcode><faultstring>Synthetic fault</faultstring><detail><fixture/></detail></s:Fault></s:Body></s:Envelope>`)
 	case "/fault12":
-		w.Header().Set("Content-Type", "application/soap+xml; charset=utf-8")
-		w.WriteHeader(500)
-		_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Body><s:Fault><s:Code><s:Value>s:Receiver</s:Value></s:Code><s:Reason><s:Text xml:lang="en">Synthetic fault</s:Text></s:Reason><s:Detail><fixture/></s:Detail></s:Fault></s:Body></s:Envelope>`)
+		writeSOAP12FaultReply(w, http.StatusInternalServerError, "Receiver", "Synthetic fault", `<s:Detail><fixture/></s:Detail>`)
+	case "/soap12-sender-fault":
+		writeSOAP12FaultReply(w, http.StatusBadRequest, "Sender", "Synthetic Sender reason", "")
+	case "/soap12-must-understand-fault":
+		writeSOAP12FaultReply(w, http.StatusInternalServerError, "MustUnderstand", "Synthetic MustUnderstand reason", "")
 	case "/w3c-t28":
 		writeWrapperAttributeReply(w, "", ` s:encodingStyle="`+soap12EncodingNone+`"`, "")
 	case "/soap12-valid-envelope":
@@ -155,6 +157,14 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.NotFound(w, r)
 	}
+}
+
+func writeSOAP12FaultReply(w http.ResponseWriter, status int, code, reason, detail string) {
+	w.Header().Set("Content-Type", "application/soap+xml; charset=utf-8")
+	w.WriteHeader(status)
+	_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Body><s:Fault>`+
+		`<s:Code><s:Value>s:`+code+`</s:Value></s:Code><s:Reason><s:Text xml:lang="en">`+reason+
+		`</s:Text></s:Reason>`+detail+`</s:Fault></s:Body></s:Envelope>`)
 }
 
 // Adapt W3C T11, T12, T13, T15, T17, T19, T35 and T38 to client reply acceptance.

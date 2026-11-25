@@ -216,6 +216,25 @@ function withholdsInvalidEnvelopeContent(p) {
     p.body === null && p.fault === null && query.value === null && query.error?.code === 'CONTENT_UNAVAILABLE';
 }
 
+function checkSOAP12PeerFaults({soap, namespace}) {
+  const cases = [
+    ['/soap12-sender-fault', 400, 'Sender', 'Synthetic Sender reason'],
+    ['/soap12-must-understand-fault', 500, 'MustUnderstand', 'Synthetic MustUnderstand reason'],
+  ];
+  for (const [path, status, code, reason] of cases) {
+    const response = http.post(base + path, null, {timeout:'2s'});
+    check(soap.parse(response), {
+      [`SOAP 1.2 HTTP ${status} ${code} Fault projects its qualified code`]: p =>
+        p.status === status && p.ok === false && p.error?.code === 'SOAP_FAULT' && p.error.stage === 'parse' &&
+        p.fault?.code?.namespace === namespace && p.fault.code.localName === code,
+      [`SOAP 1.2 HTTP ${status} ${code} Fault exposes its Reason to Body XPath`]: p => {
+        const query = p.xpath('string(./s:Fault/s:Reason/s:Text)', {s:namespace});
+        return query.error === null && query.value === reason;
+      },
+    });
+  }
+}
+
 export default function () {
   check(client, { 'custom extension loaded': (c) => typeof c.build === 'function' && typeof c.parse === 'function' });
   checkEcho(soap11);
@@ -232,6 +251,7 @@ export default function () {
   checkHeaderAttributeHandling(soap12.soap);
   checkSOAP12WrapperAttributes(soap12.soap);
   checkSOAP12EnvelopeStructure(soap12.soap);
+  checkSOAP12PeerFaults(soap12);
   const malformedFault = '<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Body><s:Fault>' +
     '<s:Code><s:Value>s:Sender</s:Value><s:Value>s:Receiver</s:Value></s:Code>' +
     '<s:Reason><s:Text xml:lang="en">Synthetic fault</s:Text></s:Reason></s:Fault></s:Body></s:Envelope>';
