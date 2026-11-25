@@ -114,9 +114,9 @@ before incorporating upstream payloads.
 | W3C case | Behavior | Status | Evidence and next action |
 | --- | --- | --- | --- |
 | [TH1][w3c-TH1] | SOAP 1.2 POST returns HTTP 200 with SOAP XML | Direct | [Public echo check][echo] and [receiver request check][wire] assert a SOAP 1.2 exchange with the expected request and reply media types, HTTP 200, and an accepted Body marker. This evidence covers the HTTP binding behavior with a synthetic echo payload. |
-| [TH2][w3c-TH2] | Missing Body yields HTTP 400 Sender Fault | Partial | [Envelope structure][envelope] covers missing Body rejection and [Fault projection][fault-structure] covers Sender at other statuses. Add a peer-supplied HTTP 400 Sender reply if prioritizing Fault projection. |
+| [TH2][w3c-TH2] | Missing Body yields HTTP 400 Sender Fault | Adapted | The [public peer Fault checks][peer-faults] use a synthetic HTTP 400 SOAP 1.2 Sender reply and assert the status, qualified Fault code, and Reason via Body-scoped XPath. The fixture supplies the outcome. Fault generation after a request with a missing Body is outside the client test. |
 | [TH3][w3c-TH3] | SOAP 1.1 request yields HTTP 500 VersionMismatch | Partial | [VersionMismatch check][version-fault] asserts HTTP 500 and Fault projection for a SOAP 1.1 reply. The upstream binding example supplies a SOAP 1.2 Fault instead and tests what the peer returns. |
-| [TH4][w3c-TH4] | Mandatory header failure yields HTTP 500 MustUnderstand | Partial | [Header role check][roles] covers local rejection, and [public Fault checks][fault] cover HTTP 500 projection with other codes. Consider a supplied MustUnderstand reply if the client outcome needs evidence. |
+| [TH4][w3c-TH4] | Mandatory header failure yields HTTP 500 MustUnderstand | Adapted | The [public peer Fault checks][peer-faults] use a synthetic HTTP 500 SOAP 1.2 MustUnderstand reply and assert the status, qualified Fault code, and Reason via Body-scoped XPath. The fixture supplies the outcome. Peer handling of a mandatory header and Fault generation are outside the client test. |
 | [TH5][w3c-TH5] | Unsupported media type yields HTTP 415 | Outside | Request media negotiation is tested at the peer. [Plain response cases][plain-tests] cover a generic HTTP error result at a different status. |
 
 ## SOAPBuilders
@@ -155,8 +155,8 @@ before incorporating upstream payloads.
 | [XMLP-3][w3c-XMLP-3] | HTTP GET returns an RPC-style SOAP reply | Outside | k6 owns HTTP GET. Peer produces the RPC result and its typed interpretation is outside the client contract. |
 | [XMLP-4][w3c-XMLP-4] | RPC parameter order differs | Outside | Peer binds RPC arguments by the expected rules. Ordered XML output is a separate contract. |
 | [XMLP-5][w3c-XMLP-5] | SOAP 1.1 request yields a SOAP 1.2 VersionMismatch reply | Partial | [Envelope structure][envelope] covers a configured-version mismatch in the opposite direction. A separate SOAP 1.1 Client.parse test could show withholding on a SOAP 1.2 reply. Peer HTTP status and Upgrade generation are separate. |
-| [XMLP-6][w3c-XMLP-6] | Mandatory unknown header yields HTTP 500 MustUnderstand | Partial | [Header role check][roles] covers local withholding and [public Fault checks][fault] cover other HTTP 500 Faults. Share the supplied MustUnderstand Fault projection proposed for the HTTP binding case. |
-| [XMLP-7][w3c-XMLP-7] | HTTP 400 SOAP 1.2 Sender Fault | Partial | [Fault projection][fault-structure] asserts Sender with HTTP 200 and 500. Assert preservation of HTTP 400 and the qualified Fault code at Client.parse if adding a public status matrix. |
+| [XMLP-6][w3c-XMLP-6] | Mandatory unknown header yields HTTP 500 MustUnderstand | Adapted | The [public peer Fault checks][peer-faults] assert the fixture's HTTP 500, qualified MustUnderstand code, and Reason via Body-scoped XPath. Peer Fault generation is outside the client test. |
+| [XMLP-7][w3c-XMLP-7] | HTTP 400 SOAP 1.2 Sender Fault | Adapted | The [public peer Fault checks][peer-faults] assert the fixture's HTTP 400, qualified Sender code, and Reason via Body-scoped XPath. Peer RPC dispatch and Fault generation are outside the client test. |
 | [XMLP-8][w3c-XMLP-8] | HTTP 500 SOAP 1.2 Receiver Fault | Direct | [Public Fault checks][fault] assert HTTP 500 and the qualified Receiver code, reason, and Detail from a synthetic reply. This covers the client-visible outcome. |
 | [XMLP-9][w3c-XMLP-9] | Unknown encoding on an RPC argument | Partial | [Public Fault checks][fault] exercise projection with other codes. A client test could assert a supplied DataEncodingUnknown Fault. Argument encoding and fault generation belong to the peer. |
 | [XMLP-10][w3c-XMLP-10] | RPC call includes typed and untyped arguments | Outside | Peer interprets a mix of explicitly typed and untyped RPC parameters. |
@@ -231,6 +231,7 @@ adaptations exercise local client rejection, as recorded in [ADR-0009][wrapper-a
 [invalid-must-understand]: ../test/e2e/http.js#L171
 [descendant-header-attributes]: ../test/e2e/http.js#L175
 [version-fault]: ../test/e2e/http.js#L102
+[peer-faults]: ../test/e2e/http.js#L219
 [wire]: ../test/e2e/http_test.go#L65
 [object]: ../test/e2e/object.js#L5
 [invalid-payload]: ../internal/message/message_test.go#L55
