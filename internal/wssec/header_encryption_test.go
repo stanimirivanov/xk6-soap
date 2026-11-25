@@ -49,10 +49,7 @@ func TestEncryptRecoverSelectedHeaderBlocks(t *testing.T) {
 		raw := request.Body
 		if version == "1.2" {
 			// Put the peer's foreign attribute inside the selected Header block.
-			raw = strings.Replace(raw, "<h:Trace", `<h:Trace xmlns:legacy="`+message.SOAP11+`" legacy:mustUnderstand="1"`, 1)
-			if raw == request.Body {
-				t.Fatal("original Header block missing from fixture")
-			}
+			raw = withSOAP11MustUnderstand(t, raw, "h:Trace")
 		}
 		for _, order := range []ProtectionOrder{SignThenEncrypt, EncryptThenSign} {
 			t.Run(version+"/"+string(order), func(t *testing.T) {
@@ -166,7 +163,7 @@ func TestEncryptRecoverSelectedHeaderBlocks(t *testing.T) {
 				}
 
 				if version == "1.2" {
-					foreignWrapper := strings.Replace(string(wire), "<wsse11:EncryptedHeader", `<wsse11:EncryptedHeader xmlns:legacy="`+message.SOAP11+`" legacy:mustUnderstand="1"`, 1)
+					foreignWrapper := withSOAP11MustUnderstand(t, string(wire), "wsse11:EncryptedHeader")
 					result := ReceiveWithKeys(200, foreignWrapper, version, message.Limits{}, p.Receive, material, fixedTime)
 					assertHidden(t, result)
 					if result.Error.Code != "XML_INVALID" || result.Error.Stage != "parse" {

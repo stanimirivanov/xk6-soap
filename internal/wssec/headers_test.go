@@ -65,6 +65,17 @@ func TestHeaderSignatureCoverage(t *testing.T) {
 	}
 }
 
+func withSOAP11MustUnderstand(t *testing.T, raw, element string) string {
+	t.Helper()
+
+	start := "<" + element + " "
+	before, after, found := strings.Cut(raw, start)
+	if !found {
+		t.Fatalf("fixture lacks the opening tag for %s", element)
+	}
+	return before + start + `xmlns:legacy="` + message.SOAP11 + `" legacy:mustUnderstand="1" ` + after
+}
+
 func TestSignedHeaderWithForeignMustUnderstand(t *testing.T) {
 	fixture := policyKeys(t)
 	material := KeyMaterial{Signing: fixture.Signing, Trust: fixture.Trust}
@@ -83,7 +94,7 @@ func TestSignedHeaderWithForeignMustUnderstand(t *testing.T) {
 	}
 
 	// Construct the synthetic peer's XML before applying message protection.
-	raw := strings.Replace(req.Body, "<h:Trace", `<h:Trace xmlns:legacy="`+message.SOAP11+`" legacy:mustUnderstand="1"`, 1)
+	raw := withSOAP11MustUnderstand(t, req.Body, "h:Trace")
 	wire, err := BuildSecurity([]byte(raw), p, material, fixedTime, nil, nil, message.Limits{}, req.HeaderSelectors...)
 	if err != nil {
 		t.Fatal(err)
@@ -108,10 +119,7 @@ func TestSignedHeaderWithForeignMustUnderstand(t *testing.T) {
 		t.Fatal("covered attribute mutation did not fail signature verification:", rejected.Error)
 	}
 
-	foreignSecurity := strings.Replace(string(wire), "<wsse:Security", `<wsse:Security xmlns:legacy="`+message.SOAP11+`" legacy:mustUnderstand="1"`, 1)
-	if foreignSecurity == string(wire) {
-		t.Fatal("Security fixture did not match")
-	}
+	foreignSecurity := withSOAP11MustUnderstand(t, string(wire), "wsse:Security")
 	rejected = Receive(200, foreignSecurity, "1.2", message.Limits{}, p.Receive, material.Trust, fixedTime)
 	assertHidden(t, rejected)
 	if rejected.Error.Code != "XML_INVALID" || rejected.Error.Stage != "parse" {

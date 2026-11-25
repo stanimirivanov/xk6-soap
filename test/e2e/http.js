@@ -116,7 +116,7 @@ function withholdsHeaderBody(p, code) {
     p.body === null && p.fault === null && query.value === null && query.error?.code === 'CONTENT_UNAVAILABLE';
 }
 
-function acceptsRoleBody(p) {
+function acceptsHeaderReplyBody(p) {
   const query = p.xpath('string(./m:Echo)', echoNamespaces);
   return p.status === 200 && p.ok && p.error === null && p.fault === null &&
     query.error === null && query.value === 'w3c-role-marker';
@@ -129,30 +129,30 @@ function checkMandatoryHeaderRoles(soap) {
   });
   const otherRole = http.post(`${base}/w3c-t15`, null, {timeout:'2s'});
   check(soap.parse(otherRole), {
-    'W3C T15 unknown mandatory header for a different role allows Body': acceptsRoleBody,
+    'W3C T15 unknown mandatory header for a different role allows Body': acceptsHeaderReplyBody,
   });
   for (const role of ['next', 'none']) {
     const response = http.post(`${base}/w3c-standard-role/${role}`, null, {timeout:'2s'});
     check(soap.parse(response), {
-      [`SOAP 1.2 role=${role} with mustUnderstand=1`]: role === 'next' ? withholdsMandatoryHeader : acceptsRoleBody,
+      [`SOAP 1.2 role=${role} with mustUnderstand=1`]: role === 'next' ? withholdsMandatoryHeader : acceptsHeaderReplyBody,
     });
   }
   for (const mustUnderstand of ['1', 'true', '0', 'false']) {
     const response = http.post(`${base}/w3c-default-role/${mustUnderstand}`, null, {timeout:'2s'});
     check(soap.parse(response), {
       [`SOAP 1.2 omitted role with mustUnderstand=${mustUnderstand}`]:
-        ['1', 'true'].includes(mustUnderstand) ? withholdsMandatoryHeader : acceptsRoleBody,
+        ['1', 'true'].includes(mustUnderstand) ? withholdsMandatoryHeader : acceptsHeaderReplyBody,
     });
   }
 }
 
 function checkForeignMustUnderstand(soap) {
   const cases = [
-    ['foreign-only', acceptsRoleBody],
+    ['foreign-only', acceptsHeaderReplyBody],
     ['mandatory-native-first', withholdsMandatoryHeader],
     ['mandatory-foreign-first', withholdsMandatoryHeader],
-    ['optional-native-first', acceptsRoleBody],
-    ['optional-foreign-first', acceptsRoleBody],
+    ['optional-native-first', acceptsHeaderReplyBody],
+    ['optional-foreign-first', acceptsHeaderReplyBody],
     ['foreign-actor', p => withholdsHeaderBody(p, 'XML_INVALID')],
   ];
   for (const [name, outcome] of cases) {
