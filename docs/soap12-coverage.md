@@ -244,8 +244,8 @@ adaptations exercise local client rejection, as recorded in [ADR-0009][wrapper-a
 [t34-encrypted]: ../internal/wssec/header_encryption_test.go#L30
 [t34-adr]: adr/0008-soap12-foreign-must-understand.md
 [wrapper-k6]: ../test/e2e/http.js#L179
-[t69-k6]: ../test/e2e/http.js#L208
-[t70-k6]: ../test/e2e/http.js#L209
+[t69-k6]: ../test/e2e/http.js#L204
+[t70-k6]: ../test/e2e/http.js#L205
 [wrapper-signed]: ../internal/adapter/receive_test.go#L52
 [wrapper-recovered]: ../internal/wssec/response_encryption_test.go#L143
 [wrapper-adr]: adr/0009-soap12-response-wrapper-attributes.md

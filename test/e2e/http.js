@@ -180,11 +180,7 @@ function checkSOAP12WrapperAttributes(soap) {
   for (const test of ['t28', 't71', 't72']) {
     const response = http.post(`${base}/w3c-${test}`, null, {timeout:'2s'});
     check(soap.parse(response), {
-      [`W3C ${test.toUpperCase()} invalid wrapper attribute withholds content`]: p => {
-        const query = p.xpath('string(./m:Echo)', echoNamespaces);
-        return p.status === 200 && !p.ok && p.error?.code === 'XML_INVALID' && p.error.stage === 'xml' &&
-          p.body === null && p.fault === null && query.value === null && query.error?.code === 'CONTENT_UNAVAILABLE';
-      },
+      [`W3C ${test.toUpperCase()} invalid wrapper attribute withholds content`]: withholdsInvalidEnvelopeContent,
     });
   }
   const response = http.post(`${base}/soap12-qualified-wrapper-attributes`, null, {timeout:'2s'});
@@ -210,14 +206,14 @@ function checkSOAP12EnvelopeStructure(soap) {
   ];
   for (const [test, assertion] of malformed) {
     const response = http.post(`${base}/w3c-${test}`, null, {timeout:'2s'});
-    check(soap.parse(response), {
-      [assertion]: p => {
-        const query = p.xpath('string(./m:Echo)', echoNamespaces);
-        return p.status === 200 && p.ok === false && p.error?.code === 'XML_INVALID' && p.error.stage === 'xml' &&
-          p.body === null && p.fault === null && query.value === null && query.error?.code === 'CONTENT_UNAVAILABLE';
-      },
-    });
+    check(soap.parse(response), { [assertion]: withholdsInvalidEnvelopeContent });
   }
+}
+
+function withholdsInvalidEnvelopeContent(p) {
+  const query = p.xpath('string(./m:Echo)', echoNamespaces);
+  return p.status === 200 && p.ok === false && p.error?.code === 'XML_INVALID' && p.error.stage === 'xml' &&
+    p.body === null && p.fault === null && query.value === null && query.error?.code === 'CONTENT_UNAVAILABLE';
 }
 
 export default function () {
