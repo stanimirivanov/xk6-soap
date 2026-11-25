@@ -14,6 +14,7 @@ import (
 
 const MaxBodyBytes = 64 << 10
 const maxCaptures = 128
+const soap12EncodingNone = "http://www.w3.org/2003/05/soap-envelope/encoding/none"
 const legacySOAPNamespace = ` xmlns:legacy="http://schemas.xmlsoap.org/soap/envelope/"`
 
 // Capture is an in-memory synthetic request, never written to production logs.
@@ -85,6 +86,14 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/soap+xml; charset=utf-8")
 		w.WriteHeader(500)
 		_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Body><s:Fault><s:Code><s:Value>s:Receiver</s:Value></s:Code><s:Reason><s:Text xml:lang="en">Synthetic fault</s:Text></s:Reason><s:Detail><fixture/></s:Detail></s:Fault></s:Body></s:Envelope>`)
+	case "/w3c-t28":
+		writeWrapperAttributeReply(w, "", ` s:encodingStyle="`+soap12EncodingNone+`"`, "")
+	case "/w3c-t71":
+		writeWrapperAttributeReply(w, ` xmlns="http://www.w3.org/2003/05/soap-envelope" ordinary="fixture"`, "", "")
+	case "/w3c-t72":
+		writeWrapperAttributeReply(w, ` xmlns:env="http://www.w3.org/2003/05/soap-envelope" env:encodingStyle="`+soap12EncodingNone+`"`, "", "")
+	case "/soap12-qualified-wrapper-attributes":
+		writeWrapperAttributeReply(w, ` m:encodingStyle="fixture"`, ` m:metadata="fixture"`, ` s:encodingStyle="`+soap12EncodingNone+`"`)
 	case "/w3c-t30":
 		// Adapt W3C T30 to projection of a supplied Fault reply.
 		w.Header().Set("Content-Type", "text/xml; charset=utf-8")
@@ -160,4 +169,11 @@ func writeHeaderReply(w http.ResponseWriter, attributes string) {
 func writeHeaderBlockReply(w http.ResponseWriter, block string) {
 	w.Header().Set("Content-Type", "application/soap+xml; charset=utf-8")
 	_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Header>`+block+`</s:Header><s:Body><m:Echo xmlns:m="urn:fixture">w3c-role-marker</m:Echo></s:Body></s:Envelope>`)
+}
+
+// Adapt W3C T28, T71 and T72 to client reply acceptance.
+func writeWrapperAttributeReply(w http.ResponseWriter, envelope, body, child string) {
+	w.Header().Set("Content-Type", "application/soap+xml; charset=utf-8")
+	_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:m="urn:fixture"`+envelope+
+		`><s:Body`+body+`><m:Echo`+child+`>soap12-wrapper-marker</m:Echo></s:Body></s:Envelope>`)
 }

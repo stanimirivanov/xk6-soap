@@ -1,6 +1,7 @@
 package wssec
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -9,7 +10,9 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/knroy/go-xmlsec/v2"
 	"github.com/stanimirivanov/xk6-soap/internal/keys"
 	"github.com/stanimirivanov/xk6-soap/internal/message"
 )
@@ -133,6 +136,34 @@ func TestReceiveEncryptedOperationElement(t *testing.T) {
 	receive.RequireEncryption = true
 	result := ReceiveWithKeys(200, string(wire), "1.2", message.Limits{}, receive, KeyMaterial{Decryption: material.Recipient, Trust: trust}, fixedTime)
 	if !result.OK || result.Body == nil || !strings.Contains(*result.Body, "synthetic") {
+		t.Fatal(result.Error)
+	}
+}
+
+func TestReceiveRejectsInvalidRecoveredSOAP12WrapperAttribute(t *testing.T) {
+	material := policyKeys(t)
+	receive, _ := receivePolicy(t)
+	receive.Order = string(EncryptThenSign)
+	receive.RequireEncryption = true
+	wire, err := Protect(envelope("1.2"), identity(t), material.Recipient.Certificate(), fixedTime, EncryptThenSign, 128)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result := receiveWithDecryptor(200, string(wire), "1.2", message.Limits{}, receive, material, fixedTime,
+		func(g responseEncryption, doc *xmlsec.Document, key *keys.Material, now time.Time) ([]byte, string) {
+			recovered, code := g.decrypt(doc, key, now)
+			if code != "" {
+				t.Fatal("fixture recovery failed", code)
+			}
+			defer clear(recovered)
+			wrapper := []byte("<s:Envelope ")
+			if !bytes.Contains(recovered, wrapper) {
+				t.Fatal("recovered fixture lacks the expected SOAP 1.2 Envelope")
+			}
+			return bytes.Replace(recovered, wrapper, []byte(`<s:Envelope ordinary="fixture" `), 1), ""
+		})
+	assertHidden(t, result)
+	if result.Error.Code != "DECRYPTION_FAILED" || result.Error.Stage != "security" {
 		t.Fatal(result.Error)
 	}
 }

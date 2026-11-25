@@ -276,7 +276,7 @@ func recoverEncryptedRegions(decrypt responseDecryptor, graph responseEncryption
 }
 
 func parseRecoveredSnapshot(raw []byte, version string, limits message.Limits) (*xmlsec.Document, string) {
-	if e := message.ValidateEnvelope(string(raw), version, limits); e != nil {
+	if e := message.ValidateRecoveredEnvelope(string(raw), version, limits); e != nil {
 		if e.(*message.Error).Code == "LIMIT_EXCEEDED" {
 			return nil, "LIMIT_EXCEEDED"
 		}

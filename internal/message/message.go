@@ -129,6 +129,16 @@ func Build(operation, payload string, options Options) (Request, error) {
 }
 
 func ValidateEnvelope(document, version string, limits Limits) error {
+	return validateEnvelope(document, version, limits, "envelope")
+}
+
+// ValidateRecoveredEnvelope applies inbound wrapper rules to a decrypted
+// snapshot. Snapshots are provider serializations without XML declarations.
+func ValidateRecoveredEnvelope(document, version string, limits Limits) error {
+	return validateEnvelope(document, version, limits, responseEnvelopeMode)
+}
+
+func validateEnvelope(document, version string, limits Limits, mode string) error {
 	ns, err := namespace(version)
 	if err != nil {
 		return err
@@ -137,7 +147,7 @@ func ValidateEnvelope(document, version string, limits Limits) error {
 	if err != nil {
 		return err
 	}
-	return validate(document, limits, "envelope", "", ns)
+	return validate(document, limits, mode, "", ns)
 }
 
 // XML 1.0 (fifth edition) NCName ranges, excluding the namespace separator.

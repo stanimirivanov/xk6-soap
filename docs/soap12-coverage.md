@@ -55,7 +55,7 @@ before incorporating upstream payloads.
 | [T25][w3c-T25] | Reject an external DTD | Partial | [Declaration and XML rejection][declaration] checks a local DOCTYPE. A fixture can verify external declaration rejection without any resolution. Generation of a Fault describing unsupported DTDs is peer behavior. |
 | [T26][w3c-T26] | Ignore an XML processing instruction | Outside | The [client XML policy][architecture] deliberately rejects processing instructions. [Declaration and XML rejection][declaration] verifies the restriction. |
 | [T27][w3c-T27] | Reject a complex value in a string array | Outside | Peer validates SOAP Encoding item types. |
-| [T28][w3c-T28] | Reject encodingStyle on Body | Decision | [Envelope structure][envelope] does not check this attribute. Decide whether SOAP Envelope structural validation should enforce its placement before specifying an assertion. |
+| [T28][w3c-T28] | Reject encodingStyle on Body | Adapted | [Public k6 wrapper check][wrapper-k6] rejects SOAP 1.2-qualified `encodingStyle` on Body and withholds content. The upstream node generates a Fault. |
 | [T29][w3c-T29] | Accept a long absolute role URI | Gap | Add an optional Header block with a synthetic long role URI within configured XML limits and assert Body acceptance. |
 | [T30][w3c-T30] | SOAP 1.1 request to a SOAP 1.2 peer | Adapted | [VersionMismatch check][version-fault] projects SOAP_FAULT and the qualified SOAP 1.1 code from a synthetic HTTP 500 reply with a supplied Upgrade Header block. [Envelope structure][envelope] separately checks wrong-version rejection. Peer Fault generation and Upgrade advertisement remain outside the client test. |
 | [T31][w3c-T31] | RPC void return omits the return accessor | Outside | Requires a peer RPC binding and interpretation of the return accessor. |
@@ -98,8 +98,8 @@ before incorporating upstream payloads.
 | [T68][w3c-T68] | Accept extra Envelope and Header whitespace | Gap | Compare compact and formatted synthetic SOAP 1.2 replies at Client.parse and assert equivalent XPath values. |
 | [T69][w3c-T69] | Reject a missing Body | Partial | [Envelope structure][envelope] rejects a SOAP 1.1 Envelope without Body. Add SOAP 1.2 response acceptance coverage for this shape. A peer would generate the Fault. |
 | [T70][w3c-T70] | Reject a Trailer following Header and Body | Partial | [Envelope structure][envelope] rejects an unexpected direct Envelope child before Body and extra content after the Envelope. Add a SOAP 1.2 child after Body for the exact receive shape. |
-| [T71][w3c-T71] | Reject an unqualified attribute on Envelope | Decision | [Current Envelope validator][validator] checks XML attribute names and duplicates. Decide whether to enforce this SOAP-specific restriction on replies before adding a test. |
-| [T72][w3c-T72] | Reject encodingStyle on Envelope | Decision | [Current Envelope validator][validator] does not enforce this placement rule. Resolve applicability with the related Body attribute case. |
+| [T71][w3c-T71] | Reject an unqualified attribute on Envelope | Adapted | [Public k6 wrapper check][wrapper-k6] rejects an unqualified Envelope attribute. [Signed wire][wrapper-signed] and [recovered snapshot][wrapper-recovered] checks verify the respective error boundaries. The upstream node generates a Fault. |
+| [T72][w3c-T72] | Reject encodingStyle on Envelope | Adapted | [Public k6 wrapper check][wrapper-k6] rejects SOAP 1.2-qualified `encodingStyle` on Envelope and withholds content. The upstream node generates a Fault. |
 | [T73][w3c-T73] | RPC echo with encodingStyle on payload and argument | Outside | Peer interprets encoding-style scopes and RPC return semantics. |
 | [T74][w3c-T74] | SOAP role and mustUnderstand occur on a descendant | Adapted | [Descendant attribute check][descendant-header-attributes] exposes the Body marker when a child of an optional block carries both attributes. The upstream receiver ignores the unknown block and responds to a separate known application header. |
 | [T75][w3c-T75] | Resolve a relative XLink against xml:base | Outside | Requires peer processing of an application reference. Client XPath reads XML content without link resolution. |
@@ -203,6 +203,23 @@ The [recovered Header regression][t34-encrypted] requires selected Header
 encryption and verifies that the marker is queryable after recovery under both
 protection orders. See [ADR-0008][t34-adr] for the scope of the exception.
 
+## SOAP 1.2 Envelope and Body attributes
+
+The [public k6 loopback][wrapper-k6] adapts [T28][w3c-T28], [T71][w3c-T71]
+and [T72][w3c-T72] to response acceptance. Each invalid reply returns
+`XML_INVALID` at stage `xml` with null Body and Fault and XPath
+`CONTENT_UNAVAILABLE`. The positive reply accepts qualified extension
+attributes on both wrappers and exposes a Body child with SOAP
+`encodingStyle` set to the standard `encoding/none` URI.
+
+With signature verification required, the [signed wire test][wrapper-signed]
+leaves both verification flags null for an invalid Envelope. Its control
+verifies a trusted signed Body with `wsu:Id`, qualified wrapper metadata and
+legal `encodingStyle` on the Body child. The [recovered snapshot test][wrapper-recovered]
+asserts `DECRYPTION_FAILED` at stage `security` with the same content withholding.
+The upstream cases exercise Fault generation by the receiving node. These
+adaptations exercise local client rejection, as recorded in [ADR-0009][wrapper-adr].
+
 [collection]: https://www.w3.org/TR/2007/REC-soap12-testcollection-20070427/#tests
 [contracts]: contracts.md
 [architecture]: architecture.md#5-payload-envelopes-and-headers
@@ -226,7 +243,10 @@ protection orders. See [ADR-0008][t34-adr] for the scope of the exception.
 [t34-signed]: ../internal/wssec/headers_test.go#L68
 [t34-encrypted]: ../internal/wssec/header_encryption_test.go#L30
 [t34-adr]: adr/0008-soap12-foreign-must-understand.md
-[validator]: ../internal/message/xml.go#L75
+[wrapper-k6]: ../test/e2e/http.js#L179
+[wrapper-signed]: ../internal/adapter/receive_test.go#L52
+[wrapper-recovered]: ../internal/wssec/response_encryption_test.go#L143
+[wrapper-adr]: adr/0009-soap12-response-wrapper-attributes.md
 
 [w3c-T1]: https://www.w3.org/TR/2007/REC-soap12-testcollection-20070427/#T1
 [w3c-T2]: https://www.w3.org/TR/2007/REC-soap12-testcollection-20070427/#T2
