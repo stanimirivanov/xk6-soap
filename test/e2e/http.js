@@ -161,6 +161,21 @@ function checkForeignMustUnderstand(soap) {
   }
 }
 
+function checkHeaderAttributeHandling(soap) {
+  const omitted = http.post(`${base}/w3c-t37`, null, {timeout:'2s'});
+  check(soap.parse(omitted), {
+    'W3C T10 and T37 explicit ultimateReceiver with omitted mustUnderstand allows Body': acceptsHeaderReplyBody,
+  });
+  const invalid = http.post(`${base}/w3c-t39`, null, {timeout:'2s'});
+  check(soap.parse(invalid), {
+    'W3C T14 and T39 invalid native mustUnderstand withholds content': p => withholdsHeaderBody(p, 'XML_INVALID'),
+  });
+  const descendant = http.post(`${base}/w3c-t74`, null, {timeout:'2s'});
+  check(soap.parse(descendant), {
+    'W3C T74 descendant role and mustUnderstand allow Body': acceptsHeaderReplyBody,
+  });
+}
+
 export default function () {
   check(client, { 'custom extension loaded': (c) => typeof c.build === 'function' && typeof c.parse === 'function' });
   checkEcho(soap11);
@@ -174,6 +189,7 @@ export default function () {
   });
   checkMandatoryHeaderRoles(soap12.soap);
   checkForeignMustUnderstand(soap12.soap);
+  checkHeaderAttributeHandling(soap12.soap);
   const malformedFault = '<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Body><s:Fault>' +
     '<s:Code><s:Value>s:Sender</s:Value><s:Value>s:Receiver</s:Value></s:Code>' +
     '<s:Reason><s:Text xml:lang="en">Synthetic fault</s:Text></s:Reason></s:Fault></s:Body></s:Envelope>';

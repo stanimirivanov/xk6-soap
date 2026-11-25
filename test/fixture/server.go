@@ -110,6 +110,12 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		writeHeaderReply(w, legacySOAPNamespace+` legacy:mustUnderstand="1" s:mustUnderstand="0"`)
 	case "/w3c-t34/foreign-actor":
 		writeHeaderReply(w, legacySOAPNamespace+` legacy:actor="urn:fixture:actor"`)
+	case "/w3c-t37":
+		writeHeaderReply(w, ` s:role="http://www.w3.org/2003/05/soap-envelope/role/ultimateReceiver"`)
+	case "/w3c-t39":
+		writeHeaderRoleReply(w, "", "invalid")
+	case "/w3c-t74":
+		writeHeaderBlockReply(w, `<m:Unknown xmlns:m="urn:fixture"><m:Nested s:role="http://www.w3.org/2003/05/soap-envelope/role/next" s:mustUnderstand="1"/></m:Unknown>`)
 	case "/empty":
 		w.WriteHeader(http.StatusNoContent)
 	case "/binary":
@@ -145,9 +151,13 @@ func writeHeaderRoleReply(w http.ResponseWriter, role, mustUnderstand string) {
 	writeHeaderReply(w, ` s:mustUnderstand="`+mustUnderstand+`"`+roleAttribute)
 }
 
-// All attributes come from the synthetic cases above. Keep the Header block
-// and Body marker fixed across role checks and the W3C T34 adaptation.
+// All attributes come from the synthetic cases above.
 func writeHeaderReply(w http.ResponseWriter, attributes string) {
+	writeHeaderBlockReply(w, `<m:Unknown xmlns:m="urn:fixture"`+attributes+`/>`)
+}
+
+// Keep the Body marker fixed across SOAP 1.2 Header cases.
+func writeHeaderBlockReply(w http.ResponseWriter, block string) {
 	w.Header().Set("Content-Type", "application/soap+xml; charset=utf-8")
-	_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Header><m:Unknown xmlns:m="urn:fixture"`+attributes+`/></s:Header><s:Body><m:Echo xmlns:m="urn:fixture">w3c-role-marker</m:Echo></s:Body></s:Envelope>`)
+	_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Header>`+block+`</s:Header><s:Body><m:Echo xmlns:m="urn:fixture">w3c-role-marker</m:Echo></s:Body></s:Envelope>`)
 }
