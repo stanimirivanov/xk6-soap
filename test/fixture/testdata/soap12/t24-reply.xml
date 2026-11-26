@@ -1,0 +1,1 @@
+<s:Envelope xmlns:s="urn:fixture:unrelated-envelope" xmlns:m="urn:fixture"><s:Header><m:Optional/></s:Header><s:Body><m:Echo>soap12-xml-marker</m:Echo></s:Body></s:Envelope>

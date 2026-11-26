@@ -1,0 +1,1 @@
+<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Body><s:Fault><s:Code><s:Value>s:Sender</s:Value><s:Subcode><s:Value xmlns:r="http://www.w3.org/2003/05/soap-rpc">r:ProcedureNotPresent</s:Value></s:Subcode></s:Code><s:Reason><s:Text xml:lang="en">Synthetic missing procedure</s:Text></s:Reason></s:Fault></s:Body></s:Envelope>

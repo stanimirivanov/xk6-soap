@@ -7,8 +7,10 @@ import (
 	"encoding/xml"
 	"errors"
 	"mime"
+	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -55,6 +57,7 @@ func TestK6SOAPFixture(t *testing.T) {
 			}
 			captures := server.Captures()
 			assertSOAPActionCaptures(t, captures)
+			assertFixedSOAPRequestCaptures(t, captures)
 			if len(captures) != 57 {
 				t.Fatalf("expected 57 HTTP requests, got %d\n%s", len(captures), output)
 			}
@@ -118,6 +121,35 @@ func assertSOAPActionCaptures(t *testing.T, captures []fixture.Capture) {
 	for marker := range want {
 		if seen[marker] != 1 {
 			t.Errorf("expected wire marker %q once, saw it %d times", marker, seen[marker])
+		}
+	}
+}
+
+func assertFixedSOAPRequestCaptures(t *testing.T, captures []fixture.Capture) {
+	t.Helper()
+	wantFaultRequest, err := os.ReadFile("../fixture/testdata/soap12/fault-request.xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	faultRequests := map[string]int{"/fault11": 0, "/fault12": 0}
+	for _, capture := range captures {
+		path := capture.Path
+		if _, fault := faultRequests[path]; fault {
+			faultRequests[path]++
+			if capture.Body != string(wantFaultRequest) {
+				t.Errorf("%s request body = %q, want %q", path, capture.Body, wantFaultRequest)
+			}
+			continue
+		}
+		if strings.HasPrefix(path, "/w3c-") || strings.HasPrefix(path, "/soap12-") || path == "/empty" || path == "/binary" {
+			if len(capture.Body) != 0 {
+				t.Errorf("%s request body has %d bytes, want 0", path, len(capture.Body))
+			}
+		}
+	}
+	for path, count := range faultRequests {
+		if count != 1 {
+			t.Errorf("%s request count = %d, want 1", path, count)
 		}
 	}
 }

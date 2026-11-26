@@ -1,0 +1,1 @@
+<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Body><s:Fault><s:Code><s:Value>s:VersionMismatch</s:Value></s:Code><s:Reason><s:Text xml:lang="en">Synthetic SOAP 1.2 version mismatch</s:Text></s:Reason></s:Fault></s:Body></s:Envelope>
