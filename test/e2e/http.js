@@ -8,15 +8,20 @@ const base = __ENV.SOAP_FIXTURE_URL;
 const client = new Client({url:base});
 const soap11 = {
   version:'11', namespace:'http://schemas.xmlsoap.org/soap/envelope/', code:'Server', responseType:'text', mediaType:'text/xml',
+  explicitOperation:open('../fixture/testdata/soap12/th1-soap11-explicit-operation.xml'),
+  omittedOperation:open('../fixture/testdata/soap12/th1-soap11-omitted-operation.xml'),
   soap:new Client({url:base+'/echo', soapVersion:'1.1'}),
 };
 const soap12 = {
   version:'12', namespace:'http://www.w3.org/2003/05/soap-envelope', code:'Receiver', responseType:'binary', mediaType:'application/soap+xml',
+  explicitOperation:open('../fixture/testdata/soap12/th1-soap12-explicit-operation.xml'),
+  omittedOperation:open('../fixture/testdata/soap12/th1-soap12-omitted-operation.xml'),
   soap:new Client({url:base+'/echo', soapVersion:'1.2', namespace:'urn:fixture'}),
 };
 const echoNamespaces = {m:'urn:fixture'};
-const echoPayload = marker => `<m:Echo xmlns:m="urn:fixture">${marker}</m:Echo>`;
 const faultRequest = open('../fixture/testdata/soap12/fault-request.xml');
+const t66Undeclared = open('../fixture/testdata/soap12/t66-undeclared-envelope.xml', 'b');
+const t66Declared = open('../fixture/testdata/soap12/t66-declared-envelope.xml', 'b');
 
 function rejectsArgument(call, stage) {
   try {
@@ -27,10 +32,10 @@ function rejectsArgument(call, stage) {
   return false;
 }
 
-function checkEcho({version, namespace, responseType, mediaType, soap}) {
+function checkEcho({version, namespace, responseType, mediaType, explicitOperation, omittedOperation, soap}) {
   const explicit = `soap${version}-explicit`;
   const omitted = `soap${version}-omitted`;
-  const request = soap.build('Echo', echoPayload(explicit), {soapAction:'urn:echo'});
+  const request = soap.build('Echo', explicitOperation, {soapAction:'urn:echo'});
   const params = {
     responseType, timeout:'2s', redirects:0,
   };
@@ -52,26 +57,15 @@ function checkEcho({version, namespace, responseType, mediaType, soap}) {
       return result.error === null && result.value.length === 1 && result.value[0] === explicit;
     },
   });
-  const requestWithoutAction = soap.build('Echo', echoPayload(omitted));
+  const requestWithoutAction = soap.build('Echo', omittedOperation);
   const omittedReply = http.post(requestWithoutAction.url, requestWithoutAction.body, {
     ...params, headers:{...requestWithoutAction.headers, 'X-Synthetic':'soap-e2e'},
   });
   check(soap.parse(omittedReply), {
     'omitted action echoes its own marker': p => p.ok && p.xpath('string(//m:Echo)', echoNamespaces).value === omitted,
   });
-  const declarationMarker = `soap${version}-declared`;
-  const declarationRequest = soap.build('Echo', echoPayload(declarationMarker));
-  const undeclared = soap.parse({status:200, body:declarationRequest.body});
-  const declared = http.post(declarationRequest.url, '<?xml version="1.0" encoding="UTF-8"?>\n' + declarationRequest.body,
-    {...params, headers:declarationRequest.headers});
-  check([response, omittedReply, declared], {
-    [`SOAP ${version} echo replies have the expected media type`]: replies => replies.every(reply =>
-      reply.status === 200 && reply.headers['Content-Type']?.split(';', 1)[0].trim().toLowerCase() === mediaType),
-  });
-  check(soap.parse(declared), {
-    'XML declaration preserves accepted response content': p =>
-      p.ok && p.status === undeclared.status && p.body === undeclared.body &&
-      p.xpath('string(//m:Echo)', echoNamespaces).value === declarationMarker,
+  check([response, omittedReply], {
+    [`SOAP ${version} echo replies have the expected media type`]: replies => replies.every(reply => isEchoReply(reply, mediaType)),
   });
   const httpError = soap.parse({status:503, body:request.body});
   check(httpError, {
@@ -84,6 +78,42 @@ function checkEcho({version, namespace, responseType, mediaType, soap}) {
     'plain client withholds encrypted Body before HTTP outcome': p =>
       !p.ok && p.error?.code === 'POLICY_VIOLATION' && p.body === null && p.fault === null &&
       p.xpath('.').error?.code === 'CONTENT_UNAVAILABLE',
+  });
+}
+
+function isEchoReply(response, mediaType) {
+  return response.status === 200 && response.headers['Content-Type']?.split(';', 1)[0].trim().toLowerCase() === mediaType;
+}
+
+function checkSOAP11Declaration({responseType, mediaType, soap}) {
+  const request = soap.build('Echo', '<m:Echo xmlns:m="urn:fixture">soap11-declared</m:Echo>');
+  const undeclared = soap.parse({status:200, body:request.body});
+  const declared = http.post(request.url, '<?xml version="1.0" encoding="UTF-8"?>\n' + request.body,
+    {responseType, timeout:'2s', redirects:0, headers:request.headers});
+  check(declared, {
+    'SOAP 1.1 declared echo reply has the expected media type': reply => isEchoReply(reply, mediaType),
+  });
+  check(soap.parse(declared), {
+    'SOAP 1.1 XML declaration preserves accepted response content': p =>
+      p.ok && p.status === undeclared.status && p.body === undeclared.body &&
+      p.xpath('string(//m:Echo)', echoNamespaces).value === 'soap11-declared',
+  });
+}
+
+function checkSOAP12Declaration({responseType, mediaType, soap}) {
+  const path = base + '/echo';
+  const params = {responseType, timeout:'2s', redirects:0};
+  const headers = {'Content-Type': mediaType + '; charset=utf-8'};
+  const undeclared = http.post(path, t66Undeclared, {...params, headers:{...headers, 'X-Synthetic':'t66-undeclared'}});
+  const declared = http.post(path, t66Declared, {...params, headers:{...headers, 'X-Synthetic':'t66-declared'}});
+  check([undeclared, declared], {
+    'W3C T66 both echo replies are HTTP 200 with the SOAP 1.2 media type': replies =>
+      replies.every(reply => isEchoReply(reply, mediaType)),
+  });
+  check([soap.parse(undeclared), soap.parse(declared)], {
+    'W3C T66 XML declaration preserves the accepted Body and XPath marker': ([withoutDeclaration, withDeclaration]) =>
+      withoutDeclaration.body === withDeclaration.body &&
+      [withoutDeclaration, withDeclaration].every(p => acceptsSOAP12XMLReply(p, 'soap12-declared')),
   });
 }
 
@@ -309,6 +339,8 @@ export default function () {
   check(client, { 'custom extension loaded': (c) => typeof c.build === 'function' && typeof c.parse === 'function' });
   checkEcho(soap11);
   checkEcho(soap12);
+  checkSOAP11Declaration(soap11);
+  checkSOAP12Declaration(soap12);
   checkFault(soap11);
   checkFault(soap12);
   checkVersionMismatchFault(soap11);

@@ -23,8 +23,9 @@ const soap12Envelope = "http://www.w3.org/2003/05/soap-envelope"
 type echoEnvelope struct {
 	XMLName xml.Name
 	Body    struct {
-		XMLName xml.Name `xml:"Body"`
-		Markers []string `xml:"urn:fixture Echo"`
+		XMLName  xml.Name `xml:"Body"`
+		InnerXML string   `xml:",innerxml"`
+		Markers  []string `xml:"urn:fixture Echo"`
 	} `xml:"Body"`
 }
 
@@ -57,9 +58,10 @@ func TestK6SOAPFixture(t *testing.T) {
 			}
 			captures := server.Captures()
 			assertSOAPActionCaptures(t, captures)
+			assertSOAP12DeclarationCaptures(t, captures)
 			assertFixedSOAPRequestCaptures(t, captures)
-			if len(captures) != 57 {
-				t.Fatalf("expected 57 HTTP requests, got %d\n%s", len(captures), output)
+			if len(captures) != 58 {
+				t.Fatalf("expected 58 HTTP requests, got %d\n%s", len(captures), output)
 			}
 		})
 	}
@@ -85,7 +87,7 @@ func assertSOAPActionCaptures(t *testing.T, captures []fixture.Capture) {
 		}
 		var envelope echoEnvelope
 		if err := xml.Unmarshal([]byte(capture.Body), &envelope); err != nil {
-			t.Fatalf("invalid wire Envelope: %v", err)
+			t.Fatal("invalid wire Envelope")
 		}
 		marked := capture.Header.Get("X-Synthetic") == "soap-e2e"
 		if len(envelope.Body.Markers) != 1 {
@@ -98,11 +100,15 @@ func assertSOAPActionCaptures(t *testing.T, captures []fixture.Capture) {
 		expected, ok := want[marker]
 		if !ok {
 			if marked {
-				t.Errorf("unexpected wire marker %q", marker)
+				t.Error("unexpected wire Echo marker")
 			}
 			continue
 		}
 		seen[marker]++
+		wantOperation := readSOAPFixture(t, "th1-"+marker+"-operation.xml")
+		if envelope.Body.InnerXML != wantOperation {
+			t.Errorf("%s: operation bytes differ (got %d bytes, want %d)", marker, len(envelope.Body.InnerXML), len(wantOperation))
+		}
 		if !marked || envelope.XMLName != (xml.Name{Space: expected.namespace, Local: "Envelope"}) || envelope.Body.XMLName.Space != expected.namespace {
 			t.Errorf("%s: wrong synthetic header or SOAP namespace", marker)
 		}
@@ -127,16 +133,13 @@ func assertSOAPActionCaptures(t *testing.T, captures []fixture.Capture) {
 
 func assertFixedSOAPRequestCaptures(t *testing.T, captures []fixture.Capture) {
 	t.Helper()
-	wantFaultRequest, err := os.ReadFile("../fixture/testdata/soap12/fault-request.xml")
-	if err != nil {
-		t.Fatal(err)
-	}
+	wantFaultRequest := readSOAPFixture(t, "fault-request.xml")
 	faultRequests := map[string]int{"/fault11": 0, "/fault12": 0}
 	for _, capture := range captures {
 		path := capture.Path
 		if _, fault := faultRequests[path]; fault {
 			faultRequests[path]++
-			if capture.Body != string(wantFaultRequest) {
+			if capture.Body != wantFaultRequest {
 				t.Errorf("%s request body bytes differ (got %d bytes, want %d)", path, len(capture.Body), len(wantFaultRequest))
 			}
 			continue
@@ -152,4 +155,38 @@ func assertFixedSOAPRequestCaptures(t *testing.T, captures []fixture.Capture) {
 			t.Errorf("%s request count = %d, want 1", path, count)
 		}
 	}
+}
+
+func assertSOAP12DeclarationCaptures(t *testing.T, captures []fixture.Capture) {
+	t.Helper()
+	undeclared := readSOAPFixture(t, "t66-undeclared-envelope.xml")
+	declared := readSOAPFixture(t, "t66-declared-envelope.xml")
+	const declaration = `<?xml version="1.0" encoding="UTF-8"?>` + "\n"
+	if declaration+undeclared != declared {
+		t.Fatal("T66 fixtures must differ only by the UTF-8 declaration line")
+	}
+	for variant, want := range map[string]string{"t66-undeclared": undeclared, "t66-declared": declared} {
+		count := 0
+		for _, capture := range captures {
+			if capture.Path != "/echo" || capture.Header.Get("X-Synthetic") != variant {
+				continue
+			}
+			count++
+			if capture.Body != want {
+				t.Errorf("%s request body bytes differ (got %d bytes, want %d)", variant, len(capture.Body), len(want))
+			}
+		}
+		if count != 1 {
+			t.Errorf("%s echo request count = %d, want 1", variant, count)
+		}
+	}
+}
+
+func readSOAPFixture(t *testing.T, name string) string {
+	t.Helper()
+	body, err := os.ReadFile(filepath.Join("../fixture/testdata/soap12", name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(body)
 }

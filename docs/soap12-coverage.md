@@ -32,7 +32,8 @@ has no body in either direction and no response Content-Type. The generic
 Fault checks share one [trigger XML][fault-request] for the
 [SOAP 1.1 Fault reply][fault-soap11-reply] and the
 [SOAP 1.2 Receiver Fault reply][xmlp8-receiver-fault-reply].
-The DTD fixtures use inert URNs and are served as bytes.
+The DTD fixtures use inert URNs and are served as bytes. For TH1 and T66,
+the local echo peer returns the received request bytes as its response body.
 
 ## Numbered cases
 
@@ -102,7 +103,7 @@ The DTD fixtures use inert URNs and are served as bytes.
 | [T63][w3c-T63] | Validate a country code carried in a mandatory header | Outside | Requires a peer handler for the application header and its fault semantics. |
 | [T64][w3c-T64] | XML notation declaration | Adapted | The [public notation check][t64-k6] asserts XML_INVALID and withheld content for an internal subset that declares a notation. The upstream peer generates a Fault. [Reply XML][t64-reply]. |
 | [T65][w3c-T65] | Unparsed entity declaration | Adapted | The [public unparsed entity check][t65-k6] asserts XML_INVALID and withheld content for an internal subset with an inert NDATA entity. This matches the described request shape. The published sample only declares elements, and the upstream peer generates a Fault. [Reply XML][t65-reply]. |
-| [T66][w3c-T66] | Accept an explicit UTF-8 XML declaration | Adapted | [Public echo check][echo] compares declared and undeclared accepted Body content and asserts the marker. The upstream peer responds to an application header. |
+| [T66][w3c-T66] | Accept an explicit UTF-8 XML declaration | Adapted | The [public declaration check][t66-k6] POSTs both SOAP 1.2 Envelopes to the echo peer and verifies HTTP 200, equal accepted Body content, and the same Body XPath marker. The [receiver request check][t66-wire] compares both captured requests with their XML files. The upstream peer responds to an application header. [Declared Envelope][t66-declared-envelope] · [Undeclared Envelope][t66-undeclared-envelope]. |
 | [T67][w3c-T67] | Accept an XML declaration with standalone=yes | Adapted | The [public standalone check][t67-k6] accepts a SOAP 1.2 reply with an XML 1.0 standalone declaration and no declared encoding, then queries its Body marker. The upstream peer answers a standalone request with an application reply Header. [Reply XML][t67-reply]. |
 | [T68][w3c-T68] | Accept extra Envelope and Header whitespace | Adapted | The [public whitespace checks][t68-k6] accept compact and formatted SOAP 1.2 replies and assert the same namespace-aware Body XPath value. The upstream peer answers the whitespace-varied request with an application reply Header. [Compact reply][t68-compact-reply] · [Formatted reply][t68-formatted-reply]. |
 | [T69][w3c-T69] | Reject a missing Body | Adapted | [Public k6 T69 check][t69-k6] rejects an HTTP 200 SOAP 1.2 reply that retains its Header and omits Body. The upstream receiving peer generates a Fault. [Reply XML][t69-reply] · [Valid Envelope control check][envelope-control-k6] · [Control XML][t69-t70-valid-envelope-control-reply]. |
@@ -122,7 +123,7 @@ The DTD fixtures use inert URNs and are served as bytes.
 
 | W3C case | Behavior | Status | Evidence and next action |
 | --- | --- | --- | --- |
-| [TH1][w3c-TH1] | SOAP 1.2 POST returns HTTP 200 with SOAP XML | Direct | [Public echo check][echo] and [receiver request check][wire] assert a SOAP 1.2 exchange with the expected request and reply media types, HTTP 200, and an accepted Body marker. This evidence covers the HTTP binding behavior with a synthetic echo payload. |
+| [TH1][w3c-TH1] | SOAP 1.2 POST returns HTTP 200 with SOAP XML | Direct | The [public build-and-echo check][echo] POSTs the Envelope and headers returned by `Client.build()` and asserts HTTP 200, the reply media type, and the Body XPath marker. The [receiver request check][wire] verifies the captured operation bytes, media type, and action handling, including the SOAP 1.1 controls. [SOAP 1.2 explicit action][th1-soap12-explicit-operation] · [SOAP 1.2 omitted action][th1-soap12-omitted-operation] · [SOAP 1.1 explicit action][th1-soap11-explicit-operation] · [SOAP 1.1 omitted action][th1-soap11-omitted-operation]. |
 | [TH2][w3c-TH2] | Missing Body yields HTTP 400 Sender Fault | Adapted | The [public peer Fault checks][peer-faults] use a synthetic HTTP 400 SOAP 1.2 Sender reply and assert the status, qualified Fault code, and Reason via Body-scoped XPath. The fixture supplies the outcome. Fault generation after a request with a missing Body is outside the client test. [Reply XML shared with XMLP-7][th2-sender-fault-reply]. |
 | [TH3][w3c-TH3] | SOAP 1.1 request yields HTTP 500 VersionMismatch | Adapted | The [opposite-version reply check][opposite-version-fault] asserts that a SOAP 1.1 client preserves HTTP 500 for a supplied SOAP 1.2 VersionMismatch Fault and returns ok false, XML_INVALID at stage xml, and null Body and Fault. Body-scoped XPath returns CONTENT_UNAVAILABLE and a null value. Peer Fault and Upgrade generation are outside the client test. [Reply XML shared with XMLP-5][th3-reply]. |
 | [TH4][w3c-TH4] | Mandatory header failure yields HTTP 500 MustUnderstand | Adapted | The [public peer Fault checks][peer-faults] use a synthetic HTTP 500 SOAP 1.2 MustUnderstand reply and assert the status, qualified Fault code, and Reason via Body-scoped XPath. The fixture supplies the outcome. Peer handling of a mandatory header and Fault generation are outside the client test. [Reply XML shared with XMLP-6][th4-must-understand-fault-reply]. |
@@ -239,29 +240,31 @@ adaptations exercise local client rejection, as recorded in [ADR-0009][wrapper-a
 [collection]: https://www.w3.org/TR/2007/REC-soap12-testcollection-20070427/#tests
 [contracts]: contracts.md
 [architecture]: architecture.md#5-payload-envelopes-and-headers
-[echo]: ../test/e2e/http.js#L30
-[fault]: ../test/e2e/http.js#L90
-[roles]: ../test/e2e/http.js#L130
-[mandatory-other-role]: ../test/e2e/http.js#L137
-[mandatory-next-role]: ../test/e2e/http.js#L142
-[optional-other-role]: ../test/e2e/http.js#L297
-[long-role]: ../test/e2e/http.js#L298
-[ipv6-header-namespace]: ../test/e2e/http.js#L299
-[optional-next-role]: ../test/e2e/http.js#L300
-[t34-k6]: ../test/e2e/http.js#L154
-[omitted-must-understand]: ../test/e2e/http.js#L172
-[invalid-must-understand]: ../test/e2e/http.js#L176
-[descendant-header-attributes]: ../test/e2e/http.js#L180
-[version-fault]: ../test/e2e/http.js#L103
-[peer-faults]: ../test/e2e/http.js#L199
-[data-encoding-unknown-fault]: ../test/e2e/http.js#L204-L220
-[procedure-not-present-fault]: ../test/e2e/http.js#L205-L220
-[bad-arguments-fault]: ../test/e2e/http.js#L206-L220
+[echo]: ../test/e2e/http.js#L35
+[t66-k6]: ../test/e2e/http.js#L103
+[fault]: ../test/e2e/http.js#L120
+[roles]: ../test/e2e/http.js#L160
+[mandatory-other-role]: ../test/e2e/http.js#L167
+[mandatory-next-role]: ../test/e2e/http.js#L172
+[optional-other-role]: ../test/e2e/http.js#L327
+[long-role]: ../test/e2e/http.js#L328
+[ipv6-header-namespace]: ../test/e2e/http.js#L329
+[optional-next-role]: ../test/e2e/http.js#L330
+[t34-k6]: ../test/e2e/http.js#L184
+[omitted-must-understand]: ../test/e2e/http.js#L202
+[invalid-must-understand]: ../test/e2e/http.js#L206
+[descendant-header-attributes]: ../test/e2e/http.js#L210
+[version-fault]: ../test/e2e/http.js#L133
+[peer-faults]: ../test/e2e/http.js#L229
+[data-encoding-unknown-fault]: ../test/e2e/http.js#L234-L250
+[procedure-not-present-fault]: ../test/e2e/http.js#L235-L250
+[bad-arguments-fault]: ../test/e2e/http.js#L236-L250
 [http-fault-mapping]: https://www.w3.org/TR/soap12-part2/#tabresstatereccodes
-[opposite-version-fault]: ../test/e2e/http.js#L234
-[unsupported-media-reply]: ../test/e2e/http.js#L245
-[wire]: ../test/e2e/http_test.go#L68
-[fixed-requests-k6]: ../test/e2e/http_test.go#L128
+[opposite-version-fault]: ../test/e2e/http.js#L264
+[unsupported-media-reply]: ../test/e2e/http.js#L275
+[wire]: ../test/e2e/http_test.go#L70
+[t66-wire]: ../test/e2e/http_test.go#L160
+[fixed-requests-k6]: ../test/e2e/http_test.go#L134
 [fixed-replies-http]: ../test/fixture/fixed_replies_test.go#L12
 [object]: ../test/e2e/object.js#L5
 [envelope]: ../internal/message/message_test.go#L109
@@ -272,21 +275,27 @@ adaptations exercise local client rejection, as recorded in [ADR-0009][wrapper-a
 [t34-signed]: ../internal/wssec/headers_test.go#L107-L120
 [t34-encrypted]: ../internal/wssec/header_encryption_test.go#L30
 [t34-adr]: adr/0008-soap12-foreign-must-understand.md
-[wrapper-k6]: ../test/e2e/http.js#L253
-[wrapper-control-k6]: ../test/e2e/http.js#L187
-[t24-k6]: ../test/e2e/http.js#L255
-[t25-k6]: ../test/e2e/http.js#L256
-[t64-k6]: ../test/e2e/http.js#L258
-[t65-k6]: ../test/e2e/http.js#L259
-[t67-k6]: ../test/e2e/http.js#L285
-[t68-k6]: ../test/e2e/http.js#L290
-[t69-k6]: ../test/e2e/http.js#L260
-[t70-k6]: ../test/e2e/http.js#L261
-[envelope-control-k6]: ../test/e2e/http.js#L280
+[wrapper-k6]: ../test/e2e/http.js#L283
+[wrapper-control-k6]: ../test/e2e/http.js#L217
+[t24-k6]: ../test/e2e/http.js#L285
+[t25-k6]: ../test/e2e/http.js#L286
+[t64-k6]: ../test/e2e/http.js#L288
+[t65-k6]: ../test/e2e/http.js#L289
+[t67-k6]: ../test/e2e/http.js#L315
+[t68-k6]: ../test/e2e/http.js#L320
+[t69-k6]: ../test/e2e/http.js#L290
+[t70-k6]: ../test/e2e/http.js#L291
+[envelope-control-k6]: ../test/e2e/http.js#L310
 [wrapper-signed]: ../internal/adapter/receive_test.go#L52
 [wrapper-recovered]: ../internal/wssec/response_encryption_test.go#L143
 [wrapper-adr]: adr/0009-soap12-response-wrapper-attributes.md
 
+[t66-declared-envelope]: ../test/fixture/testdata/soap12/t66-declared-envelope.xml
+[t66-undeclared-envelope]: ../test/fixture/testdata/soap12/t66-undeclared-envelope.xml
+[th1-soap11-explicit-operation]: ../test/fixture/testdata/soap12/th1-soap11-explicit-operation.xml
+[th1-soap11-omitted-operation]: ../test/fixture/testdata/soap12/th1-soap11-omitted-operation.xml
+[th1-soap12-explicit-operation]: ../test/fixture/testdata/soap12/th1-soap12-explicit-operation.xml
+[th1-soap12-omitted-operation]: ../test/fixture/testdata/soap12/th1-soap12-omitted-operation.xml
 [fault-request]: ../test/fixture/testdata/soap12/fault-request.xml
 [fault-soap11-reply]: ../test/fixture/testdata/soap12/fault-soap11-reply.xml
 [sbr2-echo-me-unknown-optional-next-reply]: ../test/fixture/testdata/soap12/sbr2-echo-me-unknown-optional-next-reply.xml

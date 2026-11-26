@@ -1,0 +1,5 @@
+<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope">
+  <s:Body>
+    <m:Echo xmlns:m="urn:fixture">soap12-declared</m:Echo>
+  </s:Body>
+</s:Envelope>
