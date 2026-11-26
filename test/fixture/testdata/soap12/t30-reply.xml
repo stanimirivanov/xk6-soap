@@ -1,0 +1,1 @@
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Header><s:Upgrade><s:SupportedEnvelope xmlns:n="http://www.w3.org/2003/05/soap-envelope" qname="n:Envelope"/></s:Upgrade></s:Header><s:Body><s:Fault><faultcode>s:VersionMismatch</faultcode><faultstring>Synthetic version mismatch</faultstring></s:Fault></s:Body></s:Envelope>

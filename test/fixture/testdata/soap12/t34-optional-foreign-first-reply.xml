@@ -1,0 +1,1 @@
+<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Header><m:Unknown xmlns:m="urn:fixture" xmlns:legacy="http://schemas.xmlsoap.org/soap/envelope/" legacy:mustUnderstand="1" s:mustUnderstand="0"/></s:Header><s:Body><m:Echo xmlns:m="urn:fixture">w3c-role-marker</m:Echo></s:Body></s:Envelope>

@@ -4,10 +4,8 @@ package fixture
 import (
 	"encoding/xml"
 	"io"
-	"log"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -15,12 +13,6 @@ import (
 
 const MaxBodyBytes = 64 << 10
 const maxCaptures = 128
-const soap12EncodingNone = "http://www.w3.org/2003/05/soap-envelope/encoding/none"
-const soap12EnvelopeFixtureBody = `<s:Body><m:Echo>soap12-envelope-marker</m:Echo></s:Body>`
-const legacySOAPNamespace = ` xmlns:legacy="http://schemas.xmlsoap.org/soap/envelope/"`
-const soap12XMLFixtureBody = `<s:Body><m:Echo>soap12-xml-marker</m:Echo></s:Body>`
-const soap12CompactXMLReply = `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:m="urn:fixture">` +
-	`<s:Header><m:Optional/></s:Header>` + soap12XMLFixtureBody + `</s:Envelope>`
 
 // Capture is an in-memory synthetic request, never written to production logs.
 type Capture struct {
@@ -74,7 +66,10 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	s.captures = append(s.captures, Capture{Path: r.URL.Path, Body: string(body), Header: r.Header.Clone()})
 	s.mu.Unlock()
-	var writeErr error
+	if reply, ok := fixedSOAPReplies[r.URL.Path]; ok {
+		s.serveFixedSOAPReply(w, r.URL.Path, reply)
+		return
+	}
 	switch r.URL.Path {
 	case "/echo":
 		var root struct{ XMLName xml.Name }
@@ -84,106 +79,8 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Content-Type", mediaType+"; charset=utf-8")
 		_, _ = w.Write(body)
-	case "/fault11":
-		w.Header().Set("Content-Type", "text/xml; charset=utf-8")
-		w.WriteHeader(500)
-		_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><s:Fault><faultcode>s:Server</faultcode><faultstring>Synthetic fault</faultstring><detail><fixture/></detail></s:Fault></s:Body></s:Envelope>`)
-	case "/fault12":
-		writeErr = writeSOAP12FaultReply(w, http.StatusInternalServerError, "Receiver", "", "Synthetic fault", `<s:Detail><fixture/></s:Detail>`)
-	case "/soap12-sender-fault":
-		writeErr = writeSOAP12FaultReply(w, http.StatusBadRequest, "Sender", "", "Synthetic Sender reason", "")
-	case "/soap12-must-understand-fault":
-		writeErr = writeSOAP12FaultReply(w, http.StatusInternalServerError, "MustUnderstand", "", "Synthetic MustUnderstand reason", "")
-	case "/soap12-data-encoding-unknown-fault":
-		writeErr = writeSOAP12FaultReply(w, http.StatusInternalServerError, "DataEncodingUnknown", "", "Synthetic unsupported encoding", "")
-	case "/soap12-procedure-not-present-fault":
-		writeErr = writeSOAP12FaultReply(w, http.StatusBadRequest, "Sender", "ProcedureNotPresent", "Synthetic missing procedure", "")
-	case "/soap12-bad-arguments-fault":
-		writeErr = writeSOAP12FaultReply(w, http.StatusBadRequest, "Sender", "BadArguments", "Synthetic invalid arguments", "")
-	case "/w3c-th3":
-		writeErr = writeSOAP12FaultReply(w, http.StatusInternalServerError, "VersionMismatch", "", "Synthetic SOAP 1.2 version mismatch", "")
 	case "/w3c-th5":
 		w.WriteHeader(http.StatusUnsupportedMediaType)
-	case "/w3c-t24":
-		writeErr = writeSOAP12XMLReply(w, strings.Replace(soap12CompactXMLReply, "http://www.w3.org/2003/05/soap-envelope", "urn:fixture:unrelated-envelope", 1))
-	case "/w3c-t25":
-		writeErr = writeSOAP12XMLReply(w, `<!DOCTYPE s:Envelope SYSTEM "urn:fixture:external-dtd">`+soap12CompactXMLReply)
-	case "/w3c-t64":
-		writeErr = writeSOAP12XMLReply(w, `<!DOCTYPE s:Envelope [<!NOTATION fixture SYSTEM "urn:fixture:notation">]>`+soap12CompactXMLReply)
-	case "/w3c-t65":
-		// Exercise the described unparsed entity shape. The published sample only declares elements.
-		writeErr = writeSOAP12XMLReply(w, `<!DOCTYPE s:Envelope [
-<!NOTATION fixture SYSTEM "urn:fixture:notation">
-<!ENTITY sample SYSTEM "urn:fixture:unparsed-entity" NDATA fixture>
-]>`+soap12CompactXMLReply)
-	case "/w3c-t67":
-		writeErr = writeSOAP12XMLReply(w, `<?xml version="1.0" standalone="yes"?>`+soap12CompactXMLReply)
-	case "/w3c-t68/compact":
-		writeErr = writeSOAP12XMLReply(w, soap12CompactXMLReply)
-	case "/w3c-t68/formatted":
-		writeErr = writeSOAP12XMLReply(w, `<s:Envelope
-  xmlns:s="http://www.w3.org/2003/05/soap-envelope"
-  xmlns:m="urn:fixture">
-  <s:Header  >
-    <m:Optional/>
-  </s:Header>
-  `+soap12XMLFixtureBody+`
-</s:Envelope>`)
-	case "/w3c-t28":
-		writeWrapperAttributeReply(w, "", ` s:encodingStyle="`+soap12EncodingNone+`"`, "")
-	case "/soap12-valid-envelope":
-		writeEnvelopeStructureReply(w, soap12EnvelopeFixtureBody)
-	case "/w3c-t69":
-		writeEnvelopeStructureReply(w, "")
-	case "/w3c-t70":
-		writeEnvelopeStructureReply(w, soap12EnvelopeFixtureBody+`<Trailer/>`)
-	case "/w3c-t71":
-		writeWrapperAttributeReply(w, ` xmlns="http://www.w3.org/2003/05/soap-envelope" ordinary="fixture"`, "", "")
-	case "/w3c-t72":
-		writeWrapperAttributeReply(w, ` xmlns:env="http://www.w3.org/2003/05/soap-envelope" env:encodingStyle="`+soap12EncodingNone+`"`, "", "")
-	case "/soap12-qualified-wrapper-attributes":
-		writeWrapperAttributeReply(w, ` m:encodingStyle="fixture"`, ` m:metadata="fixture"`, ` s:encodingStyle="`+soap12EncodingNone+`"`)
-	case "/w3c-t30":
-		// Adapt W3C T30 to projection of a supplied Fault reply.
-		w.Header().Set("Content-Type", "text/xml; charset=utf-8")
-		w.WriteHeader(http.StatusInternalServerError)
-		_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Header><s:Upgrade><s:SupportedEnvelope xmlns:n="http://www.w3.org/2003/05/soap-envelope" qname="n:Envelope"/></s:Upgrade></s:Header><s:Body><s:Fault><faultcode>s:VersionMismatch</faultcode><faultstring>Synthetic version mismatch</faultstring></s:Fault></s:Body></s:Envelope>`)
-	case "/w3c-t5":
-		writeHeaderRoleReply(w, "urn:fixture:other-role", "")
-	case "/w3c-t12":
-		writeHeaderRoleReply(w, "http://www.w3.org/2003/05/soap-envelope/role/ultimateReceiver", "1")
-	case "/w3c-t15":
-		writeHeaderRoleReply(w, "urn:fixture:other-role", "1")
-	case "/w3c-t29":
-		const rolePrefix = "https://roles.example.invalid/"
-		writeHeaderRoleReply(w, rolePrefix+strings.Repeat("r", 2048-len(rolePrefix)), "")
-	case "/w3c-sbr2-optional-next":
-		writeHeaderRoleReply(w, "http://www.w3.org/2003/05/soap-envelope/role/next", "")
-	case "/w3c-standard-role/next", "/w3c-standard-role/none":
-		writeHeaderRoleReply(w, "http://www.w3.org/2003/05/soap-envelope/role/"+strings.TrimPrefix(r.URL.Path, "/w3c-standard-role/"), "1")
-	case "/w3c-default-role/0", "/w3c-default-role/1", "/w3c-default-role/true", "/w3c-default-role/false":
-		writeHeaderRoleReply(w, "", strings.TrimPrefix(r.URL.Path, "/w3c-default-role/"))
-	case "/w3c-t34/foreign-only":
-		writeHeaderReply(w, legacySOAPNamespace+` legacy:mustUnderstand="1"`)
-	case "/w3c-t34/mandatory-native-first":
-		writeHeaderReply(w, legacySOAPNamespace+` s:mustUnderstand="1" legacy:mustUnderstand="0"`)
-	case "/w3c-t34/mandatory-foreign-first":
-		writeHeaderReply(w, legacySOAPNamespace+` legacy:mustUnderstand="0" s:mustUnderstand="1"`)
-	case "/w3c-t34/optional-native-first":
-		writeHeaderReply(w, legacySOAPNamespace+` s:mustUnderstand="0" legacy:mustUnderstand="1"`)
-	case "/w3c-t34/optional-foreign-first":
-		writeHeaderReply(w, legacySOAPNamespace+` legacy:mustUnderstand="1" s:mustUnderstand="0"`)
-	case "/w3c-t34/foreign-actor":
-		writeHeaderReply(w, legacySOAPNamespace+` legacy:actor="urn:fixture:actor"`)
-	case "/w3c-t37":
-		writeHeaderReply(w, ` s:role="http://www.w3.org/2003/05/soap-envelope/role/ultimateReceiver"`)
-	case "/w3c-t39":
-		writeHeaderRoleReply(w, "", "invalid")
-	case "/w3c-t40":
-		writeHeaderBlockReply(w, `<m:Unknown xmlns:m="http://[2001:db8::42]/fixture-header"`+
-			` s:role="http://www.w3.org/2003/05/soap-envelope/role/ultimateReceiver" s:mustUnderstand="false"/>`)
-	case "/w3c-t74":
-		writeHeaderBlockReply(w, `<m:Unknown xmlns:m="urn:fixture"><m:Nested s:role="http://www.w3.org/2003/05/soap-envelope/role/next" s:mustUnderstand="1"/></m:Unknown>`)
 	case "/empty":
 		w.WriteHeader(http.StatusNoContent)
 	case "/binary":
@@ -207,69 +104,4 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.NotFound(w, r)
 	}
-	if writeErr != nil {
-		logger := s.Config.ErrorLog
-		if logger == nil {
-			logger = log.Default()
-		}
-		// The matched fixture route is safe to log. Write errors may contain sensitive text.
-		logger.Printf("SOAP 1.2 fixture %s: response write failed", r.URL.Path)
-	}
-}
-
-func writeSOAP12XMLReply(w http.ResponseWriter, body string) error {
-	w.Header().Set("Content-Type", "application/soap+xml; charset=utf-8")
-	_, err := io.WriteString(w, body)
-	return err
-}
-
-func writeSOAP12FaultReply(w http.ResponseWriter, status int, code, subcode, reason, detail string) error {
-	subcodeXML := ""
-	if subcode != "" {
-		subcodeXML = `<s:Subcode><s:Value xmlns:r="http://www.w3.org/2003/05/soap-rpc">r:` + subcode + `</s:Value></s:Subcode>`
-	}
-	w.Header().Set("Content-Type", "application/soap+xml; charset=utf-8")
-	w.WriteHeader(status)
-	_, err := io.WriteString(w, `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Body><s:Fault>`+
-		`<s:Code><s:Value>s:`+code+`</s:Value>`+subcodeXML+`</s:Code><s:Reason><s:Text xml:lang="en">`+reason+
-		`</s:Text></s:Reason>`+detail+`</s:Fault></s:Body></s:Envelope>`)
-	return err
-}
-
-// Keep the Body marker fixed while varying only the role or mustUnderstand.
-// An empty value omits its attribute.
-func writeHeaderRoleReply(w http.ResponseWriter, role, mustUnderstand string) {
-	attributes := ""
-	if mustUnderstand != "" {
-		attributes = ` s:mustUnderstand="` + mustUnderstand + `"`
-	}
-	if role != "" {
-		attributes += ` s:role="` + role + `"`
-	}
-	writeHeaderReply(w, attributes)
-}
-
-// All attributes come from the synthetic cases above.
-func writeHeaderReply(w http.ResponseWriter, attributes string) {
-	writeHeaderBlockReply(w, `<m:Unknown xmlns:m="urn:fixture"`+attributes+`/>`)
-}
-
-// Keep the Body marker fixed across SOAP 1.2 Header cases.
-func writeHeaderBlockReply(w http.ResponseWriter, block string) {
-	w.Header().Set("Content-Type", "application/soap+xml; charset=utf-8")
-	_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Header>`+block+`</s:Header><s:Body><m:Echo xmlns:m="urn:fixture">w3c-role-marker</m:Echo></s:Body></s:Envelope>`)
-}
-
-// Adapt W3C T28, T71 and T72 to client reply acceptance.
-func writeWrapperAttributeReply(w http.ResponseWriter, envelope, body, child string) {
-	w.Header().Set("Content-Type", "application/soap+xml; charset=utf-8")
-	_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:m="urn:fixture"`+envelope+
-		`><s:Body`+body+`><m:Echo`+child+`>soap12-wrapper-marker</m:Echo></s:Body></s:Envelope>`)
-}
-
-// Adapt W3C T69 and T70 to client reply acceptance with the same optional Header.
-func writeEnvelopeStructureReply(w http.ResponseWriter, afterHeader string) {
-	w.Header().Set("Content-Type", "application/soap+xml; charset=utf-8")
-	_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:m="urn:fixture">`+
-		`<s:Header><m:Optional/></s:Header>`+afterHeader+`</s:Envelope>`)
 }

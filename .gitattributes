@@ -1,2 +1,3 @@
 # Golden XML/canonical octets and synthetic PEM fixtures must remain byte stable.
 internal/wssec/testdata/* text eol=lf
+test/fixture/testdata/soap12/*.xml text eol=lf

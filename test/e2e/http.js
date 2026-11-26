@@ -16,6 +16,7 @@ const soap12 = {
 };
 const echoNamespaces = {m:'urn:fixture'};
 const echoPayload = marker => `<m:Echo xmlns:m="urn:fixture">${marker}</m:Echo>`;
+const faultRequest = open('../fixture/testdata/soap12/fault-request.xml');
 
 function rejectsArgument(call, stage) {
   try {
@@ -87,7 +88,7 @@ function checkEcho({version, namespace, responseType, mediaType, soap}) {
 }
 
 function checkFault({version, namespace, code, soap}) {
-  const response = http.post(`${base}/fault${version}`, '<synthetic/>', {timeout:'2s'});
+  const response = http.post(`${base}/fault${version}`, faultRequest, {timeout:'2s'});
   check(soap.parse(response), {
     [`SOAP ${version} Fault code and reason`]: p => p.status === 500 && !p.ok && p.error?.code === 'SOAP_FAULT' &&
       p.fault?.code?.namespace === namespace && p.fault.code.localName === code && p.fault.reason === 'Synthetic fault',

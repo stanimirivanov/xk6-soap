@@ -1,0 +1,4 @@
+<!DOCTYPE s:Envelope [
+<!NOTATION fixture SYSTEM "urn:fixture:notation">
+<!ENTITY sample SYSTEM "urn:fixture:unparsed-entity" NDATA fixture>
+]><s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:m="urn:fixture"><s:Header><m:Optional/></s:Header><s:Body><m:Echo>soap12-xml-marker</m:Echo></s:Body></s:Envelope>

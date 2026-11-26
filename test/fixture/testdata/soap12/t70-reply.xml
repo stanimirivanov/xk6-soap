@@ -1,0 +1,1 @@
+<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope" xmlns:m="urn:fixture"><s:Header><m:Optional/></s:Header><s:Body><m:Echo>soap12-envelope-marker</m:Echo></s:Body><Trailer/></s:Envelope>
