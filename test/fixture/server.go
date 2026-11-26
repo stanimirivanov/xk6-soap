@@ -87,13 +87,19 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
 		_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><s:Fault><faultcode>s:Server</faultcode><faultstring>Synthetic fault</faultstring><detail><fixture/></detail></s:Fault></s:Body></s:Envelope>`)
 	case "/fault12":
-		writeSOAP12FaultReply(w, http.StatusInternalServerError, "Receiver", "Synthetic fault", `<s:Detail><fixture/></s:Detail>`)
+		writeSOAP12FaultReply(w, http.StatusInternalServerError, "Receiver", "", "Synthetic fault", `<s:Detail><fixture/></s:Detail>`)
 	case "/soap12-sender-fault":
-		writeSOAP12FaultReply(w, http.StatusBadRequest, "Sender", "Synthetic Sender reason", "")
+		writeSOAP12FaultReply(w, http.StatusBadRequest, "Sender", "", "Synthetic Sender reason", "")
 	case "/soap12-must-understand-fault":
-		writeSOAP12FaultReply(w, http.StatusInternalServerError, "MustUnderstand", "Synthetic MustUnderstand reason", "")
+		writeSOAP12FaultReply(w, http.StatusInternalServerError, "MustUnderstand", "", "Synthetic MustUnderstand reason", "")
+	case "/soap12-data-encoding-unknown-fault":
+		writeSOAP12FaultReply(w, http.StatusInternalServerError, "DataEncodingUnknown", "", "Synthetic unsupported encoding", "")
+	case "/soap12-procedure-not-present-fault":
+		writeSOAP12FaultReply(w, http.StatusBadRequest, "Sender", "ProcedureNotPresent", "Synthetic missing procedure", "")
+	case "/soap12-bad-arguments-fault":
+		writeSOAP12FaultReply(w, http.StatusBadRequest, "Sender", "BadArguments", "Synthetic invalid arguments", "")
 	case "/w3c-th3":
-		writeSOAP12FaultReply(w, http.StatusInternalServerError, "VersionMismatch", "Synthetic SOAP 1.2 version mismatch", "")
+		writeSOAP12FaultReply(w, http.StatusInternalServerError, "VersionMismatch", "", "Synthetic SOAP 1.2 version mismatch", "")
 	case "/w3c-th5":
 		w.WriteHeader(http.StatusUnsupportedMediaType)
 	case "/w3c-t24":
@@ -206,11 +212,15 @@ func writeSOAP12XMLReply(w http.ResponseWriter, body string) {
 	_, _ = io.WriteString(w, body)
 }
 
-func writeSOAP12FaultReply(w http.ResponseWriter, status int, code, reason, detail string) {
+func writeSOAP12FaultReply(w http.ResponseWriter, status int, code, subcode, reason, detail string) {
+	subcodeXML := ""
+	if subcode != "" {
+		subcodeXML = `<s:Subcode><s:Value xmlns:r="http://www.w3.org/2003/05/soap-rpc">r:` + subcode + `</s:Value></s:Subcode>`
+	}
 	w.Header().Set("Content-Type", "application/soap+xml; charset=utf-8")
 	w.WriteHeader(status)
 	_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Body><s:Fault>`+
-		`<s:Code><s:Value>s:`+code+`</s:Value></s:Code><s:Reason><s:Text xml:lang="en">`+reason+
+		`<s:Code><s:Value>s:`+code+`</s:Value>`+subcodeXML+`</s:Code><s:Reason><s:Text xml:lang="en">`+reason+
 		`</s:Text></s:Reason>`+detail+`</s:Fault></s:Body></s:Envelope>`)
 }
 
