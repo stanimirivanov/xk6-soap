@@ -1,14 +1,47 @@
 package fixture
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
+	"errors"
 	"io"
+	"log"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 )
+
+type failingResponseWriter struct {
+	http.ResponseWriter
+}
+
+func (*failingResponseWriter) Write([]byte) (int, error) {
+	return 0, errors.New("synthetic-write-error-secret")
+}
+
+func TestSOAP12ReplyWriteFailureDiagnostics(t *testing.T) {
+	for _, path := range []string{"/w3c-t68/compact", "/fault12"} {
+		t.Run(path, func(t *testing.T) {
+			var diagnostics bytes.Buffer
+			server := &Server{Server: &httptest.Server{
+				Config: &http.Server{ErrorLog: log.New(&diagnostics, "", 0)},
+			}}
+			request := httptest.NewRequest(http.MethodPost, path+"?token=synthetic-query-secret", strings.NewReader("<request>synthetic-request-secret</request>"))
+			request.SetBasicAuth("fixture-user", "synthetic-password")
+			writer := &failingResponseWriter{ResponseWriter: httptest.NewRecorder()}
+
+			server.serveHTTP(writer, request)
+
+			want := "SOAP 1.2 fixture " + path + ": response write failed\n"
+			if got := diagnostics.String(); got != want {
+				t.Fatalf("diagnostic = %q, want %q", got, want)
+			}
+		})
+	}
+}
 
 func TestResponses(t *testing.T) {
 	server := Start(t)

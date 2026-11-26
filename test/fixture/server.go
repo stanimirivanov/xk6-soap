@@ -4,6 +4,7 @@ package fixture
 import (
 	"encoding/xml"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -73,6 +74,7 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	s.captures = append(s.captures, Capture{Path: r.URL.Path, Body: string(body), Header: r.Header.Clone()})
 	s.mu.Unlock()
+	var writeErr error
 	switch r.URL.Path {
 	case "/echo":
 		var root struct{ XMLName xml.Name }
@@ -87,39 +89,39 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
 		_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><s:Fault><faultcode>s:Server</faultcode><faultstring>Synthetic fault</faultstring><detail><fixture/></detail></s:Fault></s:Body></s:Envelope>`)
 	case "/fault12":
-		writeSOAP12FaultReply(w, http.StatusInternalServerError, "Receiver", "", "Synthetic fault", `<s:Detail><fixture/></s:Detail>`)
+		writeErr = writeSOAP12FaultReply(w, http.StatusInternalServerError, "Receiver", "", "Synthetic fault", `<s:Detail><fixture/></s:Detail>`)
 	case "/soap12-sender-fault":
-		writeSOAP12FaultReply(w, http.StatusBadRequest, "Sender", "", "Synthetic Sender reason", "")
+		writeErr = writeSOAP12FaultReply(w, http.StatusBadRequest, "Sender", "", "Synthetic Sender reason", "")
 	case "/soap12-must-understand-fault":
-		writeSOAP12FaultReply(w, http.StatusInternalServerError, "MustUnderstand", "", "Synthetic MustUnderstand reason", "")
+		writeErr = writeSOAP12FaultReply(w, http.StatusInternalServerError, "MustUnderstand", "", "Synthetic MustUnderstand reason", "")
 	case "/soap12-data-encoding-unknown-fault":
-		writeSOAP12FaultReply(w, http.StatusInternalServerError, "DataEncodingUnknown", "", "Synthetic unsupported encoding", "")
+		writeErr = writeSOAP12FaultReply(w, http.StatusInternalServerError, "DataEncodingUnknown", "", "Synthetic unsupported encoding", "")
 	case "/soap12-procedure-not-present-fault":
-		writeSOAP12FaultReply(w, http.StatusBadRequest, "Sender", "ProcedureNotPresent", "Synthetic missing procedure", "")
+		writeErr = writeSOAP12FaultReply(w, http.StatusBadRequest, "Sender", "ProcedureNotPresent", "Synthetic missing procedure", "")
 	case "/soap12-bad-arguments-fault":
-		writeSOAP12FaultReply(w, http.StatusBadRequest, "Sender", "BadArguments", "Synthetic invalid arguments", "")
+		writeErr = writeSOAP12FaultReply(w, http.StatusBadRequest, "Sender", "BadArguments", "Synthetic invalid arguments", "")
 	case "/w3c-th3":
-		writeSOAP12FaultReply(w, http.StatusInternalServerError, "VersionMismatch", "", "Synthetic SOAP 1.2 version mismatch", "")
+		writeErr = writeSOAP12FaultReply(w, http.StatusInternalServerError, "VersionMismatch", "", "Synthetic SOAP 1.2 version mismatch", "")
 	case "/w3c-th5":
 		w.WriteHeader(http.StatusUnsupportedMediaType)
 	case "/w3c-t24":
-		writeSOAP12XMLReply(w, strings.Replace(soap12CompactXMLReply, "http://www.w3.org/2003/05/soap-envelope", "urn:fixture:unrelated-envelope", 1))
+		writeErr = writeSOAP12XMLReply(w, strings.Replace(soap12CompactXMLReply, "http://www.w3.org/2003/05/soap-envelope", "urn:fixture:unrelated-envelope", 1))
 	case "/w3c-t25":
-		writeSOAP12XMLReply(w, `<!DOCTYPE s:Envelope SYSTEM "urn:fixture:external-dtd">`+soap12CompactXMLReply)
+		writeErr = writeSOAP12XMLReply(w, `<!DOCTYPE s:Envelope SYSTEM "urn:fixture:external-dtd">`+soap12CompactXMLReply)
 	case "/w3c-t64":
-		writeSOAP12XMLReply(w, `<!DOCTYPE s:Envelope [<!NOTATION fixture SYSTEM "urn:fixture:notation">]>`+soap12CompactXMLReply)
+		writeErr = writeSOAP12XMLReply(w, `<!DOCTYPE s:Envelope [<!NOTATION fixture SYSTEM "urn:fixture:notation">]>`+soap12CompactXMLReply)
 	case "/w3c-t65":
 		// Exercise the described unparsed entity shape. The published sample only declares elements.
-		writeSOAP12XMLReply(w, `<!DOCTYPE s:Envelope [
+		writeErr = writeSOAP12XMLReply(w, `<!DOCTYPE s:Envelope [
 <!NOTATION fixture SYSTEM "urn:fixture:notation">
 <!ENTITY sample SYSTEM "urn:fixture:unparsed-entity" NDATA fixture>
 ]>`+soap12CompactXMLReply)
 	case "/w3c-t67":
-		writeSOAP12XMLReply(w, `<?xml version="1.0" standalone="yes"?>`+soap12CompactXMLReply)
+		writeErr = writeSOAP12XMLReply(w, `<?xml version="1.0" standalone="yes"?>`+soap12CompactXMLReply)
 	case "/w3c-t68/compact":
-		writeSOAP12XMLReply(w, soap12CompactXMLReply)
+		writeErr = writeSOAP12XMLReply(w, soap12CompactXMLReply)
 	case "/w3c-t68/formatted":
-		writeSOAP12XMLReply(w, `<s:Envelope
+		writeErr = writeSOAP12XMLReply(w, `<s:Envelope
   xmlns:s="http://www.w3.org/2003/05/soap-envelope"
   xmlns:m="urn:fixture">
   <s:Header  >
@@ -205,23 +207,33 @@ func (s *Server) serveHTTP(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.NotFound(w, r)
 	}
+	if writeErr != nil {
+		logger := s.Config.ErrorLog
+		if logger == nil {
+			logger = log.Default()
+		}
+		// The matched fixture route is safe to log. Write errors may contain sensitive text.
+		logger.Printf("SOAP 1.2 fixture %s: response write failed", r.URL.Path)
+	}
 }
 
-func writeSOAP12XMLReply(w http.ResponseWriter, body string) {
+func writeSOAP12XMLReply(w http.ResponseWriter, body string) error {
 	w.Header().Set("Content-Type", "application/soap+xml; charset=utf-8")
-	_, _ = io.WriteString(w, body)
+	_, err := io.WriteString(w, body)
+	return err
 }
 
-func writeSOAP12FaultReply(w http.ResponseWriter, status int, code, subcode, reason, detail string) {
+func writeSOAP12FaultReply(w http.ResponseWriter, status int, code, subcode, reason, detail string) error {
 	subcodeXML := ""
 	if subcode != "" {
 		subcodeXML = `<s:Subcode><s:Value xmlns:r="http://www.w3.org/2003/05/soap-rpc">r:` + subcode + `</s:Value></s:Subcode>`
 	}
 	w.Header().Set("Content-Type", "application/soap+xml; charset=utf-8")
 	w.WriteHeader(status)
-	_, _ = io.WriteString(w, `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Body><s:Fault>`+
+	_, err := io.WriteString(w, `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Body><s:Fault>`+
 		`<s:Code><s:Value>s:`+code+`</s:Value>`+subcodeXML+`</s:Code><s:Reason><s:Text xml:lang="en">`+reason+
 		`</s:Text></s:Reason>`+detail+`</s:Fault></s:Body></s:Envelope>`)
+	return err
 }
 
 // Keep the Body marker fixed while varying only the role or mustUnderstand.
