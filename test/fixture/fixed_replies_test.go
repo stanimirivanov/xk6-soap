@@ -98,7 +98,7 @@ func TestFixedSOAPReplies(t *testing.T) {
 				t.Errorf("Content-Type = %q, want %q", contentTypes, tc.contentType)
 			}
 			if !bytes.Equal(body, want) {
-				t.Errorf("response bytes = %q, want %q", body, want)
+				t.Errorf("response bytes differ (got %d bytes, want %d)", len(body), len(want))
 			}
 		})
 	}

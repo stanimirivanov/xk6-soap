@@ -64,7 +64,7 @@ The DTD fixtures use inert URNs and are served as bytes.
 | [T25][w3c-T25] | Reject an external DTD | Adapted | The [public external DTD check][t25-k6] asserts XML_INVALID and withheld content for a reply with an inert SYSTEM identifier. The upstream peer generates a Fault describing unsupported DTDs. [Reply XML][t25-reply]. |
 | [T26][w3c-T26] | Ignore an XML processing instruction | Outside | The [client XML policy][architecture] deliberately rejects processing instructions. [Declaration and XML rejection][declaration] verifies the restriction. |
 | [T27][w3c-T27] | Reject a complex value in a string array | Outside | Peer validates SOAP Encoding item types. |
-| [T28][w3c-T28] | Reject encodingStyle on Body | Adapted | [Public k6 wrapper check][wrapper-k6] rejects SOAP 1.2-qualified `encodingStyle` on Body and withholds content. The upstream node generates a Fault. [Reply XML][t28-reply]. |
+| [T28][w3c-T28] | Reject encodingStyle on Body | Adapted | [Public k6 wrapper check][wrapper-k6] rejects SOAP 1.2-qualified `encodingStyle` on Body and withholds content. The upstream node generates a Fault. [Reply XML][t28-reply] · [Qualified wrapper control check][wrapper-control-k6] · [Control XML][t28-t71-t72-qualified-wrapper-control-reply]. |
 | [T29][w3c-T29] | Accept a long absolute role URI | Adapted | [Long role URI check][long-role] exposes the Body marker in a reply whose optional Header block uses a 2,048-byte absolute role URI within the default XML limits. The upstream receiver returns an empty Body. [Reply XML][t29-reply]. |
 | [T30][w3c-T30] | SOAP 1.1 request to a SOAP 1.2 peer | Adapted | [VersionMismatch check][version-fault] projects SOAP_FAULT and the qualified SOAP 1.1 code from a synthetic HTTP 500 reply with a supplied Upgrade Header block. The [Envelope version assertion][envelope] separately checks that SOAP 1.2 validation rejects a SOAP 1.1 Envelope with XML_INVALID. Peer Fault generation and Upgrade advertisement remain outside the client test. [Reply XML][t30-reply]. |
 | [T31][w3c-T31] | RPC void return omits the return accessor | Outside | Requires a peer RPC binding and interpretation of the return accessor. |
@@ -105,10 +105,10 @@ The DTD fixtures use inert URNs and are served as bytes.
 | [T66][w3c-T66] | Accept an explicit UTF-8 XML declaration | Adapted | [Public echo check][echo] compares declared and undeclared accepted Body content and asserts the marker. The upstream peer responds to an application header. |
 | [T67][w3c-T67] | Accept an XML declaration with standalone=yes | Adapted | The [public standalone check][t67-k6] accepts a SOAP 1.2 reply with an XML 1.0 standalone declaration and no declared encoding, then queries its Body marker. The upstream peer answers a standalone request with an application reply Header. [Reply XML][t67-reply]. |
 | [T68][w3c-T68] | Accept extra Envelope and Header whitespace | Adapted | The [public whitespace checks][t68-k6] accept compact and formatted SOAP 1.2 replies and assert the same namespace-aware Body XPath value. The upstream peer answers the whitespace-varied request with an application reply Header. [Compact reply][t68-compact-reply] · [Formatted reply][t68-formatted-reply]. |
-| [T69][w3c-T69] | Reject a missing Body | Adapted | [Public k6 T69 check][t69-k6] rejects an HTTP 200 SOAP 1.2 reply that retains its Header and omits Body. The upstream receiving peer generates a Fault. [Reply XML][t69-reply]. |
-| [T70][w3c-T70] | Reject a Trailer following Header and Body | Adapted | [Public k6 T70 check][t70-k6] rejects an HTTP 200 SOAP 1.2 reply with an unqualified Trailer after Body and withholds the Body marker. The upstream receiving peer generates a Fault. [Reply XML][t70-reply]. |
-| [T71][w3c-T71] | Reject an unqualified attribute on Envelope | Adapted | [Public k6 wrapper check][wrapper-k6] rejects an unqualified Envelope attribute. [Signed wire][wrapper-signed] and [recovered snapshot][wrapper-recovered] checks verify the respective error boundaries. The upstream node generates a Fault. [Reply XML][t71-reply]. |
-| [T72][w3c-T72] | Reject encodingStyle on Envelope | Adapted | [Public k6 wrapper check][wrapper-k6] rejects SOAP 1.2-qualified `encodingStyle` on Envelope and withholds content. The upstream node generates a Fault. [Reply XML][t72-reply]. |
+| [T69][w3c-T69] | Reject a missing Body | Adapted | [Public k6 T69 check][t69-k6] rejects an HTTP 200 SOAP 1.2 reply that retains its Header and omits Body. The upstream receiving peer generates a Fault. [Reply XML][t69-reply] · [Valid Envelope control check][envelope-control-k6] · [Control XML][t69-t70-valid-envelope-control-reply]. |
+| [T70][w3c-T70] | Reject a Trailer following Header and Body | Adapted | [Public k6 T70 check][t70-k6] rejects an HTTP 200 SOAP 1.2 reply with an unqualified Trailer after Body and withholds the Body marker. The upstream receiving peer generates a Fault. [Reply XML][t70-reply] · [Valid Envelope control check][envelope-control-k6] · [Control XML][t69-t70-valid-envelope-control-reply]. |
+| [T71][w3c-T71] | Reject an unqualified attribute on Envelope | Adapted | [Public k6 wrapper check][wrapper-k6] rejects an unqualified Envelope attribute. [Signed wire][wrapper-signed] and [recovered snapshot][wrapper-recovered] checks verify the respective error boundaries. The upstream node generates a Fault. [Reply XML][t71-reply] · [Qualified wrapper control check][wrapper-control-k6] · [Control XML][t28-t71-t72-qualified-wrapper-control-reply]. |
+| [T72][w3c-T72] | Reject encodingStyle on Envelope | Adapted | [Public k6 wrapper check][wrapper-k6] rejects SOAP 1.2-qualified `encodingStyle` on Envelope and withholds content. The upstream node generates a Fault. [Reply XML][t72-reply] · [Qualified wrapper control check][wrapper-control-k6] · [Control XML][t28-t71-t72-qualified-wrapper-control-reply]. |
 | [T73][w3c-T73] | RPC echo with encodingStyle on payload and argument | Outside | Peer interprets encoding-style scopes and RPC return semantics. |
 | [T74][w3c-T74] | SOAP role and mustUnderstand occur on a descendant | Adapted | [Descendant attribute check][descendant-header-attributes] exposes the Body marker when a child of an optional block carries both attributes. The upstream receiver ignores the unknown block and responds to a separate known application header. [Reply XML][t74-reply]. |
 | [T75][w3c-T75] | Resolve a relative XLink against xml:base | Outside | Requires peer processing of an application reference. Client XPath reads XML content without link resolution. |
@@ -219,9 +219,6 @@ The [recovered Header regression][t34-encrypted] requires selected Header
 encryption and verifies that the marker is queryable after recovery under both
 protection orders. See [ADR-0008][t34-adr] for the scope of the exception.
 
-The T69 and T70 checks compare rejection of a missing Body or trailing
-element with acceptance of a Header followed by a Body. [Valid Envelope control XML][t69-t70-valid-envelope-control-reply]
-
 ## SOAP 1.2 Envelope and Body attributes
 
 The [public k6 loopback][wrapper-k6] adapts [T28][w3c-T28], [T71][w3c-T71]
@@ -285,6 +282,7 @@ adaptations exercise local client rejection, as recorded in [ADR-0009][wrapper-a
 [t68-k6]: ../test/e2e/http.js#L290
 [t69-k6]: ../test/e2e/http.js#L260
 [t70-k6]: ../test/e2e/http.js#L261
+[envelope-control-k6]: ../test/e2e/http.js#L280
 [wrapper-signed]: ../internal/adapter/receive_test.go#L52
 [wrapper-recovered]: ../internal/wssec/response_encryption_test.go#L143
 [wrapper-adr]: adr/0009-soap12-response-wrapper-attributes.md

@@ -137,7 +137,7 @@ func assertFixedSOAPRequestCaptures(t *testing.T, captures []fixture.Capture) {
 		if _, fault := faultRequests[path]; fault {
 			faultRequests[path]++
 			if capture.Body != string(wantFaultRequest) {
-				t.Errorf("%s request body = %q, want %q", path, capture.Body, wantFaultRequest)
+				t.Errorf("%s request body bytes differ (got %d bytes, want %d)", path, len(capture.Body), len(wantFaultRequest))
 			}
 			continue
 		}
