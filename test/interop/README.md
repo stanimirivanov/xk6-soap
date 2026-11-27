@@ -351,3 +351,28 @@ of algorithms, digests, identifiers, tokens and encryption settings.
 dimensions and evidence names. The existing CI interop job runs all tagged
 native exchanges through `make interop`. The same command runs in the
 pre-push hook on an uncached fixture build.
+
+### Matrix Echo fixtures
+
+The [matrix Echo migration](https://github.com/stanimirivanov/xk6-soap/issues/157)
+moved the [success](testdata/matrix/echo-success.xml) and
+[Fault-triggering](testdata/matrix/echo-fault.xml) Echo operations from inline
+strings to literal XML files. The fixtures preserve the former bytes, including
+the absence of trailing newlines. Git pins LF. k6 loads the files at
+initialization and passes them unchanged to the protected `Client.build()`
+calls. The Fault trigger is an Echo operation that causes WSS4J to return a
+service Fault.
+
+For each SOAP version and outcome, an unprotected companion build compares
+the raw Body operation with the fixture bytes before WS-Security. One control
+changes only the namespace declaration's quotes, keeping the Echo value and
+byte length, and verifies that the raw operation differs from the original
+fixture. These builds run in-process and issue zero HTTP requests. Failed
+checks identify the case without logging the XML.
+
+The matrix sends 48 protected exchanges with live signing, encryption, and
+independent peer replies. The existing wire, authentication, tampering, and
+log privacy checks apply to those exchanges. Run the focused fixture and
+manifest checks with
+`go test ./test/interop -run '^TestInteropMatrix(EchoFixtures|Manifest)$'`,
+then `make verify` and the cold WSS4J `make interop` pre-push gate.

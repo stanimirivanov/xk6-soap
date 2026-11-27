@@ -5,6 +5,14 @@ import { check } from 'k6';
 const cert = open('../../internal/wssec/testdata/signing-cert.pem', 'b');
 const key = open('../../internal/wssec/testdata/signing-key.pem', 'b');
 const server = open(__ENV.SOAP_INTEROP_SIGNATURE_TRUST, 'b');
+const operations = {
+  success: open('./testdata/matrix/echo-success.xml'),
+  fault: open('./testdata/matrix/echo-fault.xml'),
+};
+const soapVersions = ['1.1', '1.2'];
+const plainClients = Object.fromEntries(soapVersions.map(soapVersion => [
+  soapVersion, new Client({url: __ENV.SOAP_INTEROP_URL, soapVersion}),
+]));
 const trace = {namespace: 'urn:trace', localName: 'Trace'};
 const rows = JSON.parse(open('./matrix.json')).core.map(row => {
   const headers = row.target === 'headers';
@@ -26,6 +34,31 @@ export const options = {vus:1, iterations:1, thresholds:{checks:['rate==1']}};
 const sentinel = 'MATRIX_PRIVATE_SENTINEL';
 const faultReason = 'Synthetic service fault';
 
+function bodyOperation(body) {
+  return body.match(/<s:Body>([\s\S]*)<\/s:Body>/)?.[1];
+}
+
+function checkPlainOperations() {
+  for (const soapVersion of soapVersions) {
+    for (const [outcome, operation] of Object.entries(operations)) {
+      const request = plainClients[soapVersion].build('echo', operation, {soapAction: 'urn:echo'});
+      check(request, {
+        ['SOAP ' + soapVersion + ' ' + outcome + ' retains operation bytes']: r => bodyOperation(r.body) === operation,
+      });
+    }
+  }
+
+  const original = operations.success;
+  const changed = original.replace('xmlns:m="urn:xk6-soap:fixture"', "xmlns:m='urn:xk6-soap:fixture'");
+  const request = plainClients['1.2'].build('echo', changed, {soapAction: 'urn:echo'});
+  check(request, {
+    'namespace quote change produces distinct operation bytes': r => {
+      const operation = bodyOperation(r.body);
+      return operation === changed && changed.length === original.length && operation !== original;
+    },
+  });
+}
+
 function wireMatches(body, row) {
   const type = row.target === 'content' ? 'Content' : 'Element';
   return body.includes('EncryptedData') &&
@@ -35,13 +68,14 @@ function wireMatches(body, row) {
 }
 
 export default function () {
+  checkPlainOperations();
   for (const {row,client} of rows) {
     for (const outcome of row.outcomes) {
       const fault = outcome === 'fault';
       const value = fault ? 'fault' : sentinel;
       const headers = row.target === 'headers';
       const label = row.endpoint + ' ' + outcome;
-      const request = client.build('echo', '<m:echo xmlns:m="urn:xk6-soap:fixture"><value>' + value + '</value></m:echo>', {
+      const request = client.build('echo', operations[outcome], {
         soapAction: 'urn:echo',
         ...(headers ? {headers: [
           {name:'trace', xml:'<h:Trace xmlns:h="urn:trace">MATRIX_PRIVATE_HEADER</h:Trace>'},
