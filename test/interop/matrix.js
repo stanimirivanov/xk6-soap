@@ -34,7 +34,8 @@ export const options = {vus:1, iterations:1, thresholds:{checks:['rate==1']}};
 const sentinel = 'MATRIX_PRIVATE_SENTINEL';
 const faultReason = 'Synthetic service fault';
 
-function bodyOperation(body) {
+function rawPlainBodyOperation(body) {
+  // The plain SOAP serializer writes a fixed <s:Body> wrapper.
   return body.match(/<s:Body>([\s\S]*)<\/s:Body>/)?.[1];
 }
 
@@ -43,7 +44,7 @@ function checkPlainOperations() {
     for (const [outcome, operation] of Object.entries(operations)) {
       const request = plainClients[soapVersion].build('echo', operation, {soapAction: 'urn:echo'});
       check(request, {
-        ['SOAP ' + soapVersion + ' ' + outcome + ' retains operation bytes']: r => bodyOperation(r.body) === operation,
+        ['SOAP ' + soapVersion + ' ' + outcome + ' retains operation bytes']: r => rawPlainBodyOperation(r.body) === operation,
       });
     }
   }
@@ -53,7 +54,7 @@ function checkPlainOperations() {
   const request = plainClients['1.2'].build('echo', changed, {soapAction: 'urn:echo'});
   check(request, {
     'namespace quote change produces distinct operation bytes': r => {
-      const operation = bodyOperation(r.body);
+      const operation = rawPlainBodyOperation(r.body);
       return operation === changed && changed.length === original.length && operation !== original;
     },
   });

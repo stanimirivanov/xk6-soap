@@ -360,8 +360,8 @@ moved the [success](testdata/matrix/echo-success.xml) and
 strings to literal XML files. The fixtures preserve the former bytes, including
 the absence of trailing newlines. Git pins LF. k6 loads the files at
 initialization and passes them unchanged to the protected `Client.build()`
-calls. The Fault trigger is an Echo operation that causes WSS4J to return a
-service Fault.
+calls. The Fault-triggering Echo operation makes the CXF service raise a
+Fault, which the Apache fixture returns with WSS4J protection.
 
 For each SOAP version and outcome, an unprotected companion build compares
 the raw Body operation with the fixture bytes before WS-Security. One control
