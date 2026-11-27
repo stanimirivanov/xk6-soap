@@ -19,6 +19,7 @@ import (
 
 const soap11Envelope = "http://schemas.xmlsoap.org/soap/envelope/"
 const soap12Envelope = "http://www.w3.org/2003/05/soap-envelope"
+const utf8DeclarationPrefix = `<?xml version="1.0" encoding="UTF-8"?>` + "\n"
 
 type echoEnvelope struct {
 	XMLName xml.Name
@@ -173,7 +174,6 @@ func assertFixedSOAPRequestCaptures(t *testing.T, captures []fixture.Capture) {
 func assertSOAP11DeclarationCapture(t *testing.T, captures []fixture.Capture) {
 	t.Helper()
 	wantOperation := readSOAPFixture(t, "soap11-declaration-echo-operation.xml")
-	const declaration = `<?xml version="1.0" encoding="UTF-8"?>` + "\n"
 	count := 0
 	for _, capture := range captures {
 		if capture.Path != "/echo" {
@@ -184,7 +184,7 @@ func assertSOAP11DeclarationCapture(t *testing.T, captures []fixture.Capture) {
 			continue
 		}
 		count++
-		if !strings.HasPrefix(capture.Body, declaration) {
+		if !strings.HasPrefix(capture.Body, utf8DeclarationPrefix) {
 			t.Error("SOAP 1.1 declaration Echo request lacks the expected UTF-8 declaration")
 		}
 		if envelope.XMLName != (xml.Name{Space: soap11Envelope, Local: "Envelope"}) || envelope.Body.XMLName.Space != soap11Envelope {
@@ -203,8 +203,7 @@ func assertSOAP12DeclarationCaptures(t *testing.T, captures []fixture.Capture) {
 	t.Helper()
 	undeclared := readSOAPFixture(t, "t66-undeclared-envelope.xml")
 	declared := readSOAPFixture(t, "t66-declared-envelope.xml")
-	const declaration = `<?xml version="1.0" encoding="UTF-8"?>` + "\n"
-	if declaration+undeclared != declared {
+	if utf8DeclarationPrefix+undeclared != declared {
 		t.Fatal("T66 fixtures must differ only by the UTF-8 declaration line")
 	}
 	for variant, want := range map[string]string{"t66-undeclared": undeclared, "t66-declared": declared} {
