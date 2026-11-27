@@ -3,6 +3,9 @@ import exec from 'k6/execution';
 import http from 'k6/http';
 import { Client } from 'k6/x/soap';
 
+const corpus = JSON.parse(open('../fixture/testdata/soap12/native-race-operations.json'));
+const operations = new Map(corpus.map(({ marker, operation }) => [marker, operation]));
+const control = __ENV.SOAP_RACE_CONTROL;
 const cert = open('../../internal/wssec/testdata/signing-cert.pem', 'b');
 const key = open('../../internal/wssec/testdata/signing-key.pem', 'b');
 const client = new Client({
@@ -29,7 +32,16 @@ export const options = {
 
 export default function () {
   const marker = `${exec.vu.idInTest}-${exec.vu.iterationInScenario}`;
-  const request = client.build('Echo', `<m:Echo xmlns:m="urn:fixture:race">${marker}</m:Echo>`);
+  const operationMarker = control === 'swap' ? (marker === '1-0' ? '1-1' : '1-0') : marker;
+  let operation = operations.get(operationMarker);
+  if (operation === undefined) {
+    throw new Error('race corpus entry missing');
+  }
+  if (control === 'different-bytes' && marker === '1-0') {
+    const alternate = `<x:Echo xmlns:x="urn:fixture:race">${marker}</x:Echo>`;
+    operation = operation === alternate ? `<y:Echo xmlns:y="urn:fixture:race">${marker}</y:Echo>` : alternate;
+  }
+  const request = client.build('Echo', operation);
   const response = http.post(request.url, request.body, {headers:request.headers, timeout:'2s', redirects:0});
   const reply = client.parse(response);
   const verified = reply.ok && reply.sigVerified === true && reply.timestampValid === true;

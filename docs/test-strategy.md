@@ -55,6 +55,31 @@ matching marker after signature and Timestamp verification. A separate control
 returns an earlier, still-valid signed reply and proves that the marker check
 fails. Fixture and process deadlines bound each run.
 
+### Native race payload corpus
+
+The [native race payload migration](https://github.com/stanimirivanov/xk6-soap/issues/153)
+stores 320 literal Echo operations in one JSON array. Each line pairs one
+exchange marker with its complete operation XML, in VU and iteration order. k6 loads the corpus at
+initialization and selects by the current marker, then passes the XML unchanged
+to `Client.build()`. Envelope construction and signing remain part of the test.
+[Native race corpus](../test/fixture/testdata/soap12/native-race-operations.json)
+
+The receiver derives the expected marker set independently of the corpus. It
+rejects missing, extra, or duplicate entries, an incorrect Echo namespace, and
+any XML marker that disagrees with its key. Before substituting a stale reply,
+the receiver compares the raw Body operation bytes in each signed request with
+the corpus entry. The client checks each verified reply against its own runtime
+marker. Swapping two valid operations fails the client check. Sending a
+different Echo serialization with the same marker fails the receiver byte
+comparison. Failure diagnostics omit SOAP bodies.
+
+`make e2e-race` checks that signing preserves the operation bytes for all 320
+inputs and requires 320 verified and 320 matching replies. The stale-reply
+control reuses `1-0` and `1-1` and requires 2 verified and 1 matching reply with
+exit code 99. The focused corpus and byte checks run under `make verify`.
+Public k6 E2E and the WSS4J pre-push gate cover the surrounding runtime and
+interop paths.
+
 ## Merge policy
 
 The active `main` ruleset requires the GitHub Actions `required-ci` and
@@ -78,5 +103,6 @@ failed assertion, or an outage that persists after the retry blocks merging.
 | --- | --- |
 | Receiver-side wire, Fault, W3C, and HTTPS checks | [Public SOAP wire and standards tests](https://github.com/stanimirivanov/xk6-soap/pull/101) |
 | Native race workload and isolation controls | [Native multi-VU k6 race workload](https://github.com/stanimirivanov/xk6-soap/pull/103) |
+| Checked-in native race operations and signed-wire byte comparison | [Native race payload corpus](https://github.com/stanimirivanov/xk6-soap/issues/153) |
 | WSS4J provisioning retry and failure evidence | [Bounded Maven outage retry](https://github.com/stanimirivanov/xk6-soap/pull/105) |
 | Stable aggregate, hosted timing and cancellation evidence, and active enforcement | [Required CI rollout](https://github.com/stanimirivanov/xk6-soap/pull/107) · [Activation runbook](ci-activation.md) |
