@@ -69,9 +69,9 @@ rejects missing, extra, or duplicate entries, an incorrect Echo namespace, and
 any XML marker that disagrees with its key. Before substituting a stale reply,
 the receiver compares the raw Body operation bytes in each signed request with
 the corpus entry. The client checks each verified reply against its own runtime
-marker. Swapping two valid operations fails the client check. Changing only
-the Echo namespace prefix fails the receiver byte comparison. Failure
-diagnostics omit SOAP bodies.
+marker. Swapping two valid operations fails the client check. Sending a
+different Echo serialization with the same marker fails the receiver byte
+comparison. Failure diagnostics omit SOAP bodies.
 
 `make e2e-race` checks that signing preserves the operation bytes for all 320
 inputs and requires 320 verified and 320 matching replies. The stale-reply
@@ -103,5 +103,6 @@ failed assertion, or an outage that persists after the retry blocks merging.
 | --- | --- |
 | Receiver-side wire, Fault, W3C, and HTTPS checks | [Public SOAP wire and standards tests](https://github.com/stanimirivanov/xk6-soap/pull/101) |
 | Native race workload and isolation controls | [Native multi-VU k6 race workload](https://github.com/stanimirivanov/xk6-soap/pull/103) |
+| Checked-in native race operations and signed-wire byte comparison | [Native race payload corpus](https://github.com/stanimirivanov/xk6-soap/issues/153) |
 | WSS4J provisioning retry and failure evidence | [Bounded Maven outage retry](https://github.com/stanimirivanov/xk6-soap/pull/105) |
 | Stable aggregate, hosted timing and cancellation evidence, and active enforcement | [Required CI rollout](https://github.com/stanimirivanov/xk6-soap/pull/107) · [Activation runbook](ci-activation.md) |

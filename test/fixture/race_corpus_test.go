@@ -78,8 +78,11 @@ func TestRaceRequestOperationBytes(t *testing.T) {
 	}
 	const prefix = `<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Body>`
 	const suffix = `</s:Body></s:Envelope>`
-	const operation = `<m:Echo xmlns:m="urn:fixture:race">1-0</m:Echo>`
-	const byteMismatch = `<x:Echo xmlns:x="urn:fixture:race">1-0</x:Echo>`
+	operation := corpus["1-0"]
+	byteMismatch := `<x:Echo xmlns:x="urn:fixture:race">1-0</x:Echo>`
+	if byteMismatch == operation {
+		byteMismatch = `<y:Echo xmlns:y="urn:fixture:race">1-0</y:Echo>`
+	}
 	if marker, err := corpus.MatchRequest([]byte(prefix + operation + suffix)); err != nil || marker != "1-0" {
 		t.Fatalf("exact Body operation rejected, error = %v", err)
 	}

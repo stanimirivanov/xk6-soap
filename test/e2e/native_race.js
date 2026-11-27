@@ -38,7 +38,8 @@ export default function () {
     throw new Error('race corpus entry missing');
   }
   if (control === 'different-bytes' && marker === '1-0') {
-    operation = operation.replaceAll('m:Echo', 'x:Echo').replace('xmlns:m=', 'xmlns:x=');
+    const alternate = `<x:Echo xmlns:x="urn:fixture:race">${marker}</x:Echo>`;
+    operation = operation === alternate ? `<y:Echo xmlns:y="urn:fixture:race">${marker}</y:Echo>` : alternate;
   }
   const request = client.build('Echo', operation);
   const response = http.post(request.url, request.body, {headers:request.headers, timeout:'2s', redirects:0});
