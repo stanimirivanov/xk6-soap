@@ -106,6 +106,15 @@ byte counts without logging SOAP bodies.
 Focused HTTP and HTTPS checks, `make verify`, public `make e2e`, and the cold
 WSS4J pre-push gate provide delivery evidence.
 
+### WSS4J matrix Echo fixtures
+
+The [matrix Echo migration](https://github.com/stanimirivanov/xk6-soap/issues/157)
+pins two literal operation inputs. An unprotected companion build compares the
+raw Body operation with the fixture bytes for each SOAP version and outcome.
+The matrix sends 48 live protected exchanges. The
+[interop fixture guide](../test/interop/README.md#matrix-echo-fixtures) records
+the fixture provenance, quote-style control, and verification commands.
+
 ## Merge policy
 
 The active `main` ruleset requires the GitHub Actions `required-ci` and
