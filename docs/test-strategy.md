@@ -80,6 +80,32 @@ exit code 99. The focused corpus and byte checks run under `make verify`.
 Public k6 E2E and the WSS4J pre-push gate cover the surrounding runtime and
 interop paths.
 
+### Public HTTP and HTTPS XML fixtures
+
+The public k6 scripts load five byte-stable XML inputs from
+`test/fixture/testdata/soap12/`. They cover the SOAP 1.1 declaration Echo
+operation, a complete SOAP 1.2 Fault Envelope with two Code/Value elements,
+one plain-client EncryptedData Envelope per SOAP version, and the HTTPS
+Echo operation. [Public fixture migration](https://github.com/stanimirivanov/xk6-soap/issues/155)
+
+Both Echo requests go through `Client.build()`. The receiving harness reads
+each fixture independently and compares the raw Body operation bytes. It also
+checks the SOAP 1.1 request's UTF-8 declaration. The HTTPS receiver checks
+Basic Auth before reading the body. The loopback receiver captures the
+complete malformed Fault request for byte comparison. The plain client passes
+the two complete EncryptedData Envelopes to `Client.parse()`. The Fault Detail
+probe uses the reply, and the transport probes keep their existing stubs.
+
+The HTTP run requires 58 requests and checks status, errors, and content
+withholding. The forced HTTP failure must exit 99. The HTTPS run uses loopback
+TLS and requires HTTP 200 with Basic Auth and HTTP 401 without it. Both HTTPS
+interruption controls must exit 99. A temporary byte-only Echo change that
+preserves the marker fails the receiver comparison. Mismatch diagnostics report
+byte counts without logging SOAP bodies.
+
+Focused HTTP and HTTPS checks, `make verify`, public `make e2e`, and the cold
+WSS4J pre-push gate provide delivery evidence.
+
 ## Merge policy
 
 The active `main` ruleset requires the GitHub Actions `required-ci` and

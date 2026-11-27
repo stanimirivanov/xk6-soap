@@ -58,6 +58,7 @@ func TestK6SOAPFixture(t *testing.T) {
 			}
 			captures := server.Captures()
 			assertSOAPActionCaptures(t, captures)
+			assertSOAP11DeclarationCapture(t, captures)
 			assertSOAP12DeclarationCaptures(t, captures)
 			assertFixedSOAPRequestCaptures(t, captures)
 			if len(captures) != 58 {
@@ -134,9 +135,18 @@ func assertSOAPActionCaptures(t *testing.T, captures []fixture.Capture) {
 func assertFixedSOAPRequestCaptures(t *testing.T, captures []fixture.Capture) {
 	t.Helper()
 	wantFaultRequest := readSOAPFixture(t, "fault-request.xml")
+	wantMalformedFault := readSOAPFixture(t, "soap12-duplicate-fault-code-value-envelope.xml")
+	malformedFaultCount := 0
 	faultRequests := map[string]int{"/fault11": 0, "/fault12": 0}
 	for _, capture := range captures {
 		path := capture.Path
+		if path == "/echo" && capture.Header.Get("X-Synthetic") == "malformed-fault" {
+			malformedFaultCount++
+			if capture.Body != wantMalformedFault {
+				t.Errorf("malformed SOAP 1.2 Fault request bytes differ (got %d bytes, want %d)", len(capture.Body), len(wantMalformedFault))
+			}
+			continue
+		}
 		if _, fault := faultRequests[path]; fault {
 			faultRequests[path]++
 			if capture.Body != wantFaultRequest {
@@ -150,10 +160,42 @@ func assertFixedSOAPRequestCaptures(t *testing.T, captures []fixture.Capture) {
 			}
 		}
 	}
+	if malformedFaultCount != 1 {
+		t.Errorf("malformed SOAP 1.2 Fault request count = %d, want 1", malformedFaultCount)
+	}
 	for path, count := range faultRequests {
 		if count != 1 {
 			t.Errorf("%s request count = %d, want 1", path, count)
 		}
+	}
+}
+
+func assertSOAP11DeclarationCapture(t *testing.T, captures []fixture.Capture) {
+	t.Helper()
+	wantOperation := readSOAPFixture(t, "soap11-declaration-echo-operation.xml")
+	const declaration = `<?xml version="1.0" encoding="UTF-8"?>` + "\n"
+	count := 0
+	for _, capture := range captures {
+		if capture.Path != "/echo" {
+			continue
+		}
+		var envelope echoEnvelope
+		if xml.Unmarshal([]byte(capture.Body), &envelope) != nil || len(envelope.Body.Markers) != 1 || envelope.Body.Markers[0] != "soap11-declared" {
+			continue
+		}
+		count++
+		if !strings.HasPrefix(capture.Body, declaration) {
+			t.Error("SOAP 1.1 declaration Echo request lacks the expected UTF-8 declaration")
+		}
+		if envelope.XMLName != (xml.Name{Space: soap11Envelope, Local: "Envelope"}) || envelope.Body.XMLName.Space != soap11Envelope {
+			t.Error("SOAP 1.1 declaration Echo request has the wrong SOAP namespace")
+		}
+		if envelope.Body.InnerXML != wantOperation {
+			t.Errorf("SOAP 1.1 declaration Echo operation bytes differ (got %d bytes, want %d)", len(envelope.Body.InnerXML), len(wantOperation))
+		}
+	}
+	if count != 1 {
+		t.Errorf("SOAP 1.1 declaration Echo request count = %d, want 1", count)
 	}
 }
 

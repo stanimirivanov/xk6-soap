@@ -24,6 +24,7 @@ import (
 func TestK6SOAPHTTPSWithBasicAuth(t *testing.T) {
 	const user = "fixture-user"
 	const password = "fixture-only"
+	wantOperation := readSOAPFixture(t, "https-echo-operation.xml")
 	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.WriteHeader(http.StatusMethodNotAllowed)
@@ -39,6 +40,11 @@ func TestK6SOAPHTTPSWithBasicAuth(t *testing.T) {
 		var envelope echoEnvelope
 		if err != nil || xml.Unmarshal(body, &envelope) != nil || envelope.XMLName != (xml.Name{Space: soap12Envelope, Local: "Envelope"}) ||
 			envelope.Body.XMLName.Space != soap12Envelope || len(envelope.Body.Markers) != 1 || envelope.Body.Markers[0] != "tls-auth-echo" {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if envelope.Body.InnerXML != wantOperation {
+			t.Errorf("HTTPS Echo operation bytes differ (got %d bytes, want %d)", len(envelope.Body.InnerXML), len(wantOperation))
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}

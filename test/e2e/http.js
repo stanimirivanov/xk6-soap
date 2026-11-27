@@ -10,15 +10,19 @@ const soap11 = {
   version:'11', namespace:'http://schemas.xmlsoap.org/soap/envelope/', code:'Server', responseType:'text', mediaType:'text/xml',
   explicitOperation:open('../fixture/testdata/soap12/th1-soap11-explicit-operation.xml'),
   omittedOperation:open('../fixture/testdata/soap12/th1-soap11-omitted-operation.xml'),
+  encryptedEnvelope:open('../fixture/testdata/soap12/soap11-encrypted-data-envelope.xml'),
   soap:new Client({url:base+'/echo', soapVersion:'1.1'}),
 };
 const soap12 = {
   version:'12', namespace:'http://www.w3.org/2003/05/soap-envelope', code:'Receiver', responseType:'binary', mediaType:'application/soap+xml',
   explicitOperation:open('../fixture/testdata/soap12/th1-soap12-explicit-operation.xml'),
   omittedOperation:open('../fixture/testdata/soap12/th1-soap12-omitted-operation.xml'),
+  encryptedEnvelope:open('../fixture/testdata/soap12/soap12-encrypted-data-envelope.xml'),
   soap:new Client({url:base+'/echo', soapVersion:'1.2', namespace:'urn:fixture'}),
 };
+const declarationOperation = open('../fixture/testdata/soap12/soap11-declaration-echo-operation.xml');
 const echoNamespaces = {m:'urn:fixture'};
+const malformedFault = open('../fixture/testdata/soap12/soap12-duplicate-fault-code-value-envelope.xml');
 const faultRequest = open('../fixture/testdata/soap12/fault-request.xml');
 const t66Undeclared = open('../fixture/testdata/soap12/t66-undeclared-envelope.xml', 'b');
 const t66Declared = open('../fixture/testdata/soap12/t66-declared-envelope.xml', 'b');
@@ -32,7 +36,7 @@ function rejectsArgument(call, stage) {
   return false;
 }
 
-function checkEcho({version, namespace, responseType, mediaType, explicitOperation, omittedOperation, soap}) {
+function checkEcho({version, responseType, mediaType, explicitOperation, omittedOperation, encryptedEnvelope, soap}) {
   const explicit = `soap${version}-explicit`;
   const omitted = `soap${version}-omitted`;
   const request = soap.build('Echo', explicitOperation, {soapAction:'urn:echo'});
@@ -73,8 +77,7 @@ function checkEcho({version, namespace, responseType, mediaType, explicitOperati
       !p.ok && p.error?.code === 'HTTP_STATUS' && p.body === parsed.body &&
       p.xpath('string(//m:Echo)', echoNamespaces).value === explicit,
   });
-  const encrypted = `<s:Envelope xmlns:s="${namespace}"><s:Body><x:EncryptedData xmlns:x="http://www.w3.org/2001/04/xmlenc#"/></s:Body></s:Envelope>`;
-  check(soap.parse({status:503, body:encrypted}), {
+  check(soap.parse({status:503, body:encryptedEnvelope}), {
     'plain client withholds encrypted Body before HTTP outcome': p =>
       !p.ok && p.error?.code === 'POLICY_VIOLATION' && p.body === null && p.fault === null &&
       p.xpath('.').error?.code === 'CONTENT_UNAVAILABLE',
@@ -86,7 +89,7 @@ function isEchoReply(response, mediaType) {
 }
 
 function checkSOAP11Declaration({responseType, mediaType, soap}) {
-  const request = soap.build('Echo', '<m:Echo xmlns:m="urn:fixture">soap11-declared</m:Echo>');
+  const request = soap.build('Echo', declarationOperation);
   const undeclared = soap.parse({status:200, body:request.body});
   const declared = http.post(request.url, '<?xml version="1.0" encoding="UTF-8"?>\n' + request.body,
     {responseType, timeout:'2s', redirects:0, headers:request.headers});
@@ -358,10 +361,9 @@ export default function () {
   checkUnsupportedMediaReply();
   checkSOAP12XMLRejection(soap12.soap);
   checkSOAP12XMLAcceptance(soap12.soap);
-  const malformedFault = '<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Body><s:Fault>' +
-    '<s:Code><s:Value>s:Sender</s:Value><s:Value>s:Receiver</s:Value></s:Code>' +
-    '<s:Reason><s:Text xml:lang="en">Synthetic fault</s:Text></s:Reason></s:Fault></s:Body></s:Envelope>';
-  const malformed = http.post(base + '/echo', malformedFault, {timeout:'2s'});
+  const malformed = http.post(base + '/echo', malformedFault, {
+    timeout:'2s', headers:{'X-Synthetic':'malformed-fault'},
+  });
   check(soap12.soap.parse(malformed), {
     'malformed SOAP 1.2 Fault withholds content': p => {
       const query = p.xpath('.');
