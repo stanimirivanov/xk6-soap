@@ -124,6 +124,16 @@ exchanges and the selective encryption and visibility checks. The
 [interop fixture guide](../test/interop/README.md#matrix-header-fixtures)
 records the quote-style control and verification commands.
 
+### Dedicated WSS4J Header encryption fixtures
+
+The dedicated suite pins the Echo and Trace inputs and reuses the identical
+matrix Other block. Plain builds compare the raw Body and ordered Header bytes
+before WS-Security. The four live exchanges check wire visibility and verify
+the decrypted and signed reply, which must also fail the stricter Body
+encryption policy. See the
+[interop fixture guide](../test/interop/README.md#dedicated-header-encryption-fixtures)
+for provenance, the quote-style control, and verification commands.
+
 ## Merge policy
 
 The active `main` ruleset requires the GitHub Actions `required-ci` and
