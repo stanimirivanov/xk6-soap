@@ -134,6 +134,15 @@ encryption policy. See the
 [interop fixture guide](../test/interop/README.md#dedicated-header-encryption-fixtures)
 for provenance, the quote-style control, and verification commands.
 
+### WSS4J signed receive Echo fixtures
+
+The signed receive suite pins the success Echo and reuses the identical
+matrix Fault trigger. Plain builds compare exact Body operation bytes
+before signing. The four live exchanges retain independent replies and
+the trust, tampering, and verification-skip controls. See the
+[interop fixture guide](../test/interop/README.md#signed-receive-echo-fixtures)
+for provenance, the quote-style control, and verification commands.
+
 ## Merge policy
 
 The active `main` ruleset requires the GitHub Actions `required-ci` and
