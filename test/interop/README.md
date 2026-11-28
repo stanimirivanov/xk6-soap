@@ -462,6 +462,44 @@ make verify
 make interop
 ```
 
+### UsernameToken and outbound Timestamp Echo fixture
+
+The UsernameToken and outbound Timestamp suite reuses the 72-byte
+[signed receive success Echo](testdata/receive/echo-success.xml), which Git pins
+to LF. The focused fixture test compares it with the former inline operation,
+including the absence of a trailing newline. k6 loads it at initialization and
+shares it between plain and protected builds. The expected response marker is
+fixed independently of the fixture bytes.
+
+One plain `Client.build()` per SOAP version compares the raw Body operation
+with the fixture. A SOAP 1.2 control changes only the namespace declaration's
+quote style and preserves the Echo value and byte length. The same comparator
+accepts the changed bytes against the changed input and rejects them against
+the checked-in fixture. The standalone checks send zero HTTP requests and omit
+operation XML from failure diagnostics. Temporarily normalizing quotes on both
+sides of the comparison must fail the original-byte rejection check with exit
+code 99.
+
+`TestK6UsernameTokenExchanges` retains 26 live SOAP POSTs. Each SOAP version and
+password form exercises configured credentials, exact-request replay, wrong
+credentials, both per-call override directions, and configured defaults after
+the override. The two Timestamp-only requests still generate a security header
+at runtime. Successful requests return HTTP 200, and WSS4J rejects authentication
+failures with HTTP 500 SOAP Faults. Both response verification flags stay null
+on every exchange. A false plain check fails the k6 threshold and still allows
+the live exchanges to run in the same iteration.
+
+Run these checks from the repository root. The cold interop gate includes
+`TestK6UsernameTokenExchanges`.
+
+```sh
+go test ./test/interop -run '^TestInteropUsernameTokenEchoFixture$'
+make build-k6
+bin/k6 run --quiet --no-usage-report test/interop/username-inputs.js
+make verify
+make interop
+```
+
 ## Independent evidence matrix
 
 [matrix.json](matrix.json) records the CP-T3 cases. The core has 24 rows:
