@@ -153,6 +153,16 @@ and withholding after tampering. See the
 [interop fixture guide](../test/interop/README.md#encrypted-response-echo-fixtures)
 for provenance, the quote-style control, and verification commands.
 
+### WSS4J signed Timestamp freshness Echo fixtures
+
+The Timestamp freshness suite pins the success Echo and reuses the identical
+matrix Fault trigger. Plain builds compare the raw Body operation bytes for
+both SOAP versions and outcomes before signing. The 12 live exchanges retain
+runtime-generated fresh, stale, and future signed replies and the separate
+signature, freshness, and content withholding checks. See the
+[interop fixture guide](../test/interop/README.md#signed-timestamp-freshness-echo-fixtures)
+for provenance, the quote-style control, and verification commands.
+
 ## Merge policy
 
 The active `main` ruleset requires the GitHub Actions `required-ci` and

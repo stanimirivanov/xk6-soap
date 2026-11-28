@@ -5,3 +5,4 @@ test/interop/testdata/matrix/*.xml text eol=lf
 test/interop/testdata/header-encryption/*.xml text eol=lf
 test/interop/testdata/receive/*.xml text eol=lf
 test/interop/testdata/response-encryption/*.xml text eol=lf
+test/interop/testdata/timestamp/*.xml text eol=lf

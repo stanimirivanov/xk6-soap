@@ -428,6 +428,40 @@ make verify
 make interop
 ```
 
+### Signed Timestamp freshness Echo fixtures
+
+The [Timestamp freshness migration](https://github.com/stanimirivanov/xk6-soap/issues/169)
+pins the 89-byte [success Echo](testdata/timestamp/echo-success.xml) with LF in
+Git. It preserves the synthetic `TIMESTAMP_PRIVATE_SENTINEL` value and reuses
+the byte-identical 68-byte [matrix Fault trigger](testdata/matrix/echo-fault.xml).
+The focused fixture test compares both files with the former inline bytes,
+including the absence of trailing newlines.
+
+k6 loads both fixtures at initialization and shares them between plain and
+signed builds. A plain `Client.build()` for each SOAP version and outcome
+compares the raw Body operation with its fixture. A SOAP 1.2 success control
+changes only the namespace declaration's quote style and preserves the Echo
+value and byte length. The same comparator accepts the changed bytes against
+the changed input and rejects them against the checked-in fixture. The
+standalone checks send zero HTTP requests and omit operation XML in diagnostics.
+
+`TestK6TimestampFreshness` retains 12 live signed exchanges across both SOAP
+versions, all three Timestamp modes, and both outcomes. WSS4J generates and
+signs fresh, stale, and future Timestamps at runtime. The expected response
+marker is fixed independently of the fixture bytes. A false plain check fails
+the k6 threshold and still allows the live exchanges to run in the same iteration.
+
+Run these checks from the repository root. The cold interop gate includes
+`TestK6TimestampFreshness`.
+
+```sh
+go test ./test/interop -run '^TestInteropTimestampFreshnessEchoFixtures$'
+make build-k6
+bin/k6 run --quiet --no-usage-report test/interop/timestamp-inputs.js
+make verify
+make interop
+```
+
 ## Independent evidence matrix
 
 [matrix.json](matrix.json) records the CP-T3 cases. The core has 24 rows:
