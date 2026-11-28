@@ -360,6 +360,38 @@ make build-k6
 bin/k6 run --quiet --no-usage-report test/interop/header-encryption-inputs.js
 ```
 
+### Signed receive Echo fixtures
+
+The [signed receive migration](https://github.com/stanimirivanov/xk6-soap/issues/163)
+pins the [success Echo](testdata/receive/echo-success.xml) with LF in Git and
+reuses the [matrix Fault trigger](testdata/matrix/echo-fault.xml). The focused
+fixture test compares both files with their former inline bytes, including
+the absence of trailing newlines.
+
+k6 loads both fixtures at initialization and shares them between plain and
+signed builds. A plain build for each SOAP version and outcome compares the
+raw Body operation with its fixture. A plain SOAP 1.2 control changes only
+the success operation's namespace declaration quote style and keeps the Echo
+value and byte length. The same comparator accepts the altered bytes as
+supplied and rejects them against the original fixture. Plain builds send
+zero HTTP requests and omit XML from failure diagnostics.
+
+`TestK6VerifiedResponses` retains four live signed requests to `sig11` and
+`sig12`. WSS4J independently signs both the HTTP 200 success and HTTP 500
+Fault replies. The suite checks signatures, Timestamps, UTF-8 declaration
+parity, and Body-scoped XPath. A wrong leaf pin or tampered content withholds
+Body and Fault content. Explicitly skipping signature verification exposes
+content with null verification flags. The suite checks log privacy.
+
+Run the focused checks from the repository root before `make verify` and the
+cold WSS4J `make interop` pre-push gate.
+
+```sh
+go test ./test/interop -run '^TestInteropSignedReceiveEchoFixtures$'
+make build-k6
+bin/k6 run --quiet --no-usage-report test/interop/receive-inputs.js
+```
+
 ## Independent evidence matrix
 
 [matrix.json](matrix.json) records the CP-T3 cases. The core has 24 rows:
