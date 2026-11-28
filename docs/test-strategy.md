@@ -115,6 +115,15 @@ The matrix sends 48 live protected exchanges. The
 [interop fixture guide](../test/interop/README.md#matrix-echo-fixtures) records
 the fixture provenance, quote-style control, and verification commands.
 
+### WSS4J matrix Header fixtures
+
+The [matrix Header migration](https://github.com/stanimirivanov/xk6-soap/issues/159)
+pins Trace and Other. A plain companion build for each SOAP version compares
+their ordered raw XML before WS-Security. The matrix retains all 48 protected
+exchanges and the selective encryption and visibility checks. The
+[interop fixture guide](../test/interop/README.md#matrix-header-fixtures)
+records the quote-style control and verification commands.
+
 ## Merge policy
 
 The active `main` ruleset requires the GitHub Actions `required-ci` and

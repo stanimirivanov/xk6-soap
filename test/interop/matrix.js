@@ -9,6 +9,10 @@ const operations = {
   success: open('./testdata/matrix/echo-success.xml'),
   fault: open('./testdata/matrix/echo-fault.xml'),
 };
+const headerBlocks = [
+  {name: 'trace', xml: open('./testdata/matrix/header-trace.xml')},
+  {name: 'other', xml: open('./testdata/matrix/header-other.xml')},
+];
 const soapVersions = ['1.1', '1.2'];
 const plainClients = Object.fromEntries(soapVersions.map(soapVersion => [
   soapVersion, new Client({url: __ENV.SOAP_INTEROP_URL, soapVersion}),
@@ -60,6 +64,35 @@ function checkPlainOperations() {
   });
 }
 
+function matchesPlainHeader(request, blocks) {
+  // The plain SOAP serializer writes fixed Header and Body wrappers.
+  const rawHeader = request.body.match(/<s:Header>([\s\S]*?)<\/s:Header><s:Body>/)?.[1];
+  return rawHeader === blocks.map(block => block.xml).join('');
+}
+
+function checkPlainHeaders() {
+  for (const soapVersion of soapVersions) {
+    const request = plainClients[soapVersion].build('echo', operations.success, {
+      soapAction: 'urn:echo', headers: headerBlocks,
+    });
+    check(request, {
+      ['SOAP ' + soapVersion + ' retains ordered Header bytes']: r => matchesPlainHeader(r, headerBlocks),
+    });
+  }
+
+  const [traceBlock, otherBlock] = headerBlocks;
+  const changedTrace = traceBlock.xml.replace('xmlns:h="urn:trace"', "xmlns:h='urn:trace'");
+  const changedBlocks = [{...traceBlock, xml: changedTrace}, otherBlock];
+  const request = plainClients['1.2'].build('echo', operations.success, {
+    soapAction: 'urn:echo', headers: changedBlocks,
+  });
+  check(request, {
+    'namespace quote change produces distinct Header bytes': r =>
+      changedTrace.length === traceBlock.xml.length &&
+      matchesPlainHeader(r, changedBlocks) && !matchesPlainHeader(r, headerBlocks),
+  });
+}
+
 function wireMatches(body, row) {
   const type = row.target === 'content' ? 'Content' : 'Element';
   return body.includes('EncryptedData') &&
@@ -70,6 +103,7 @@ function wireMatches(body, row) {
 
 export default function () {
   checkPlainOperations();
+  checkPlainHeaders();
   for (const {row,client} of rows) {
     for (const outcome of row.outcomes) {
       const fault = outcome === 'fault';
@@ -78,10 +112,7 @@ export default function () {
       const label = row.endpoint + ' ' + outcome;
       const request = client.build('echo', operations[outcome], {
         soapAction: 'urn:echo',
-        ...(headers ? {headers: [
-          {name:'trace', xml:'<h:Trace xmlns:h="urn:trace">MATRIX_PRIVATE_HEADER</h:Trace>'},
-          {name:'other', xml:'<h:Other xmlns:h="urn:trace">clear-header</h:Other>'},
-        ]} : {}),
+        ...(headers ? {headers: headerBlocks} : {}),
       });
       check(request, {
         [label + ' request matches target and AES']: r =>
