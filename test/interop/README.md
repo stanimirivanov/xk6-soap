@@ -376,3 +376,29 @@ log privacy checks apply to those exchanges. Run the focused fixture and
 manifest checks with
 `go test ./test/interop -run '^TestInteropMatrix(EchoFixtures|Manifest)$'`,
 then `make verify` and the cold WSS4J `make interop` pre-push gate.
+
+### Matrix Header fixtures
+
+The [Trace and Other migration](https://github.com/stanimirivanov/xk6-soap/issues/159)
+moved the [Trace](testdata/matrix/header-trace.xml) and
+[Other](testdata/matrix/header-other.xml) blocks from inline strings to files
+beside the Echo fixtures. Both preserve the former bytes and omit trailing
+newlines. Git pins LF. k6 loads them at initialization and reuses the ordered
+`trace`, `other` inputs in plain and protected builds.
+
+One plain build per SOAP version compares the full raw Header with the two
+fixtures concatenated in order. A plain SOAP 1.2 control changes only the
+namespace declaration's quote style in Trace. It preserves the selector,
+namespace, text, and byte length and keeps Other unchanged. The same raw
+Header comparison accepts the altered bytes and rejects them against the
+original fixtures. These checks send zero HTTP requests and omit XML from
+diagnostics.
+
+The matrix retains all 48 protected exchanges, including 16 Header cases.
+The request wire must hide Trace and keep Other and the Body visible.
+Checks on independent replies verify wire visibility and authentication.
+The matrix also checks signature tampering and log privacy. Run the focused
+fixture byte and manifest tests with
+`go test ./test/interop -run '^TestInteropMatrix(EchoFixtures|HeaderFixtures|Manifest)$'`,
+then `make verify` and the cold WSS4J `make interop` pre-push gate, which
+also runs the plain builds.
