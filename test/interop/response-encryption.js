@@ -1,12 +1,13 @@
 import { Client } from 'k6/x/soap';
 import http from 'k6/http';
 import { check } from 'k6';
+import checkPlainBuilds, {buildEcho, operations, soapVersions} from './response-encryption-inputs.js';
 
 const cert = open('../../internal/wssec/testdata/signing-cert.pem', 'b');
 const key = open('../../internal/wssec/testdata/signing-key.pem', 'b');
 const server = open(__ENV.SOAP_INTEROP_SIGNATURE_TRUST, 'b');
 const cases = [];
-for (const soapVersion of ['1.1', '1.2']) {
+for (const soapVersion of soapVersions) {
   for (const bits of [128, 256]) {
     for (const [mode, receiveOrder, sendOrder] of [
       ['stefault','sign-then-encrypt','encrypt-then-sign'],
@@ -34,11 +35,12 @@ function flip(xml, start) {
 }
 
 export default function () {
+  checkPlainBuilds();
   for (const {client,soapVersion,bits,receiveOrder} of cases) {
-    for (const value of [sentinel, 'fault']) {
-      const req = client.build('echo', '<m:echo xmlns:m="urn:xk6-soap:fixture"><value>' + value + '</value></m:echo>', {soapAction:'urn:echo'});
+    for (const [outcome, operation] of Object.entries(operations)) {
+      const req = buildEcho(client, operation);
       const res = http.post(req.url,req.body,{headers:req.headers,timeout:'5s',redirects:0,responseType:'text'});
-      const isFault = value === 'fault';
+      const isFault = outcome === 'fault';
       const label = receiveOrder + ' ' + soapVersion + ' AES-' + bits + (isFault ? ' fault' : ' success');
       check(res,{
         [label + ' was encrypted by WSS4J']: r =>

@@ -143,6 +143,16 @@ the trust, tampering, and verification-skip controls. See the
 [interop fixture guide](../test/interop/README.md#signed-receive-echo-fixtures)
 for provenance, the quote-style control, and verification commands.
 
+### WSS4J encrypted response Echo fixtures
+
+The encrypted response suite pins the success Echo and reuses the identical
+matrix Fault trigger. Plain builds compare the raw Body operation bytes for
+both SOAP versions and outcomes before WS-Security. The 16 live exchanges
+cover encrypted success and Fault replies, authenticated content projection,
+and withholding after tampering. See the
+[interop fixture guide](../test/interop/README.md#encrypted-response-echo-fixtures)
+for provenance, the quote-style control, and verification commands.
+
 ## Merge policy
 
 The active `main` ruleset requires the GitHub Actions `required-ci` and
