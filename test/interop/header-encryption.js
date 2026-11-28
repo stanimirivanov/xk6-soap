@@ -1,6 +1,7 @@
 import { Client } from 'k6/x/soap';
 import http from 'k6/http';
 import { check } from 'k6';
+import checkPlainBuilds, { buildEcho } from './header-encryption-inputs.js';
 
 const cert = open('../../internal/wssec/testdata/signing-cert.pem', 'b');
 const key = open('../../internal/wssec/testdata/signing-key.pem', 'b');
@@ -29,14 +30,9 @@ for (const soapVersion of ['1.1','1.2']) {
 export const options = {vus:1,iterations:1,thresholds:{checks:['rate==1']}};
 
 export default function () {
+  checkPlainBuilds();
   for (const {client,bodyRequired,order,soapVersion} of cases) {
-    const req = client.build('echo','<m:echo xmlns:m="urn:xk6-soap:fixture"><value>visible-body</value></m:echo>',{
-      soapAction:'urn:echo',
-      headers:[
-        {name:'trace',xml:'<h:Trace xmlns:h="urn:trace">HEADER_ENCRYPTION_PRIVATE_SENTINEL</h:Trace>'},
-        {name:'other',xml:'<h:Other xmlns:h="urn:trace">clear-header</h:Other>'},
-      ],
-    });
+    const req = buildEcho(client);
     const label = order + ' SOAP ' + soapVersion;
     check(req,{
       [label + ' encrypts only the selected request header']: r =>

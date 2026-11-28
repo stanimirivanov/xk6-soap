@@ -325,6 +325,41 @@ header or its wrapper according to the order. Each direction keeps the Body
 and an unselected header clear. The native test also requires that header-only
 encryption fails a required Body encryption policy.
 
+### Dedicated Header encryption fixtures
+
+The [dedicated fixture migration](https://github.com/stanimirivanov/xk6-soap/issues/161)
+pins the [Echo operation](testdata/header-encryption/echo.xml) and the
+[suite-specific Trace block](testdata/header-encryption/header-trace.xml) to
+their former inline bytes. The suite reuses the
+[matrix Other block](testdata/matrix/header-other.xml), which has the same
+bytes as the former dedicated input. Git pins LF. The focused fixture test
+compares all three files with their former inline bytes, including the absence
+of trailing newlines.
+
+k6 loads the files at initialization. Plain and protected builds use the same
+Echo operation and ordered Trace and Other inputs. One plain build per SOAP
+version compares the raw Body operation and entire raw Header with the
+fixture bytes. A plain SOAP 1.2 control changes only the Trace namespace
+declaration's quote style. It verifies that the raw Header preserves the
+change at the same length, that the original Header comparison rejects it,
+and that the Body operation is unchanged. The plain builds send zero HTTP
+requests and omit XML from failure diagnostics.
+
+The four live exchanges check that the request hides Trace and keeps Other
+and the Body visible. The reply from WSS4J must pass signature and Timestamp
+verification, the recovered signed Header policy, and the Body XPath check.
+The second parse applies the stricter Body encryption policy and requires
+`POLICY_VIOLATION` and a null Body. The suite checks log privacy.
+
+Run the focused checks from the repository root before `make verify` and the
+cold WSS4J `make interop` pre-push gate.
+
+```sh
+go test ./test/interop -run '^TestInteropHeaderEncryptionFixtures$'
+make build-k6
+bin/k6 run --quiet --no-usage-report test/interop/header-encryption-inputs.js
+```
+
 ## Independent evidence matrix
 
 [matrix.json](matrix.json) records the CP-T3 cases. The core has 24 rows:
