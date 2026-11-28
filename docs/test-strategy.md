@@ -163,6 +163,16 @@ signature, freshness, and content withholding checks. See the
 [interop fixture guide](../test/interop/README.md#signed-timestamp-freshness-echo-fixtures)
 for provenance, the quote-style control, and verification commands.
 
+### WSS4J UsernameToken and outbound Timestamp Echo fixture
+
+The UsernameToken and outbound Timestamp suite reuses the signed receive
+success Echo. Plain builds compare raw Body operation bytes for both SOAP
+versions. The 26 live exchanges exercise both password forms, per-call
+credential overrides, exact-request replay rejection, and runtime-generated
+security headers. See the
+[interop fixture guide](../test/interop/README.md#usernametoken-and-outbound-timestamp-echo-fixture)
+for provenance, the quote-style control, and verification commands.
+
 ## Merge policy
 
 The active `main` ruleset requires the GitHub Actions `required-ci` and
