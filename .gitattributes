@@ -4,3 +4,4 @@ test/fixture/testdata/soap12/*.xml text eol=lf
 test/interop/testdata/matrix/*.xml text eol=lf
 test/interop/testdata/header-encryption/*.xml text eol=lf
 test/interop/testdata/receive/*.xml text eol=lf
+test/interop/testdata/response-encryption/*.xml text eol=lf

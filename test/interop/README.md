@@ -392,6 +392,42 @@ make build-k6
 bin/k6 run --quiet --no-usage-report test/interop/receive-inputs.js
 ```
 
+### Encrypted response Echo fixtures
+
+The [encrypted response migration](https://github.com/stanimirivanov/xk6-soap/issues/166)
+pins the [success Echo](testdata/response-encryption/echo-success.xml) with
+LF in Git. It preserves the synthetic `RESPONSE_PRIVATE_SENTINEL` value
+and reuses the byte-identical [matrix Fault trigger](testdata/matrix/echo-fault.xml).
+The focused fixture test compares both files with the former inline bytes,
+including the absence of trailing newlines.
+
+k6 loads both fixtures at initialization and shares them between plain and
+protected builds. A plain `Client.build()` for each SOAP version and outcome
+compares the raw Body operation with its fixture. A SOAP 1.2 success control
+changes only the namespace declaration's quote style and preserves the Echo
+value and byte length. The same comparator accepts the altered bytes against
+the altered input and rejects them against the checked-in fixture. Plain
+builds send zero HTTP requests and omit XML from failure diagnostics.
+
+`TestK6EncryptedResponsesAndFaults` retains 16 live exchanges covering both
+SOAP versions, both AES-GCM sizes, both opposite send and receive order
+combinations, and both outcomes. The suite checks HTTP 200 and HTTP 500,
+ciphertext visibility, signature and Timestamp verification, decrypted
+projection, withholding after wrapped-key or signature tampering, and log
+privacy. The expected response marker and Fault reason are fixed independently
+of the fixture bytes.
+
+Run these checks from the repository root. The cold interop gate includes
+`TestK6EncryptedResponsesAndFaults`.
+
+```sh
+go test ./test/interop -run '^TestInteropEncryptedResponseEchoFixtures$'
+make build-k6
+bin/k6 run --quiet --no-usage-report test/interop/response-encryption-inputs.js
+make verify
+make interop
+```
+
 ## Independent evidence matrix
 
 [matrix.json](matrix.json) records the CP-T3 cases. The core has 24 rows:
